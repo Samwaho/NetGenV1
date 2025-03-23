@@ -1,0 +1,14 @@
+You've been invited to join {{ organization_name }}
+
+{{ inviter_name }} has invited you to join {{ organization_name }} as a {{ role_name }}.
+
+{% if invite_message %}
+Message from {{ inviter_name }}:
+"{{ invite_message }}"
+{% endif %}
+
+To accept the invitation, visit this link:
+{{ invite_link }}
+
+This invitation will expire in 7 days. If you don't want to join or received this by mistake, 
+you can safely ignore this email. 
