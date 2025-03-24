@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import jwt
 from app.config.settings import settings
-from jwt.exceptions import InvalidTokenError
+from jwt.exceptions import PyJWTError
 from fastapi import HTTPException
 import bcrypt
 
@@ -74,7 +74,7 @@ def verify_token(token: str) -> dict:
         
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
-    except InvalidTokenError:
+    except PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to decode token: {str(e)}")

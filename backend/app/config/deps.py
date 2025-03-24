@@ -3,7 +3,7 @@ from typing import Optional
 from app.config.utils import verify_token
 from app.config.database import users
 import logging
-from strawberry import BaseContext
+from strawberry.fastapi import BaseContext
 from fastapi import Request, HTTPException
 from functools import cached_property
 
@@ -49,3 +49,7 @@ class Context(BaseContext):
                 headers={"WWW-Authenticate": "Bearer"}
             )
         return self._user
+
+async def get_context(request: Request) -> Context:
+    """Return Context instance instead of dict"""
+    return Context(request=request)

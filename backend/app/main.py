@@ -4,17 +4,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 from app.config.database import connect_to_database, close_database_connection
 from app.config.settings import settings
+from app.config.deps import get_context
+from app.resolvers.auth import AuthResolver
 
 
 @strawberry.type
-class Query():
-
-    @strawberry.field
-    def hello(self) -> str:
-        return "Hello World"
+class Query(AuthResolver):
+    pass
 
 @strawberry.type
-class Mutation():
+class Mutation(AuthResolver):
     pass
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

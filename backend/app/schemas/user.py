@@ -1,36 +1,28 @@
 import strawberry
-from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
-from enum import Enum
+from dataclasses import field
 from app.models.user import DBUser
-from app.schemas.organization import Organization
-
-@strawberry.enum
-class UserRole(Enum):
-    ADMIN = "ADMIN"
-    USER = "USER"
-    SUPERUSER = "SUPERUSER"
+from app.schemas.enums import UserRole
 
 @strawberry.type
-class User(BaseModel):
+class User:
     id: str
     firstName: str
     lastName: str
-    email: EmailStr
+    email: str
     phone: str
     role: UserRole 
     isVerified: bool
-    organizations: Optional[List[Organization]] = None      
+    organizations: Optional[List["Organization"]] = field(default_factory=list)
     createdAt: datetime
     updatedAt: datetime
 
     @classmethod
     def from_db(cls, user: DBUser) -> "User":
+        from app.schemas.organization import Organization
         converted_user = user.model_dump()
-
         converted_user["id"] = user._id
-
         converted_user.pop("_id")
         converted_user.pop("password")
 
@@ -38,8 +30,6 @@ class User(BaseModel):
             converted_user["organizations"] = [Organization.from_db(organization) for organization in user.organizations]
 
         return cls(**converted_user)
-    
-
 
 @strawberry.type
 class UserResponse:
@@ -51,4 +41,6 @@ class UserResponse:
 class UsersResponse:
     success: bool
     message: str
-    users: List[User] = []
+    users: List[User] = field(default_factory=list)
+
+from app.schemas.organization import Organization

@@ -1,9 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from enum import Enum
-from pydantic import EmailStr
-from app.schemas.user import UserRole
 from typing import List, Optional
+from app.schemas.enums import UserRole
 
 class DBUser(BaseModel):
     _id: str

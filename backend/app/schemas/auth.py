@@ -1,24 +1,24 @@
 import strawberry
-from pydantic import BaseModel, EmailStr
 from typing import Optional
 from app.schemas.user import User
 
 @strawberry.input
-class LoginInput(BaseModel):
-    email: EmailStr
+class LoginInput:
+    email: str
     password: str
 
 @strawberry.input
-class RegisterInput(BaseModel):
+class RegisterInput:
     firstName: str
     lastName: str
-    email: EmailStr
+    email: str
     phone: str
     password: str
     
 @strawberry.type
-class AuthResponse(BaseModel):
+class AuthResponse:
     success: bool
     message: str
-    user: Optional[User] = None
+    token: Optional[str] = None
+    user: Optional["User"] = None
 

@@ -18,7 +18,7 @@ class AuthResolver:
     @strawberry.mutation
     async def login(self, input: LoginInput) -> str:
         try:
-            user = users.find_one({"email": input.email})
+            user = await users.find_one({"email": input.email})
             if not user or not verify_password(input.password, user["password"]):
                 return AuthResponse(success=False, message="Invalid credentials")
             if not user["isVerified"]:
@@ -31,7 +31,7 @@ class AuthResolver:
     @strawberry.mutation
     async def register(self, input: RegisterInput) -> AuthResponse:
         try:
-            existing_user = users.find_one({"email": input.email})
+            existing_user = await users.find_one({"email": input.email})
             if existing_user:
                 return AuthResponse(success=False, message="User already exists")
             hashed_password = hash_password(input.password)
@@ -53,7 +53,7 @@ class AuthResolver:
 
             email_sent = await email_manager.send_verification_email(
                 to_email=input.email,
-                username=input.username,
+                username=input.firstName,
                 verification_url=verification_url
             )
 

@@ -1,7 +1,16 @@
+import strawberry
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
-from app.schemas.organization import  OrganizationPermission, OrganizationStatus, OrganizationMemberStatus, OrganizationRole
+from app.schemas.enums import OrganizationStatus, OrganizationMemberStatus, OrganizationPermission
+from dataclasses import field
+
+@strawberry.type
+class OrganizationRole:
+    name: str
+    description: Optional[str] = None
+    permissions: List[OrganizationPermission] = field(default_factory=list)
+    isSystemRole: bool = False
 
 class DBOrganizationMember(BaseModel):
     userId: str

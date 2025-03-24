@@ -1,54 +1,28 @@
-from pydantic import BaseModel
+import strawberry
 from datetime import datetime
 from typing import Optional, List
-import strawberry
-from app.schemas.user import User
-from enum import Enum
+from dataclasses import field
 from app.models.organization import DBOrganization, DBOrganizationMember
 from app.config.database import users
-
-@strawberry.enum
-class OrganizationPermission(str, Enum):
-    MANAGE_MEMBERS = "MANAGE_MEMBERS"
-    MANAGE_ROLES = "MANAGE_ROLES"
-    MANAGE_ORGANIZATION = "MANAGE_ORGANIZATION"
-    VIEW_ANALYTICS = "VIEW_ANALYTICS"
-    MANAGE_BILLING = "MANAGE_BILLING"
-    MANAGE_SUBSCRIPTIONS = "MANAGE_SUBSCRIPTIONS"
-    ACCESS_ISP_MANAGER = "ACCESS_ISP_MANAGER"
-    VIEW_ISP_MANAGER_DASHBOARD = "VIEW_ISP_MANAGER_DASHBOARD"
-    VIEW_ISP_MANAGER_PACKAGES = "VIEW_ISP_MANAGER_PACKAGES"
-    MANAGE_ISP_MANAGER_PACKAGES = "MANAGE_ISP_MANAGER_PACKAGES"
-    
-@strawberry.enum
-class OrganizationStatus(str, Enum):
-    ACTIVE = "ACTIVE"
-    SUSPENDED = "SUSPENDED"
-    PENDING = "PENDING"
-    ARCHIVED = "ARCHIVED"
-
-@strawberry.enum
-class OrganizationMemberStatus(str, Enum):
-    ACTIVE = "ACTIVE"
-    INACTIVE = "INACTIVE"
+from app.schemas.enums import OrganizationPermission, OrganizationStatus, OrganizationMemberStatus
+from app.schemas.user import User
 
 @strawberry.type
 class OrganizationRole:
     name: str
     description: Optional[str] = None
-    permissions: List[OrganizationPermission]
+    permissions: List[OrganizationPermission] = field(default_factory=list)
     isSystemRole: bool = False
-
-
 
 @strawberry.type
 class OrganizationMember:
-    user: User
+    user: "User"
     role: OrganizationRole
     status: OrganizationMemberStatus
 
     @classmethod
     def from_db(cls, member: DBOrganizationMember, roles: List[OrganizationRole]):
+        from app.schemas.user import User  # Import here to avoid circular import
         role = next((role for role in roles if role.name == member.roleName), None)
         converted_member = member.model_dump()
         converted_member["user"] = User.from_db(users.find_one({"_id": member.userId}))
@@ -57,25 +31,25 @@ class OrganizationMember:
         return cls(**converted_member)
 
 @strawberry.type
-class Organization(BaseModel):
+class Organization:
     id: str
     name: str
     description: Optional[str] = None
     owner: User
-    members: List[OrganizationMember]
-    roles: List[OrganizationRole]
+    members: List[OrganizationMember] = field(default_factory=list)
+    roles: List[OrganizationRole] = field(default_factory=list)
     status: OrganizationStatus
     createdAt: datetime
     updatedAt: datetime
 
     @classmethod
     def from_db(cls, organization: DBOrganization):
+        from app.schemas.user import User  # Import here to avoid circular import
         converted_organization = organization.model_dump()
         converted_organization["id"] = organization._id
         converted_organization["owner"] = User.from_db(users.find_one({"_id": organization.ownerId}))
         converted_organization["members"] = [OrganizationMember.from_db(member, organization.roles) for member in organization.members]
         return cls(**converted_organization)
-
 
 @strawberry.type
 class OrganizationResponse:
@@ -87,7 +61,9 @@ class OrganizationResponse:
 class OrganizationsResponse:
     success: bool
     message: str
-    organizations: List[Organization]
+    organizations: List[Organization] = field(default_factory=list)
+
+
 
 
 
