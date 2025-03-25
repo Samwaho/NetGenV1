@@ -4,8 +4,7 @@ import SignInForm from "./SignInForm";
 
 const Page = () => {
   return (
-    <div className="flex min-h-full items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 p-4 sm:p-8 bg-card rounded-lg glow">
+      <div className="w-full max-w-md space-y-2 p-4 sm:p-8 bg-card rounded-lg glow">
         <div className="mx-auto h-12 w-12 rounded-full bg-fuchsia-100 flex items-center justify-center">
           <FaLock className="h-6 w-6 text-fuchsia-600" />
         </div>
@@ -30,7 +29,6 @@ const Page = () => {
         </p>
         <SignInForm />
       </div>
-    </div>
   );
 };
 

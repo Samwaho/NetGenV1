@@ -98,12 +98,8 @@ const SignInForm = () => {
   
     const [login, { loading }] = useMutation(SIGN_IN, {
         onCompleted: (data) => {
-            if (data.login.success) {
-                toast.success(data.login.message);
-                router.push("/");
-            } else {
-                toast.error(data.login.message);
-            }
+          toast.success(data.login.message);
+          router.push("/");
         },
         onError: (error) => {
             toast.error(error.message);
@@ -124,7 +120,7 @@ const SignInForm = () => {
 
   return (
     <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6 mt-4 sm:mt-8">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4 sm:mt-8">
             <FormField
                 control={form.control}
                 name="email"
