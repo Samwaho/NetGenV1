@@ -17,6 +17,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-border": "var(--border)",
         } as React.CSSProperties
       }
+      toastOptions={{
+        classNames: {
+          toast: "border glow",
+          error: "!bg-card !text-red-600 border-red-600/20 glow",
+          success: "!bg-card !text-emerald-600 border-emerald-600/20 glow",
+          warning: "!bg-card !text-amber-600 border-amber-600/20 glow",
+          info: "!bg-card !text-sky-600 border-sky-600/20 glow",
+          description: "!text-muted-foreground",
+        },
+        duration: 3000,
+      }}
       {...props}
     />
   )

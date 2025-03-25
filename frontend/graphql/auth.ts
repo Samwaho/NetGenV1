@@ -46,29 +46,16 @@ export const GOOGLE_AUTH_URL = gql`
 `;
 
 export const GOOGLE_CALLBACK = gql`
-    mutation GoogleCallback($code: String!) {
-        googleCallback(code: $code) {
+    mutation GoogleAuthCallback($code: String!) {
+        googleAuthCallback(code: $code) {
             success
             message
+            token
         }
     }
 `;
 
-export const GOOGLE_AUTH_URL_MUTATION = gql`
-    mutation GoogleAuthUrl {
-        googleAuthUrl
-    }
-`;
-
-export const GOOGLE_CALLBACK_MUTATION = gql`
-    mutation GoogleCallback($code: String!) {
-        googleCallback(code: $code) {
-            success
-            message
-        }
-    }
-`;
 
 export interface GoogleCallbackResponse {
-    googleCallback: AuthResponse;
-  }
+    googleAuthCallback: AuthResponse;
+}

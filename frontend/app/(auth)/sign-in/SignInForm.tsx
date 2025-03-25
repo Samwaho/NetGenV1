@@ -39,31 +39,63 @@ const SignInForm = () => {
 
   const codeProcessed = React.useRef(false);
 
-  const handleGoogleLogin = async () => {
-    try {
-      const { data } = await getGoogleAuthUrl();
-      if (data?.googleAuthUrl) {
-        window.location.href = data.googleAuthUrl;
-      } else {
-        toast.error("Failed to get Google authentication URL");
-      }
-    } catch (error) {
-      toast.error("Failed to initiate Google sign in");
-      console.error("Google auth error:", error);
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error) {
+      const errorMessages: { [key: string]: string } = {
+        missing_auth_code: "Authorization code not received from Google",
+        invalid_auth_code: "Invalid authorization code",
+        missing_credentials: "Failed to obtain Google credentials",
+        invalid_token: "Invalid authentication token",
+        access_denied: "Access was denied by Google",
+        invalid_request: "Invalid authentication request",
+        server_error: "Server error occurred during authentication",
+      };
+      toast.error(errorMessages[error] || "Authentication failed");
     }
-  };
+  }, [searchParams]);
 
   useEffect(() => {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
+    const error = searchParams.get("error");
+
+    if (error) {
+      const errorMessages: { [key: string]: string } = {
+        access_denied: "Access was denied by Google",
+        invalid_request: "Invalid authentication request",
+        invalid_scope: "Invalid scope requested",
+        server_error: "Server error occurred during authentication",
+        temporarily_unavailable: "Google authentication is temporarily unavailable",
+      };
+      toast.error(errorMessages[error] || "Authentication failed");
+      return;
+    }
 
     if (code && state === "google-auth" && !codeProcessed.current) {
-      codeProcessed.current = true; // Mark this code as processed
+      console.log("Processing Google auth callback with code:", code);
+      codeProcessed.current = true;
       handleGoogleCallback({
         variables: { code },
       });
     }
   }, [searchParams, handleGoogleCallback]);
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { data } = await getGoogleAuthUrl();
+      if (data?.googleAuthUrl) {
+        console.log("Redirecting to Google auth URL");
+        window.location.href = data.googleAuthUrl;
+      } else {
+        toast.error("Failed to get Google authentication URL");
+      }
+    } catch (error) {
+      console.error("Google auth error:", error);
+      toast.error("Failed to initiate Google sign in");
+    }
+  };
+  
     const [login, { loading }] = useMutation(SIGN_IN, {
         onCompleted: (data) => {
             if (data.login.success) {

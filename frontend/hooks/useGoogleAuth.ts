@@ -2,8 +2,8 @@ import { useMutation } from "@apollo/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
-  GOOGLE_AUTH_URL_MUTATION,
-  GOOGLE_CALLBACK_MUTATION,
+  GOOGLE_AUTH_URL,
+  GOOGLE_CALLBACK,
   GoogleCallbackResponse,
 } from "@/graphql/auth";
 import { setAuthToken } from "@/lib/auth-utils";
@@ -14,37 +14,39 @@ export const useGoogleAuth = () => {
   const [getGoogleAuthUrl, { loading: googleAuthLoading }] = useMutation<
     { googleAuthUrl: string },
     void
-  >(GOOGLE_AUTH_URL_MUTATION, {
+  >(GOOGLE_AUTH_URL, {
     onError: (error) => {
-      toast.error("Failed to initiate Google sign in");
       console.error("Google auth URL error:", error);
+      toast.error("Failed to initiate Google sign in");
     },
   });
 
   const [handleGoogleCallback, { loading: googleCallbackLoading }] = useMutation<
     GoogleCallbackResponse,
     { code: string }
-  >(GOOGLE_CALLBACK_MUTATION, {
+  >(GOOGLE_CALLBACK, {
     onCompleted: (data) => {
+      console.log("Google callback response:", data);
       try {
-        if (data?.googleCallback?.token) {
-          setAuthToken("Bearer", data.googleCallback.token);
-          router.replace("/");
+        const response = data?.googleAuthCallback;
+        if (response?.success && response?.token) {
+          setAuthToken("Bearer", response.token);
+          toast.success(response.message || "Successfully signed in with Google");
+          router.push("/");
           router.refresh();
-          toast.success("Successfully signed in with Google!");
         } else {
-          throw new Error("No token received from Google authentication");
+          throw new Error(response?.message || "Authentication failed");
         }
       } catch (error) {
-        console.error("Error setting auth token:", error);
-        toast.error("Failed to complete authentication");
-        router.replace("/sign-in");
+        console.error("Error processing Google callback:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to complete authentication");
+        router.push("/sign-in");
       }
     },
     onError: (error) => {
-      toast.error("Failed to complete Google authentication");
       console.error("Google callback error:", error);
-      router.replace("/sign-in");
+      toast.error(error.message || "Failed to complete Google authentication");
+      router.push("/sign-in");
     },
   });
 
