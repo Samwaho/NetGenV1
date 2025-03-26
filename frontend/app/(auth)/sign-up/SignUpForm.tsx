@@ -21,6 +21,7 @@ import { FcGoogle } from "react-icons/fc";
 import { useSearchParams } from "next/navigation";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import React, { useEffect } from "react";
+import { setAuthToken } from "@/lib/auth-utils";
 
 const formSchema = z
   .object({
@@ -115,8 +116,10 @@ const SignUpForm = () => {
 
   const [signUp, { loading }] = useMutation(REGISTER, {
     onCompleted: (data) => {
+      setAuthToken("Bearer ", data.register.token);
+      localStorage.setItem("pendingVerificationEmail", data.register.userEmail);
       toast.success(data.register.message);
-      router.push("/sign-in");
+      router.push("/check-verification");
     },
     onError: (error) => {
       toast.error(error.message);

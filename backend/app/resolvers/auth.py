@@ -67,7 +67,7 @@ class AuthResolver:
         if not email_sent:
             logger.warning(f"Failed to send verification email to {input.email}")
 
-        return AuthResponse(success=True, message="User registered successfully")
+        return AuthResponse(success=True, message="User registered successfully", userEmail=input.email)
 
     @strawberry.mutation
     async def verifyEmail(self, token: str) -> AuthResponse:

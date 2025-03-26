@@ -9,16 +9,15 @@ export interface AuthResponse {
 export interface LoginInput {
     email: string;
     password: string;
-  }
+}
   
-  export interface RegisterInput {
+export interface RegisterInput {
     email: string;
-    username: string;
     password: string;
     firstName: string;
     lastName: string;
     phone: string;
-  }
+}
 
 export const SIGN_IN = gql`
     mutation Login($input: LoginInput!) {
@@ -33,6 +32,43 @@ export const SIGN_IN = gql`
 export const REGISTER = gql`
     mutation Register($input: RegisterInput!) {
         register(input: $input) {
+            success
+            message
+            userEmail
+        }
+    }
+`;
+
+export const VERIFY_EMAIL = gql`
+    mutation VerifyEmail($token: String!) {
+        verifyEmail(token: $token) {
+            success
+            message
+        }
+    }
+`;
+
+export const RESEND_VERIFICATION = gql`
+    mutation ResendVerificationEmail($email: String!) {
+        resendVerificationEmail(email: $email) {
+            success
+            message
+        }
+    }
+`;
+
+export const FORGOT_PASSWORD = gql`
+    mutation ForgotPassword($email: String!) {
+        forgotPassword(email: $email) {
+            success
+            message
+        }
+    }
+`;
+
+export const RESET_PASSWORD = gql`
+    mutation ResetPassword($token: String!, $newPassword: String!) {
+        resetPassword(token: $token, newPassword: $newPassword) {
             success
             message
         }
@@ -55,7 +91,22 @@ export const GOOGLE_CALLBACK = gql`
     }
 `;
 
-
 export interface GoogleCallbackResponse {
     googleAuthCallback: AuthResponse;
+}
+
+export interface VerifyEmailResponse {
+    verifyEmail: AuthResponse;
+}
+
+export interface ResendVerificationResponse {
+    resendVerificationEmail: AuthResponse;
+}
+
+export interface ForgotPasswordResponse {
+    forgotPassword: AuthResponse;
+}
+
+export interface ResetPasswordResponse {
+    resetPassword: AuthResponse;
 }

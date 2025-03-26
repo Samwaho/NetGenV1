@@ -20,5 +20,5 @@ class AuthResponse:
     success: bool
     message: str
     token: Optional[str] = None
-    user: Optional["User"] = None
+    userEmail: Optional[str] = None
 
