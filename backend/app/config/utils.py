@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import jwt
 from app.config.settings import settings
-from jwt.exceptions import PyJWTError
+from jose import jwt, JWTError
 from fastapi import HTTPException
 import bcrypt
 
@@ -56,7 +56,7 @@ def create_password_reset_token(email: str) -> str:
         algorithm=settings.ALGORITHM
     )
 
-def verify_token(token: str) -> dict:
+async def verify_token(token: str) -> dict:
     """Verify JWT token and return payload"""
     try:
         payload = jwt.decode(
@@ -74,7 +74,7 @@ def verify_token(token: str) -> dict:
         
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
-    except PyJWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to decode token: {str(e)}")

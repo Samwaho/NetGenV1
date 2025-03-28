@@ -19,6 +19,21 @@ export interface RegisterInput {
     phone: string;
 }
 
+export const CURRENT_USER = gql`
+    query CurrentUser {
+        currentUser {
+            id
+            email
+            firstName
+            lastName
+            phone
+            organizations{
+                id
+            }
+        }
+    }
+`;
+
 export const SIGN_IN = gql`
     mutation Login($input: LoginInput!) {
         login(input: $input) {

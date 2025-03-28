@@ -21,6 +21,7 @@ import { FcGoogle } from "react-icons/fc";
 import { useSearchParams } from "next/navigation";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import React, { useEffect } from "react";
+import { setAuthToken } from "@/lib/auth-utils";
 
 const formSchema = z.object({
     email: z.string().email(),
@@ -98,6 +99,8 @@ const SignInForm = () => {
   
     const [login, { loading }] = useMutation(SIGN_IN, {
         onCompleted: (data) => {
+          const token = data.login.token;
+          setAuthToken("Bearer", token);
           toast.success(data.login.message);
           router.push("/");
         },

@@ -11,12 +11,22 @@ from app.config.email import email_manager
 import logging
 from jose import jwt
 import httpx
+from typing import Optional
+from strawberry import Info
+from app.config.deps import Context
 
 logger = logging.getLogger(__name__)
 
 
 @strawberry.type
 class AuthResolver:
+    
+    @strawberry.field
+    async def current_user(self, info: Info) -> Optional[User]:
+        """Get current user"""
+        context: Context = info.context
+        return await context.authenticate()
+    
     @strawberry.mutation
     async def login(self, input: LoginInput) -> AuthResponse:
         user = await users.find_one({"email": input.email})

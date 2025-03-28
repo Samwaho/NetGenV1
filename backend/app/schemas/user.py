@@ -21,12 +21,22 @@ class User:
     @classmethod
     def from_db(cls, user: DBUser) -> "User":
         from app.schemas.organization import Organization
-        converted_user = user.model_dump()
-        converted_user["id"] = user._id
-        converted_user.pop("_id")
-        converted_user.pop("password")
-
-        if user.organizations:
+        
+        # Create a dictionary from user object attributes manually
+        converted_user = {
+            "id": user._id,
+            "firstName": user.firstName,
+            "lastName": user.lastName,
+            "email": user.email,
+            "phone": user.phone,
+            "role": user.role,
+            "isVerified": user.isVerified,
+            "createdAt": user.createdAt,
+            "updatedAt": user.updatedAt
+        }
+        
+        # Handle organizations if present
+        if hasattr(user, 'organizations') and user.organizations:
             converted_user["organizations"] = [Organization.from_db(organization) for organization in user.organizations]
 
         return cls(**converted_user)

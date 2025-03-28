@@ -1,13 +1,14 @@
-from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import List, Optional
 from app.schemas.enums import UserRole
+import strawberry
 
-class DBUser(BaseModel):
+@strawberry.type
+class DBUser():
     _id: str
     firstName: str
     lastName: str
-    email: EmailStr
+    email: str
     phone: str
     password: str
     role: UserRole
