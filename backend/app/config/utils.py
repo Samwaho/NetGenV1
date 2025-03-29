@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import jwt
 from app.config.settings import settings
@@ -55,6 +55,19 @@ def create_password_reset_token(email: str) -> str:
         settings.SECRET_KEY, 
         algorithm=settings.ALGORITHM
     )
+
+
+def create_invitation_token(organization_id: str, email: str, role_name: str) -> str:
+    """Create a token for organization invitation"""
+    to_encode = {
+        "type": "organization_invitation",
+        "organization_id": organization_id,
+        "email": email,
+        "role_name": role_name,
+        "exp": datetime.now(timezone.utc) + timedelta(days=7)  # Invitation expires in 7 days
+    }
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
 
 async def verify_token(token: str) -> dict:
     """Verify JWT token and return payload"""

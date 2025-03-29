@@ -4,6 +4,9 @@ from datetime import datetime
 from dataclasses import field
 from app.models.user import DBUser
 from app.schemas.enums import UserRole
+import logging
+
+logger = logging.getLogger(__name__)
 
 @strawberry.type
 class User:
@@ -12,32 +15,61 @@ class User:
     lastName: str
     email: str
     phone: str
-    role: UserRole 
+    role: UserRole
     isVerified: bool
     organizations: Optional[List["Organization"]] = field(default_factory=list)
     createdAt: datetime
     updatedAt: datetime
 
     @classmethod
-    def from_db(cls, user: DBUser) -> "User":
+    async def from_db(cls, user) -> "User":
         from app.schemas.organization import Organization
-        
-        # Create a dictionary from user object attributes manually
-        converted_user = {
-            "id": user._id,
-            "firstName": user.firstName,
-            "lastName": user.lastName,
-            "email": user.email,
-            "phone": user.phone,
-            "role": user.role,
-            "isVerified": user.isVerified,
-            "createdAt": user.createdAt,
-            "updatedAt": user.updatedAt
-        }
-        
+        from app.config.database import organizations
+
+        # Handle both dictionary and object types
+        if isinstance(user, dict):
+            # Access dictionary keys
+            converted_user = {
+                "id": user["_id"],
+                "firstName": user["firstName"],
+                "lastName": user["lastName"],
+                "email": user["email"],
+                "phone": user["phone"],
+                "role": user["role"],
+                "isVerified": user["isVerified"],
+                "createdAt": user["createdAt"],
+                "updatedAt": user["updatedAt"]
+            }
+            user_orgs = user.get("organizations", [])
+        else:
+            # Access object attributes
+            converted_user = {
+                "id": user._id,
+                "firstName": user.firstName,
+                "lastName": user.lastName,
+                "email": user.email,
+                "phone": user.phone,
+                "role": user.role,
+                "isVerified": user.isVerified,
+                "createdAt": user.createdAt,
+                "updatedAt": user.updatedAt
+            }
+            user_orgs = user.organizations if hasattr(user, 'organizations') else []
+
         # Handle organizations if present
-        if hasattr(user, 'organizations') and user.organizations:
-            converted_user["organizations"] = [Organization.from_db(organization) for organization in user.organizations]
+        if user_orgs:
+            # Fetch organization objects from database using the IDs
+            org_objects = []
+            for org_id in user_orgs:
+                org = await organizations.find_one({"_id": org_id})
+                if org:
+                    org_objects.append(org)
+
+            # Use list comprehension with await
+            orgs = []
+            for organization in org_objects:
+                orgs.append(await Organization.from_db(organization))
+            converted_user["organizations"] = orgs
 
         return cls(**converted_user)
 

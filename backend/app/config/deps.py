@@ -16,7 +16,7 @@ async def get_current_user(token: str = None) -> Optional[User]:
     try:
         payload = await verify_token(token)
         user_id = payload.get("sub")
-        
+
         if not user_id:
             return None
 
@@ -28,13 +28,13 @@ async def get_current_user(token: str = None) -> Optional[User]:
         except Exception as e:
             logger.error(f"Error converting user ID to ObjectId: {str(e)}")
             user = await users.find_one({"_id": user_id})
-        
+
         if not user:
-            return None           
+            return None
         # Convert to DBUser model
         db_user = DBUser(**user)
         # Convert to User schema
-        return User.from_db(db_user)
+        return await User.from_db(db_user)
 
     except Exception as e:
         logger.error(f"Error getting current user: {str(e)}", exc_info=True)
@@ -106,7 +106,7 @@ class Context(BaseContext):
                 detail="Authentication required",
                 headers={"WWW-Authenticate": "Bearer"}
             )
-        
+
         self._authenticated_user = user
         return user
 

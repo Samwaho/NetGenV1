@@ -6,14 +6,16 @@ from app.config.database import connect_to_database, close_database_connection
 from app.config.settings import settings
 from app.config.deps import get_context
 from app.resolvers.auth import AuthResolver
+from app.resolvers.organization import OrganizationResolver
+
 
 
 @strawberry.type
-class Query(AuthResolver):
+class Query(AuthResolver, OrganizationResolver):
     pass
 
 @strawberry.type
-class Mutation(AuthResolver):
+class Mutation(AuthResolver, OrganizationResolver):
     pass
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

@@ -39,13 +39,13 @@ email_conf = ConnectionConfig(
 class EmailManager:
     def __init__(self):
         self.fastmail = FastMail(email_conf)
-        
+
         # Setup Jinja2 environment
         template_dir = Path(__file__).parent.parent / "templates" / "emails"
         if not template_dir.exists():
             logger.error(f"Email template directory not found: {template_dir}")
             raise FileNotFoundError(f"Email template directory not found: {template_dir}")
-            
+
         self.env = Environment(
             loader=FileSystemLoader(str(template_dir)),
             autoescape=True
@@ -61,7 +61,7 @@ class EmailManager:
         """Send an email using FastMail with a template."""
         try:
             logger.info(f"Preparing to send email to {recipients}")
-            
+
             # Add common template variables
             context = context or {}
             context.update({
@@ -69,22 +69,22 @@ class EmailManager:
                 'logo_url': f"{settings.FRONTEND_URL}/logo.png",
                 'expire_minutes': settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES
             })
-            
+
             # Render template
             template = self.env.get_template(template_name)
             html_content = template.render(**context)
-            
+
             message = MessageSchema(
                 subject=subject,
                 recipients=recipients,  # FastMail will validate email addresses
                 body=html_content,
                 subtype="html"
             )
-            
+
             await self.fastmail.send_message(message)
             logger.info(f"Email sent successfully to {recipients}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to send email: {str(e)}", exc_info=True)
             return False
@@ -125,7 +125,7 @@ class EmailManager:
                 "reset_url": reset_url,
                 "expires_in": "1 hour"
             }
-            
+
             # Send email directly without background tasks
             return await self.send_email(
                 subject=subject,
@@ -145,7 +145,7 @@ class EmailManager:
         role_name: str,
         invite_message: str | None,
         invite_link: str
-    ) -> None:
+    ) -> bool:
         """Send an organization invitation email"""
         try:
             context = {
@@ -156,7 +156,7 @@ class EmailManager:
                 "invite_link": invite_link
             }
 
-            await self.send_email(
+            return await self.send_email(
                 subject=f"Invitation to join {organization_name}",
                 recipients=[to_email],
                 template_name="organization_invitation.html",
@@ -164,7 +164,7 @@ class EmailManager:
             )
         except Exception as e:
             logger.error(f"Failed to send organization invitation email: {str(e)}", exc_info=True)
-            raise e
+            return False
 
 # Create a global instance
 email_manager = EmailManager()
