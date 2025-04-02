@@ -8,14 +8,15 @@ from app.config.deps import get_context
 from app.resolvers.auth import AuthResolver
 from app.resolvers.organization import OrganizationResolver
 from app.resolvers.plan import PlanResolver
+from app.resolvers.subscription import SubscriptionResolver
 
 
 @strawberry.type
-class Query(AuthResolver, OrganizationResolver, PlanResolver):
+class Query(AuthResolver, OrganizationResolver, PlanResolver, SubscriptionResolver):
     pass
 
 @strawberry.type
-class Mutation(AuthResolver, OrganizationResolver, PlanResolver):
+class Mutation(AuthResolver, OrganizationResolver, PlanResolver, SubscriptionResolver):
     pass
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
