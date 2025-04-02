@@ -132,6 +132,9 @@
   .text-gradient-custom2 {
     @apply bg-gradient-to-tl from-slate-600 to-slate-800 bg-clip-text text-transparent;
   }
+  .dark .text-gradient-custom2 {
+    @apply bg-gradient-to-tl from-slate-50 to-slate-100 bg-clip-text text-transparent;
+  }
   .glow {
     box-shadow: 
       0 8px 32px 0 rgba(31, 38, 135, 0.4),
