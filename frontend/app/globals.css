@@ -45,9 +45,9 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.983 0.003 257.36);
+  --background: oklch(0.946 0.001 0);
   --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(0.983 0.003 257.36)
+  --card: oklch(0.983 0.003 257.36);
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(0.983 0.003 257.36);
   --popover-foreground: oklch(0.129 0.042 264.695);
@@ -146,7 +146,7 @@
     box-shadow: 
       0 8px 32px 0 rgba(31, 38, 135, 0.4),
       inset 0 0 0 1px rgba(255, 255, 255, 0.3);
-      
+      color: #f0efef
   }
   
 }
