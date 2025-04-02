@@ -13,6 +13,7 @@ from app.schemas.subscription import (
 )
 from app.config.deps import Context
 from bson.objectid import ObjectId
+from app.config.utils import record_activity
 import logging
 
 logger = logging.getLogger(__name__)
@@ -116,6 +117,13 @@ class SubscriptionResolver:
         result = await subscriptions.insert_one(subscription_data)
         subscription_data["_id"] = result.inserted_id
 
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(input.organizationId),
+            f"created subscription for plan {plan['name']}"
+        )
+
         return SubscriptionResponse(
             success=True,
             message="Subscription created successfully",
@@ -149,19 +157,32 @@ class SubscriptionResolver:
             "updatedAt": datetime.now(timezone.utc)
         }
 
+        changes = []
         if input.status is not None:
             update_data["status"] = input.status
+            changes.append(f"status to {input.status}")
         if input.startDate is not None:
             update_data["startDate"] = input.startDate
+            changes.append(f"start date to {input.startDate.strftime('%Y-%m-%d')}")
         if input.endDate is not None:
             update_data["endDate"] = input.endDate
+            changes.append(f"end date to {input.endDate.strftime('%Y-%m-%d')}")
         if input.autoRenew is not None:
             update_data["autoRenew"] = input.autoRenew
+            changes.append(f"auto-renewal to {'enabled' if input.autoRenew else 'disabled'}")
 
         await subscriptions.update_one(
             {"_id": ObjectId(id)},
             {"$set": update_data}
         )
+
+        # Record activity
+        if changes:
+            await record_activity(
+                current_user.id,
+                subscription["organizationId"],
+                f"updated subscription: {', '.join(changes)}"
+            )
 
         updated_subscription = await subscriptions.find_one({"_id": ObjectId(id)})
         return SubscriptionResponse(
@@ -205,6 +226,13 @@ class SubscriptionResolver:
         await subscriptions.update_one(
             {"_id": ObjectId(id)},
             {"$set": update_data}
+        )
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            subscription["organizationId"],
+            "cancelled subscription"
         )
 
         updated_subscription = await subscriptions.find_one({"_id": ObjectId(id)})

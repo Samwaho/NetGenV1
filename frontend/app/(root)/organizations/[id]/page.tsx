@@ -9,6 +9,7 @@ import { OrganizationHeader } from "./components/OrganizationHeader";
 import { OrganizationStats } from "./components/OrganizationStats";
 import { MembersTab } from "./components/MembersTab";
 import { RolesTab } from "./components/RolesTab";
+import { SubscriptionsTab } from "./components/SubscriptionsTab";
 import { ActivityTab } from "./components/ActivityTab";
 import InviteMemberModal from "./InviteMemberModal";
 import { LoadingSkeleton } from "./components/LoadingSkeleton";
@@ -48,6 +49,7 @@ const OrganizationPage = () => {
         <TabsList>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="roles">Roles</TabsTrigger>
+          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -61,6 +63,12 @@ const OrganizationPage = () => {
         <TabsContent value="roles">
           <RolesTab 
             roles={organization.roles}
+            organizationId={organizationId}
+          />
+        </TabsContent>
+
+        <TabsContent value="subscriptions">
+          <SubscriptionsTab 
             organizationId={organizationId}
           />
         </TabsContent>
@@ -83,6 +91,7 @@ const OrganizationPage = () => {
 };
 
 export default OrganizationPage;
+
 
 
 
