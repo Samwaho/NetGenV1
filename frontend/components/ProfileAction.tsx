@@ -11,7 +11,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { Settings, LogIn, User, DollarSign } from "lucide-react";
+import { Settings, LogIn, User, DollarSign, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removeAuthToken } from "@/lib/auth-utils";
 
@@ -65,6 +65,13 @@ const ProfileAction = () => {
           >
             <DollarSign className="w-4 h-4" />
             Pricing
+          </Link>
+          <Link
+            href="/organizations"
+            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted"
+          >
+            <Building2 className="w-4 h-4" />
+            Organizations
           </Link>
           <Link
             href="/settings"

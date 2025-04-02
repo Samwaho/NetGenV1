@@ -18,13 +18,15 @@ class OrganizationRole:
 
 @strawberry.type
 class OrganizationMember:
-    user: "User"
+    user: Optional["User"] = None  # Make user field optional with default None
     role: OrganizationRole
     status: OrganizationMemberStatus
+    email: Optional[str] = None  # Add email field for pending invitations
 
     @classmethod
     async def from_db(cls, member, roles: List[OrganizationRole]):
-        from app.schemas.user import User  # Import here to avoid circular import
+        from app.schemas.user import User
+        from app.config.database import users
 
         # Handle both dictionary and object types
         if isinstance(member, dict):
@@ -37,23 +39,28 @@ class OrganizationMember:
             status = member.status
 
         # Find the role
-        role = None
-        for r in roles:
-            if isinstance(r, dict) and r.get("name", "") == role_name:
-                role = r
-                break
-            elif hasattr(r, 'name') and r.name == role_name:
-                role = r
-                break
+        role = next((r for r in roles if 
+            (isinstance(r, dict) and r.get("name") == role_name) or
+            (hasattr(r, 'name') and r.name == role_name)), None)
 
-        # Fetch user data
+        # Handle pending invitations where userId is an email
+        if isinstance(user_id, str) and '@' in user_id:
+            return cls(
+                user=None,
+                role=role,
+                status=status,
+                email=user_id
+            )
+
+        # Fetch user data for active members
         user_data = await users.find_one({"_id": user_id}) if user_id else None
         user = await User.from_db(user_data) if user_data else None
 
         return cls(
             user=user,
             role=role,
-            status=status
+            status=status,
+            email=user.email if user else None
         )
 
 @strawberry.type

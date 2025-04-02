@@ -146,8 +146,8 @@ const Page = () => {
         {plans.map((plan, index) => (
           <Card
             key={plan.id}
-            className={`flex flex-col glow backdrop-blur-sm ${
-              index === 1 ? "border-primary shadow-lg relative" : ""
+            className={`flex flex-col glow ${
+              index === 1 ? "border-primary relative" : ""
             }`}
           >
             {index === 1 && (
@@ -164,7 +164,7 @@ const Page = () => {
             <CardContent className="flex-1">
               <div className="mb-6">
                 <span className="text-4xl font-bold text-gradient-custom2">
-                  {plan.currency === "USD" ? "$" : plan.currency}
+                  {plan.currency === "USD" ? "$" : plan.currency}{" "}
                   {getPrice(plan.price)}
                 </span>
                 <span className="text-muted-foreground ml-2">

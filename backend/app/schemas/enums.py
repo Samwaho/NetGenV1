@@ -32,3 +32,4 @@ class OrganizationStatus(str, Enum):
 class OrganizationMemberStatus(str, Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
+    PENDING = "PENDING"
