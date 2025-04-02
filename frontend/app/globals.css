@@ -121,10 +121,16 @@
   }
 
   .bg-gradient-custom {
-    @apply bg-gradient-to-tl from-pink-500 to-purple-600;
+    @apply bg-gradient-to-tl from-pink-500 to-purple-600 hover:from-purple-600 hover:to-pink-500;
   }
   .bg-gradient-custom2 {
-    @apply bg-gradient-to-tl from-slate-600 to-slate-800;
+    @apply bg-gradient-to-tl from-slate-600 to-slate-800 hover:from-slate-800 hover:to-slate-600;
+  }
+  .text-gradient-custom {
+    @apply bg-gradient-to-tl from-pink-500 to-purple-600 bg-clip-text text-transparent;
+  }
+  .text-gradient-custom2 {
+    @apply bg-gradient-to-tl from-slate-600 to-slate-800 bg-clip-text text-transparent;
   }
   .glow {
     box-shadow: 

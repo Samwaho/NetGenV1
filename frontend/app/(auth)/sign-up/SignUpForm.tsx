@@ -296,7 +296,7 @@ const SignUpForm = () => {
           </div>
         </div>
         <Button
-          className="w-full h-9 sm:h-10 flex items-center justify-center space-x-2 bg-gradient-custom2 cursor-pointer text-sm sm:text-base"
+          className="w-full h-9 sm:h-10 flex items-center justify-center space-x-2 bg-gradient-custom2 text-white hover:text-white cursor-pointer text-sm sm:text-base"
           variant="outline"
           onClick={handleGoogleSignUp}
           disabled={googleAuthLoading || googleCallbackLoading}
