@@ -1,14 +1,20 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config.settings import settings
+import certifi
 
-# Create MongoDB client
-client = AsyncIOMotorClient(settings.MONGODB_URL)
+# Create MongoDB client with SSL configuration
+client = AsyncIOMotorClient(
+    settings.MONGODB_URL,
+    tls=True,
+    tlsCAFile=certifi.where(),
+    serverSelectionTimeoutMS=5000
+)
 db = client[settings.DATABASE_NAME]
 
 # Export collections for easy access
 users = db.users
 organizations = db.organizations
-services = db.services
+plans = db.plans
 subscriptions = db.subscriptions
 activities = db.activities
 isp_manager_packages = db.isp_manager_packages
