@@ -5,7 +5,6 @@ import { useQuery } from "@apollo/client";
 import { useParams } from "next/navigation";
 import { GET_ORGANIZATION } from "@/graphql/organization";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
 import { OrganizationHeader } from "./components/OrganizationHeader";
 import { OrganizationStats } from "./components/OrganizationStats";
 import { MembersTab } from "./components/MembersTab";
@@ -16,11 +15,15 @@ import { LoadingSkeleton } from "./components/LoadingSkeleton";
 
 const OrganizationPage = () => {
   const params = useParams();
+  const organizationId = params?.id as string;
+  
   const { loading, error, data } = useQuery(GET_ORGANIZATION, {
-    variables: { id: params.id },
+    variables: { id: organizationId },
+    skip: !organizationId,
   });
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
+  if (!organizationId) return <div>Invalid organization ID</div>;
   if (loading) return <LoadingSkeleton />;
   if (error) return <div>Error loading organization</div>;
 
@@ -58,12 +61,12 @@ const OrganizationPage = () => {
         <TabsContent value="roles">
           <RolesTab 
             roles={organization.roles}
-            organizationId={params.id as string}
+            organizationId={organizationId}
           />
         </TabsContent>
 
         <TabsContent value="activity">
-          <ActivityTab />
+          <ActivityTab organizationId={organizationId} />
         </TabsContent>
       </Tabs>
 
@@ -71,7 +74,7 @@ const OrganizationPage = () => {
         <InviteMemberModal
           isOpen={isInviteModalOpen}
           onClose={() => setIsInviteModalOpen(false)}
-          organizationId={params.id as string}
+          organizationId={organizationId}
           roles={data.organization.roles}
         />
       )}
@@ -80,4 +83,6 @@ const OrganizationPage = () => {
 };
 
 export default OrganizationPage;
+
+
 

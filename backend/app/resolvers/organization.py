@@ -3,7 +3,7 @@ from typing import Optional, List
 import strawberry
 from fastapi import HTTPException
 from jwt.exceptions import PyJWTError
-from app.config.database import organizations, users
+from app.config.database import organizations, users, activities  # Add activities import
 from app.schemas.organization import (
     Organization,
     OrganizationResponse,
@@ -20,6 +20,7 @@ import logging
 import jwt
 from app.config.deps import Context
 from bson.objectid import ObjectId
+from app.config.utils import record_activity
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,13 @@ class OrganizationResolver:
             {"$push": {"organizations": str(result.inserted_id)}}
         )
 
+        # Record activity
+        await record_activity(
+            current_user.id,
+            result.inserted_id,
+            f"created organization {input.name}"
+        )
+
         return OrganizationResponse(
             success=True,
             message="Organization created successfully",
@@ -152,6 +160,13 @@ class OrganizationResolver:
         await organizations.update_one(
             {"_id": ObjectId(id)},
             {"$set": update_data}
+        )
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(id),
+            f"updated organization details"
         )
 
         updated_org = await organizations.find_one({"_id": ObjectId(id)})
@@ -254,6 +269,13 @@ class OrganizationResolver:
             }
         )
 
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"invited {email} as {role_name}"
+        )
+
         updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
         return OrganizationResponse(
             success=True,
@@ -335,6 +357,13 @@ class OrganizationResolver:
                 }
             )
 
+            # Record activity
+            await record_activity(
+                current_user.id,
+                ObjectId(organization_id),
+                f"joined organization"
+            )
+
             # Get updated organization
             updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
             
@@ -391,6 +420,13 @@ class OrganizationResolver:
                 "$push": {"roles": new_role},
                 "$set": {"updatedAt": datetime.now(timezone.utc)}
             }
+        )
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"created role {input.name}"
         )
 
         updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
@@ -458,6 +494,13 @@ class OrganizationResolver:
             }
         )
 
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"updated role {role_name}"
+        )
+
         # If role name changed, update all members using this role
         if input.name != role_name:
             await organizations.update_many(
@@ -513,6 +556,13 @@ class OrganizationResolver:
                 "$pull": {"roles": {"name": role_name}},
                 "$set": {"updatedAt": datetime.now(timezone.utc)}
             }
+        )
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"deleted role {role_name}"
         )
 
         updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})

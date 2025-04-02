@@ -9,14 +9,27 @@ from app.resolvers.auth import AuthResolver
 from app.resolvers.organization import OrganizationResolver
 from app.resolvers.plan import PlanResolver
 from app.resolvers.subscription import SubscriptionResolver
+from app.resolvers.activity import ActivityResolver
 
 
 @strawberry.type
-class Query(AuthResolver, OrganizationResolver, PlanResolver, SubscriptionResolver):
+class Query(
+    AuthResolver, 
+    OrganizationResolver, 
+    PlanResolver, 
+    SubscriptionResolver,
+    ActivityResolver
+):
     pass
 
 @strawberry.type
-class Mutation(AuthResolver, OrganizationResolver, PlanResolver, SubscriptionResolver):
+class Mutation(
+    AuthResolver, 
+    OrganizationResolver, 
+    PlanResolver, 
+    SubscriptionResolver,
+    ActivityResolver
+):
     pass
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

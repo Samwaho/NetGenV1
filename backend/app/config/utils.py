@@ -5,6 +5,8 @@ from app.config.settings import settings
 from jose import jwt, JWTError
 from fastapi import HTTPException
 import bcrypt
+from app.config.database import activities
+from bson.objectid import ObjectId
 
 def create_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
     """Create JWT token for user"""
@@ -99,3 +101,14 @@ def verify_password(password: str, hashed_password: str) -> bool:
 def hash_password(password: str) -> str:
     """Hash password"""
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+async def record_activity(user_id: str, organization_id: ObjectId, action: str):
+    """Helper function to record organization-related activities"""
+    activity_data = {
+        "userId": user_id,
+        "organizationId": organization_id,
+        "action": action,
+        "createdAt": datetime.now(timezone.utc),
+        "updatedAt": datetime.now(timezone.utc)
+    }
+    await activities.insert_one(activity_data)
