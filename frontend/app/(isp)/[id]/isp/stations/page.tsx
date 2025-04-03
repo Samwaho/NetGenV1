@@ -134,7 +134,7 @@ export default function StationsPage() {
       <StationDialog 
         open={isDialogOpen} 
         onOpenChange={setIsDialogOpen} 
-        organizationId={organizationId}
+        organizationId={organizationId as string}
       />
     </div>
   );

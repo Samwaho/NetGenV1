@@ -11,6 +11,7 @@ from app.resolvers.plan import PlanResolver
 from app.resolvers.subscription import SubscriptionResolver
 from app.resolvers.activity import ActivityResolver
 from app.resolvers.isp_station import ISPStationResolver
+from app.resolvers.isp_package import ISPPackageResolver
 
 
 @strawberry.type
@@ -20,7 +21,8 @@ class Query(
     PlanResolver, 
     SubscriptionResolver,
     ActivityResolver,
-    ISPStationResolver
+    ISPStationResolver,
+    ISPPackageResolver
 ):
     pass
 
@@ -31,7 +33,8 @@ class Mutation(
     PlanResolver, 
     SubscriptionResolver,
     ActivityResolver,
-    ISPStationResolver
+    ISPStationResolver,
+    ISPPackageResolver
 ):
     pass
 

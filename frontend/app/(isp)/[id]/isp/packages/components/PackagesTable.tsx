@@ -1,22 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import {
   ColumnDef,
-  ColumnFiltersState,
-  SortingState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
+  useReactTable,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable,
+  SortingState,
+  getFilteredRowModel,
+  ColumnFiltersState,
   FilterFn,
 } from "@tanstack/react-table";
-import { rankItem } from "@tanstack/match-sorter-utils";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -25,6 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -32,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { rankItem } from "@tanstack/match-sorter-utils";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];

@@ -127,4 +127,6 @@ class ISPPackageResponse:
 class ISPPackagesResponse:
     success: bool
     message: str
+    packages: List[ISPPackage] = field(default_factory=list)
+
 
