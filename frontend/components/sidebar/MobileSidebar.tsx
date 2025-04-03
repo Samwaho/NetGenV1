@@ -19,22 +19,13 @@ import {
 import { sidebarData } from "@/lib/constants";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, UserCircle, LogOut } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 interface MobileSidebarProps {
-  loggedInUser?: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    profileImage?: string;
-    username: string;
-    role: string;
-    name?: string;
-  };
+  organizationId: string;
 }
 
-const MobileSidebar: React.FC<MobileSidebarProps> = ({ loggedInUser }) => {
+const MobileSidebar: React.FC<MobileSidebarProps> = ({ organizationId }) => {
   const pathname = usePathname();
 
   return (
@@ -64,43 +55,47 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ loggedInUser }) => {
 
                 <CommandList className="mt-4">
                   <CommandEmpty>No results found.</CommandEmpty>
-                  {sidebarData.map((item) => (
-                    <CommandItem
-                      key={item.title}
-                      className="py-2 px-1 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/20 rounded-md transition-colors"
-                    >
-                      <Link
-                        className="flex items-center gap-4 w-full"
-                        href={item.path}
+                  {sidebarData.map((item) => {
+                    const itemPath = item.path(organizationId);
+                    const isActive = 
+                      (itemPath === `/${organizationId}/isp` && pathname === `/${organizationId}/isp`) || 
+                      (itemPath !== `/${organizationId}/isp` && pathname.startsWith(itemPath));
+
+                    return (
+                      <CommandItem
+                        key={item.title}
+                        className="py-2 px-1 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/20 rounded-md transition-colors"
                       >
-                        <i
-                          className={`p-1 rounded-md shadow-md text-white transition-all duration-300 ${
-                            (item.path === "/main" && pathname === "/main") || 
-                            (item.path !== "/main" && pathname.startsWith(item.path))
-                              ? "bg-gradient-custom scale-110"
-                              : "bg-gradient-custom2 hover:scale-105"
-                          }`}
+                        <Link
+                          className="flex items-center gap-4 w-full"
+                          href={itemPath}
                         >
-                          <item.icon className="size-4" />
-                        </i>
-                        <p
-                          className={`text-md font-medium ${
-                            (item.path === "/main" && pathname === "/main") || 
-                            (item.path !== "/main" && pathname.startsWith(item.path))
-                              ? "text-fuchsia-600 dark:text-fuchsia-400"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {item.title}
-                        </p>
-                      </Link>
-                    </CommandItem>
-                  ))}
+                          <i
+                            className={`p-1 rounded-md shadow-md text-white transition-all duration-300 ${
+                              isActive
+                                ? "bg-gradient-custom scale-110"
+                                : "bg-gradient-custom2 hover:scale-105"
+                            }`}
+                          >
+                            <item.icon className="size-4" />
+                          </i>
+                          <p
+                            className={`text-md font-medium ${
+                              isActive
+                                ? "text-gradient-custom"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {item.title}
+                          </p>
+                        </Link>
+                      </CommandItem>
+                    );
+                  })}
                 </CommandList>
               </Command>
             </div>
           </div>
-          
         </div>
       </DrawerContent>
     </Drawer>

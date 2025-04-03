@@ -1,22 +1,15 @@
-import { Organization } from './organization';
-
-export type StationStatus = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'OFFLINE';
-
-export type BuildingType = 'RESIDENTIAL' | 'COMMERCIAL' | 'INDUSTRIAL' | 'GOVERNMENT' | 'EDUCATIONAL' | 'OTHER';
-
-export interface ISPStation {
+export type ISPStation = {
   id: string;
   name: string;
   description?: string;
-  organization: Organization;
   location: string;
-  buildingType: BuildingType;
+  buildingType: 'APARTMENT' | 'OFFICE' | 'SCHOOL' | 'HOSPITAL' | 'RESIDENTIAL' | 'COMMERCIAL' | 'INDUSTRIAL' | 'GOVERNMENT' | 'OTHER';
   notes?: string;
-  status: StationStatus;
+  status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE' | 'OFFLINE';
   coordinates?: string;
   createdAt: string;
   updatedAt: string;
-}
+};
 
 export interface ISPStationsResponse {
   stations: {

@@ -14,11 +14,14 @@ class StationStatus(str, Enum):
 
 @strawberry.enum
 class BuildingType(str, Enum):
+    APARTMENT = "APARTMENT"
+    OFFICE = "OFFICE"
+    SCHOOL = "SCHOOL"
+    HOSPITAL = "HOSPITAL"
     RESIDENTIAL = "RESIDENTIAL"
     COMMERCIAL = "COMMERCIAL"
     INDUSTRIAL = "INDUSTRIAL"
     GOVERNMENT = "GOVERNMENT"
-    EDUCATIONAL = "EDUCATIONAL"
     OTHER = "OTHER"
 
 @strawberry.type
@@ -71,9 +74,42 @@ class ISPStation:
             }
 
         # Fetch organization data
-        org_data = await organizations.find_one({"_id": org_id})
-        organization = await Organization.from_db(org_data) if org_data else None
-        converted_station["organization"] = organization
+        if org_id:
+            org_data = await organizations.find_one({"_id": org_id})
+            if org_data:
+                organization = await Organization.from_db(org_data)
+                converted_station["organization"] = organization
+            else:
+                # Create a placeholder organization if the actual one is not found
+                # This prevents the non-nullable field error
+                from bson import ObjectId
+                placeholder_org = {
+                    "_id": ObjectId(),
+                    "name": "Unknown Organization",
+                    "status": "INACTIVE",
+                    "owner": None,
+                    "members": [],
+                    "roles": [],
+                    "createdAt": datetime.now(),
+                    "updatedAt": datetime.now()
+                }
+                organization = await Organization.from_db(placeholder_org)
+                converted_station["organization"] = organization
+        else:
+            # Handle the case where org_id is None
+            from bson import ObjectId
+            placeholder_org = {
+                "_id": ObjectId(),
+                "name": "Unknown Organization",
+                "status": "INACTIVE",
+                "owner": None,
+                "members": [],
+                "roles": [],
+                "createdAt": datetime.now(),
+                "updatedAt": datetime.now()
+            }
+            organization = await Organization.from_db(placeholder_org)
+            converted_station["organization"] = organization
 
         return cls(**converted_station)
 
@@ -108,3 +144,4 @@ class UpdateISPStationInput:
     notes: Optional[str] = None
     status: Optional[StationStatus] = None
     coordinates: Optional[str] = None
+

@@ -94,3 +94,17 @@ export const UPDATE_ISP_STATION = gql`
     }
   }
 `;
+
+export const DELETE_ISP_STATION = gql`
+  mutation DeleteISPStation($id: String!) {
+    deleteStation(id: $id) {
+      success
+      message
+      station {
+        id
+        name
+      }
+    }
+  }
+`;
+

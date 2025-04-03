@@ -12,7 +12,7 @@ import {
 
 interface SidebarItem {
   title: string;
-  path: string;
+  path: (organizationId: string) => string;
   icon:
     | typeof LayoutDashboard
     | typeof Users 
@@ -28,47 +28,47 @@ interface SidebarItem {
 export const sidebarData: SidebarItem[] = [
   {
     title: "Dashboard",
-    path: "/isp",
+    path: (id) => `/${id}/isp`,
     icon: LayoutDashboard,
   },
   {
     title: "Customers",
-    path: "/isp/customers",
+    path: (id) => `/${id}/isp/customers`,
     icon: Users,
   },
   {
     title: "Packages",
-    path: "/isp/packages",
+    path: (id) => `/${id}/isp/packages`,
     icon: Box,
   },
   {
     title: "Stations",
-    path: "/isp/stations",
+    path: (id) => `/${id}/isp/stations`,
     icon: Building,
   },
   {
     title: "Inventory",
-    path: "/isp/inventory",
+    path: (id) => `/${id}/isp/inventory`,
     icon: Package,
   },
   {
     title: "Staff",
-    path: "/isp/staff",
+    path: (id) => `/${id}/isp/staff`,
     icon: UserCog,
   },
   {
     title: "Support Tickets",
-    path: "/isp/tickets",
+    path: (id) => `/${id}/isp/tickets`,
     icon: Ticket,
   },
   {
     title: "Transactions",
-    path: "/isp/transactions",
+    path: (id) => `/${id}/isp/transactions`,
     icon: DollarSign,
   },
   {
     title: "Agency",
-    path: "/isp/agency",
+    path: (id) => `/${id}/isp/agency`,
     icon: Warehouse,
   },
 ];

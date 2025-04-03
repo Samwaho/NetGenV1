@@ -37,6 +37,7 @@ const OrganizationPage = () => {
         name={organization.name}
         ownerName={ownerName}
         createdAt={organization.createdAt}
+        organizationId={organizationId}
       />
 
       <OrganizationStats 

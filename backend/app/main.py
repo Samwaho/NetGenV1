@@ -10,6 +10,7 @@ from app.resolvers.organization import OrganizationResolver
 from app.resolvers.plan import PlanResolver
 from app.resolvers.subscription import SubscriptionResolver
 from app.resolvers.activity import ActivityResolver
+from app.resolvers.isp_station import ISPStationResolver
 
 
 @strawberry.type
@@ -18,7 +19,8 @@ class Query(
     OrganizationResolver, 
     PlanResolver, 
     SubscriptionResolver,
-    ActivityResolver
+    ActivityResolver,
+    ISPStationResolver
 ):
     pass
 
@@ -28,7 +30,8 @@ class Mutation(
     OrganizationResolver, 
     PlanResolver, 
     SubscriptionResolver,
-    ActivityResolver
+    ActivityResolver,
+    ISPStationResolver
 ):
     pass
 

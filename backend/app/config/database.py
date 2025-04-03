@@ -17,9 +17,9 @@ organizations = db.organizations
 plans = db.plans
 subscriptions = db.subscriptions
 activities = db.activities
-isp_manager_packages = db.isp_manager_packages
-isp_manager_stations = db.isp_manager_stations
-isp_manager_customers = db.isp_manager_customers
+isp_packages = db.isp_packages
+isp_stations = db.isp_stations
+isp_customers = db.isp_customers
 
 async def connect_to_database():
     """Test database connection"""

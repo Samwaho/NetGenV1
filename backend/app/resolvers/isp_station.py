@@ -105,7 +105,7 @@ class ISPStationResolver:
             raise HTTPException(status_code=404, detail="Station not found")
 
         # Verify user has permission to update this station
-        organization = await organizations.find_one({"_id": station["organizationId"]})
+        organization = await organizations.find_one({"_id": ObjectId(station["organizationId"])})  # Convert to ObjectId
         if not organization:
             raise HTTPException(status_code=404, detail="Organization not found")
 
@@ -156,7 +156,7 @@ class ISPStationResolver:
             raise HTTPException(status_code=404, detail="Station not found")
 
         # Verify user has permission to delete this station
-        organization = await organizations.find_one({"_id": station["organizationId"]})
+        organization = await organizations.find_one({"_id": ObjectId(station["organizationId"])})  # Convert to ObjectId
         if not organization:
             raise HTTPException(status_code=404, detail="Organization not found")
 
