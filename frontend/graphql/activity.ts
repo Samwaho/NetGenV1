@@ -45,8 +45,8 @@ export const GET_ACTIVITY = gql`
   }
 `;
 export const CREATE_ACTIVITY = gql`
-  mutation CreateActivity($organization_id: String!, $action: String!) {
-    createActivity(organization_id: $organization_id, action: $action) {
+  mutation CreateActivity($organizationId: String!, $action: String!) {
+    createActivity(organizationId: $organizationId, action: $action) {
       success
       message
       activity {

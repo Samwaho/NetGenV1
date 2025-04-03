@@ -1,7 +1,7 @@
 import { gql } from "@apollo/client";
 export const GET_ISP_PACKAGES = gql`
-  query GetISPPackages {
-    packages {
+  query GetISPPackages($organizationId: String!) {
+    packages(organizationId: $organizationId) {
       success
       message
       packages {

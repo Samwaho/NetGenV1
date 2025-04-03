@@ -1,8 +1,8 @@
 import { gql } from "@apollo/client";
 
 export const GET_ISP_STATIONS = gql`
-  query GetISPStations {
-    stations {
+  query GetISPStations($organizationId: String!) {
+    stations(organizationId: $organizationId) {
       success
       message
       stations {
@@ -84,11 +84,16 @@ export const UPDATE_ISP_STATION = gql`
         id
         name
         description
+        organization {
+          id
+          name
+        }
         location
         buildingType
         notes
         status
         coordinates
+        createdAt
         updatedAt
       }
     }
@@ -107,4 +112,6 @@ export const DELETE_ISP_STATION = gql`
     }
   }
 `;
+
+
 

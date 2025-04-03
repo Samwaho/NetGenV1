@@ -12,7 +12,7 @@ import {
 import { ISPStation } from "@/types/isp_station";
 import { EditStationDialog } from "./EditStationDialog";
 import { useMutation } from "@apollo/client";
-import { DELETE_ISP_STATION, GET_ISP_STATIONS } from "@/graphql/isp_station";
+import { DELETE_ISP_STATION, GET_ISP_STATIONS } from "@/graphql/isp_stations";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -40,3 +40,22 @@ class IspManagerCustomerStatus(str, Enum):
     INACTIVE = "INACTIVE"
     SUSPENDED = "SUSPENDED"
     EXPIRED = "EXPIRED"
+
+@strawberry.enum
+class BuildingType(str, Enum):
+    APARTMENT = "APARTMENT"
+    OFFICE = "OFFICE"
+    SCHOOL = "SCHOOL"
+    HOSPITAL = "HOSPITAL"
+    RESIDENTIAL = "RESIDENTIAL"
+    COMMERCIAL = "COMMERCIAL"
+    INDUSTRIAL = "INDUSTRIAL"
+    GOVERNMENT = "GOVERNMENT"
+    OTHER = "OTHER"
+
+@strawberry.enum
+class StationStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    MAINTENANCE = "MAINTENANCE"
+    OFFLINE = "OFFLINE"

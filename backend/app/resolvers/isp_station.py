@@ -22,26 +22,57 @@ logger = logging.getLogger(__name__)
 class ISPStationResolver:
 
     @strawberry.field
-    async def station(self, id: str, info: strawberry.Info) -> ISPStation:
-        """Get ISP station by ID"""
+    async def station(self, id: str, info: strawberry.Info) -> ISPStationResponse:
+        """Get a specific ISP station"""
         context: Context = info.context
         current_user = await context.authenticate()
 
         station = await isp_stations.find_one({"_id": ObjectId(id)})
         if not station:
             raise HTTPException(status_code=404, detail="Station not found")
-        return await ISPStation.from_db(station)
+
+        # Verify user has access to the organization this station belongs to
+        org = await organizations.find_one({
+            "_id": station["organizationId"],
+            "members.userId": current_user.id
+        })
+        
+        if not org:
+            raise HTTPException(status_code=403, detail="Not authorized to access this station")
+
+        return ISPStationResponse(
+            success=True,
+            message="Station retrieved successfully",
+            station=await ISPStation.from_db(station)
+        )
 
     @strawberry.field
-    async def stations(self, info: strawberry.Info) -> ISPStationsResponse:
-        """Get all ISP stations"""
+    async def stations(self, info: strawberry.Info, organization_id: str) -> ISPStationsResponse:
+        """Get all ISP stations for a specific organization"""
         context: Context = info.context
         current_user = await context.authenticate()
 
-        all_stations = await isp_stations.find().sort("createdAt", -1).to_list(None)
+        # Verify user has access to the organization this station belongs to
+        org = await organizations.find_one({
+            "_id": ObjectId(organization_id),
+            "members.userId": current_user.id
+        })
+        
+        if not org:
+            raise HTTPException(status_code=403, detail="Not authorized to access this organization")
+
+        # Try both ObjectId and string formats
+        all_stations = await isp_stations.find({
+            "$or": [
+                {"organizationId": ObjectId(organization_id)},
+                {"organizationId": organization_id}
+            ]
+        }).to_list(None)
+
         station_list = []
         for station in all_stations:
-            station_list.append(await ISPStation.from_db(station))
+            converted_station = await ISPStation.from_db(station)
+            station_list.append(converted_station)
 
         return ISPStationsResponse(
             success=True,
@@ -178,4 +209,9 @@ class ISPStationResolver:
             message="Station deleted successfully",
             station=await ISPStation.from_db(station)
         )
+
+
+
+
+
 

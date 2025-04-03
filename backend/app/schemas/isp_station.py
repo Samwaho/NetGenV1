@@ -1,28 +1,10 @@
-import strawberry
 from datetime import datetime
 from typing import Optional, List
+import strawberry
 from dataclasses import field
+from bson import ObjectId
 from app.schemas.organization import Organization
-from enum import Enum
-
-@strawberry.enum
-class StationStatus(str, Enum):
-    ACTIVE = "ACTIVE"
-    INACTIVE = "INACTIVE"
-    MAINTENANCE = "MAINTENANCE"
-    OFFLINE = "OFFLINE"
-
-@strawberry.enum
-class BuildingType(str, Enum):
-    APARTMENT = "APARTMENT"
-    OFFICE = "OFFICE"
-    SCHOOL = "SCHOOL"
-    HOSPITAL = "HOSPITAL"
-    RESIDENTIAL = "RESIDENTIAL"
-    COMMERCIAL = "COMMERCIAL"
-    INDUSTRIAL = "INDUSTRIAL"
-    GOVERNMENT = "GOVERNMENT"
-    OTHER = "OTHER"
+from app.schemas.enums import BuildingType, StationStatus
 
 @strawberry.type
 class ISPStation:
@@ -42,12 +24,13 @@ class ISPStation:
     async def from_db(cls, station) -> "ISPStation":
         from app.schemas.organization import Organization
         from app.config.database import organizations
+        from bson import ObjectId
 
         # Handle both dictionary and object types
         if isinstance(station, dict):
             org_id = station.get("organizationId")
             converted_station = {
-                "id": station["_id"],
+                "id": str(station["_id"]),  # Convert ObjectId to string
                 "name": station["name"],
                 "description": station.get("description"),
                 "location": station["location"],
@@ -61,7 +44,7 @@ class ISPStation:
         else:
             org_id = station.organizationId
             converted_station = {
-                "id": station._id,
+                "id": str(station._id),  # Convert ObjectId to string
                 "name": station.name,
                 "description": station.description if hasattr(station, 'description') else None,
                 "location": station.location,
@@ -75,14 +58,12 @@ class ISPStation:
 
         # Fetch organization data
         if org_id:
-            org_data = await organizations.find_one({"_id": org_id})
+            org_data = await organizations.find_one({"_id": ObjectId(org_id) if isinstance(org_id, str) else org_id})
             if org_data:
                 organization = await Organization.from_db(org_data)
                 converted_station["organization"] = organization
             else:
                 # Create a placeholder organization if the actual one is not found
-                # This prevents the non-nullable field error
-                from bson import ObjectId
                 placeholder_org = {
                     "_id": ObjectId(),
                     "name": "Unknown Organization",
@@ -95,21 +76,6 @@ class ISPStation:
                 }
                 organization = await Organization.from_db(placeholder_org)
                 converted_station["organization"] = organization
-        else:
-            # Handle the case where org_id is None
-            from bson import ObjectId
-            placeholder_org = {
-                "_id": ObjectId(),
-                "name": "Unknown Organization",
-                "status": "INACTIVE",
-                "owner": None,
-                "members": [],
-                "roles": [],
-                "createdAt": datetime.now(),
-                "updatedAt": datetime.now()
-            }
-            organization = await Organization.from_db(placeholder_org)
-            converted_station["organization"] = organization
 
         return cls(**converted_station)
 
@@ -144,4 +110,6 @@ class UpdateISPStationInput:
     notes: Optional[str] = None
     status: Optional[StationStatus] = None
     coordinates: Optional[str] = None
+
+
 

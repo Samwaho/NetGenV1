@@ -121,4 +121,4 @@ class ISPCustomerResponse:
 class ISPCustomersResponse:
     success: bool
     message: str
-
+    customers: List[ISPCustomer] = field(default_factory=list)

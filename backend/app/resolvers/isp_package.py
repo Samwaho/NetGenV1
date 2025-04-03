@@ -22,23 +22,50 @@ logger = logging.getLogger(__name__)
 class ISPPackageResolver:
 
     @strawberry.field
-    async def package(self, id: str, info: strawberry.Info) -> ISPPackage:
-        """Get ISP package by ID"""
+    async def package(self, id: str, info: strawberry.Info) -> ISPPackageResponse:
+        """Get a specific ISP package"""
         context: Context = info.context
         current_user = await context.authenticate()
 
         package = await isp_packages.find_one({"_id": ObjectId(id)})
         if not package:
             raise HTTPException(status_code=404, detail="Package not found")
-        return await ISPPackage.from_db(package)
+
+        # Verify user has access to the organization this package belongs to
+        org = await organizations.find_one({
+            "_id": package["organizationId"],
+            "members.userId": current_user.id
+        })
+        
+        if not org:
+            raise HTTPException(status_code=403, detail="Not authorized to access this package")
+
+        return ISPPackageResponse(
+            success=True,
+            message="Package retrieved successfully",
+            package=await ISPPackage.from_db(package)
+        )
 
     @strawberry.field
-    async def packages(self, info: strawberry.Info) -> ISPPackagesResponse:
-        """Get all ISP packages"""
+    async def packages(self, info: strawberry.Info, organization_id: str) -> ISPPackagesResponse:
+        """Get all ISP packages for a specific organization"""
         context: Context = info.context
         current_user = await context.authenticate()
 
-        all_packages = await isp_packages.find().to_list(None)
+        # First verify the user has access to this organization
+        org = await organizations.find_one({
+            "_id": ObjectId(organization_id),
+            "members.userId": current_user.id
+        })
+        
+        if not org:
+            raise HTTPException(status_code=403, detail="Not authorized to access this organization")
+
+        # Get packages only for this specific organization
+        all_packages = await isp_packages.find(
+            {"organizationId": ObjectId(organization_id)}
+        ).to_list(None)
+        
         package_list = []
         for package in all_packages:
             package_list.append(await ISPPackage.from_db(package))
@@ -191,3 +218,4 @@ class ISPPackageResolver:
             message="Package deleted successfully",
             package=await ISPPackage.from_db(package)
         )
+

@@ -53,12 +53,25 @@ class ISPCustomerResolver:
         return await ISPCustomer.from_db(customer)
 
     @strawberry.field
-    async def customers(self, info: strawberry.Info) -> ISPCustomersResponse:
-        """Get all ISP customers"""
+    async def customers(self, info: strawberry.Info, organization_id: str) -> ISPCustomersResponse:
+        """Get all ISP customers for a specific organization"""
         context: Context = info.context
         current_user = await context.authenticate()
 
-        all_customers = await isp_customers.find().to_list(None)
+        # Verify user has access to this organization
+        org = await organizations.find_one({
+            "_id": ObjectId(organization_id),
+            "members.userId": current_user.id
+        })
+        
+        if not org:
+            raise HTTPException(status_code=403, detail="Not authorized to access this organization")
+
+        # Get customers only for this specific organization
+        all_customers = await isp_customers.find(
+            {"organizationId": ObjectId(organization_id)}
+        ).to_list(None)
+        
         customer_list = []
         for customer in all_customers:
             customer_list.append(await ISPCustomer.from_db(customer))
@@ -255,3 +268,4 @@ class ISPCustomerResolver:
             message="Customer deleted successfully",
             customer=await ISPCustomer.from_db(customer)
         )
+
