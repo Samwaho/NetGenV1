@@ -33,3 +33,10 @@ class OrganizationMemberStatus(str, Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
     PENDING = "PENDING"
+
+@strawberry.enum
+class IspManagerCustomerStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    SUSPENDED = "SUSPENDED"
+    EXPIRED = "EXPIRED"
