@@ -70,7 +70,10 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap",
+        "text-fuchsia-500 dark:text-fuchsia-400",
+        "hover:text-fuchsia-600 dark:hover:text-fuchsia-300",
+        "[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}
@@ -114,3 +117,4 @@ export {
   TableCell,
   TableCaption,
 }
+

@@ -38,7 +38,7 @@ class ISPStationResolver:
         context: Context = info.context
         current_user = await context.authenticate()
 
-        all_stations = await isp_stations.find().to_list(None)
+        all_stations = await isp_stations.find().sort("createdAt", -1).to_list(None)
         station_list = []
         for station in all_stations:
             station_list.append(await ISPStation.from_db(station))
@@ -178,3 +178,4 @@ class ISPStationResolver:
             message="Station deleted successfully",
             station=await ISPStation.from_db(station)
         )
+
