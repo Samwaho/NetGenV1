@@ -30,11 +30,11 @@ def validate_pppoe_credentials(username: str, password: str) -> None:
             detail="Username must be 3-32 characters long and contain only letters, numbers, underscores, and hyphens"
         )
     
-    # Password validation
-    if not re.match(r'^[a-zA-Z0-9_-]{6,32}$', password):
+    # Password validation - only check for minimum length
+    if len(password) < 1:
         raise HTTPException(
             status_code=400,
-            detail="PPPoE password must be 6-32 characters long and contain only letters, numbers, underscores, and hyphens"
+            detail="Password cannot be empty"
         )
 
 
@@ -268,4 +268,5 @@ class ISPCustomerResolver:
             message="Customer deleted successfully",
             customer=await ISPCustomer.from_db(customer)
         )
+
 

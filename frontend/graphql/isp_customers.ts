@@ -37,33 +37,29 @@ export const GET_ISP_CUSTOMERS = gql`
 export const GET_ISP_CUSTOMER = gql`
   query GetISPCustomer($id: String!) {
     customer(id: $id) {
-      success
-      message
-      customer {
+      id
+      firstName
+      lastName
+      email
+      phone
+      username
+      organization {
         id
-        firstName
-        lastName
-        email
-        phone
-        username
-        organization {
-          id
-          name
-        }
-        package {
-          id
-          name
-        }
-        station {
-          id
-          name
-        }
-        expirationDate
-        status
-        online
-        createdAt
-        updatedAt
+        name
       }
+      package {
+        id
+        name
+      }
+      station {
+        id
+        name
+      }
+      expirationDate
+      status
+      online
+      createdAt
+      updatedAt
     }
   }
 `;

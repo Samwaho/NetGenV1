@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useMutation } from "@apollo/client";
 import { DELETE_ISP_CUSTOMER } from "@/graphql/isp_customers";
 import { toast } from "sonner";
@@ -19,6 +19,8 @@ import { toast } from "sonner";
 // Separate component for actions cell
 function ActionsCell({ customer }: { customer: ISPCustomer }) {
   const router = useRouter();
+  const params = useParams();
+  const organizationId = params.id as string;
   const [deleteCustomer] = useMutation(DELETE_ISP_CUSTOMER);
 
   const handleDelete = async () => {
@@ -48,12 +50,12 @@ function ActionsCell({ customer }: { customer: ISPCustomer }) {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuItem
-          onClick={() => router.push(`/isp/customers/${customer.id}`)}
+          onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}`)}
         >
           View Details
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => router.push(`/isp/customers/${customer.id}/edit`)}
+          onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/edit`)}
         >
           Edit
         </DropdownMenuItem>

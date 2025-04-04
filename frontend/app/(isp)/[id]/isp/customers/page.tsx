@@ -1,22 +1,20 @@
 "use client";
-import { useState } from "react";
 import { useQuery } from "@apollo/client";
 import { GET_ISP_CUSTOMERS } from "@/graphql/isp_customers";
 import { DataTable } from "./components/CustomersTable";
 import { columns } from "./components/columns";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Wifi, UserCheck, UserX } from "lucide-react";
-import { CustomerDialog } from "./components/CustomerDialog";
 import { toast } from "sonner";
 import { ISPCustomersResponse } from "@/types/isp_customer";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 
 export default function CustomersPage() {
   const params = useParams();
   const organizationId = params.id as string;
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { data, loading, error } = useQuery<ISPCustomersResponse>(
     GET_ISP_CUSTOMERS,
     { variables: { organizationId } }
@@ -52,12 +50,11 @@ export default function CustomersPage() {
             Manage your internet service customers
           </p>
         </div>
-        <Button
-          onClick={() => setIsDialogOpen(true)}
-          className="bg-gradient-custom text-white hover:text-white"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Add Customer
-        </Button>
+        <Link href={`/${organizationId}/isp/customers/create`}>
+          <Button className="bg-gradient-custom text-white hover:text-white">
+            <Plus className="mr-2 h-4 w-4" /> Add Customer
+          </Button>
+        </Link>
       </div>
 
       {loading ? (
@@ -150,11 +147,6 @@ export default function CustomersPage() {
           <DataTable columns={columns} data={customers} />
         </>
       )}
-      <CustomerDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        organizationId={organizationId}
-      />
     </div>
   );
 }
