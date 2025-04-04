@@ -89,7 +89,7 @@ export default function PackagesPage() {
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Total Packages
@@ -104,7 +104,7 @@ export default function PackagesPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   PPPoE Packages
@@ -121,7 +121,7 @@ export default function PackagesPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Hotspot Packages
@@ -138,7 +138,7 @@ export default function PackagesPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Most Popular

@@ -33,7 +33,6 @@ export default function StationsPage() {
   }
 
   const stations = data?.stations.stations || [];
-  console.log('Stations array:', stations);
   
   // Calculate statistics
   const totalStations = stations.length;
@@ -79,7 +78,7 @@ export default function StationsPage() {
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Stations</CardTitle>
                 <Signal className="h-4 w-4 text-muted-foreground" />
@@ -91,7 +90,7 @@ export default function StationsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Stations</CardTitle>
                 <SignalHigh className="h-4 w-4 text-green-500" />
@@ -103,7 +102,7 @@ export default function StationsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Inactive Stations</CardTitle>
                 <SignalLow className="h-4 w-4 text-red-500" />
@@ -115,7 +114,7 @@ export default function StationsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Under Maintenance</CardTitle>
                 <SignalMedium className="h-4 w-4 text-yellow-500" />

@@ -11,7 +11,7 @@ type OrganizationStatsProps = {
 export const OrganizationStats = ({ membersCount, rolesCount, status }: OrganizationStatsProps) => {
   return (
     <div className="grid md:grid-cols-3 gap-6 mb-8">
-      <Card className="shadow-sm dark:shadow-purple-500/20">
+      <Card className="shadow-sm ">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Total Members
@@ -24,7 +24,7 @@ export const OrganizationStats = ({ membersCount, rolesCount, status }: Organiza
           </div>
         </CardContent>
       </Card>
-      <Card className="shadow-sm dark:shadow-purple-500/20">
+      <Card className="shadow-sm ">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Available Roles
@@ -37,7 +37,7 @@ export const OrganizationStats = ({ membersCount, rolesCount, status }: Organiza
           </div>
         </CardContent>
       </Card>
-      <Card className="shadow-sm dark:shadow-purple-500/20">
+      <Card className="shadow-sm ">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Organization Status

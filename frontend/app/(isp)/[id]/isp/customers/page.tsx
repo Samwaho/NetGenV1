@@ -78,7 +78,7 @@ export default function CustomersPage() {
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Total Customers
@@ -93,7 +93,7 @@ export default function CustomersPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Active Customers
@@ -110,7 +110,7 @@ export default function CustomersPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Online Now
@@ -127,7 +127,7 @@ export default function CustomersPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm dark:shadow-purple-500/20">
+            <Card className="shadow-sm ">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Inactive Customers
