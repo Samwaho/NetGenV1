@@ -16,6 +16,7 @@ class ISPCustomer:
     email: str
     phone: str
     username: str
+    password: str
     organization: Organization
     package: ISPPackage
     station: ISPStation
@@ -45,6 +46,7 @@ class ISPCustomer:
                 "email": customer["email"],
                 "phone": customer["phone"],
                 "username": customer["username"],
+                "password": customer["password"],
                 "expirationDate": customer["expirationDate"],
                 "status": customer.get("status", IspManagerCustomerStatus.INACTIVE),
                 "online": customer.get("online", False),
@@ -63,6 +65,7 @@ class ISPCustomer:
                 "email": customer.email,
                 "phone": customer.phone,
                 "username": customer.username,
+                "password": customer.password,
                 "expirationDate": customer.expirationDate,
                 "status": getattr(customer, 'status', IspManagerCustomerStatus.INACTIVE),
                 "online": getattr(customer, 'online', False),

@@ -43,6 +43,7 @@ export const GET_ISP_CUSTOMER = gql`
       email
       phone
       username
+      password
       organization {
         id
         name

@@ -32,6 +32,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ISPPackage } from "@/types/isp_package";
 import { ISPStation } from "@/types/isp_station";
 import React from "react";
+import { ArrowLeft, X, Save } from "lucide-react";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -59,15 +60,15 @@ export default function EditCustomerPage() {
     variables: { id: customerId },
   });
 
-  const { data: packagesData } = useQuery(GET_ISP_PACKAGES, {
+  const { data: packagesData, loading: packagesLoading } = useQuery(GET_ISP_PACKAGES, {
     variables: { organizationId },
   });
   
-  const { data: stationsData } = useQuery(GET_ISP_STATIONS, {
+  const { data: stationsData, loading: stationsLoading } = useQuery(GET_ISP_STATIONS, {
     variables: { organizationId },
   });
 
-  const [updateCustomer] = useMutation(UPDATE_ISP_CUSTOMER, {
+  const [updateCustomer, { loading: isUpdating }] = useMutation(UPDATE_ISP_CUSTOMER, {
     refetchQueries: ["GetISPCustomers"],
   });
 
@@ -130,179 +131,267 @@ export default function EditCustomerPage() {
     }
   };
 
-  if (customerLoading) {
+  // Show loading spinner while initial data is loading
+  if (customerLoading || packagesLoading || stationsLoading) {
     return <LoadingSpinner />;
   }
 
+  // Get the current package and station names
+  const currentPackage = packagesData?.packages.packages.find(
+    (pkg: ISPPackage) => pkg.id === customerData?.customer?.package?.id
+  );
+
+  const currentStation = stationsData?.stations.stations.find(
+    (station: ISPStation) => station.id === customerData?.customer?.station?.id
+  );
+
   return (
-    <div className="container mx-auto py-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Edit Customer</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <div className="container mx-auto py-8 max-w-3xl">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gradient-custom">Edit Customer</h1>
+          <p className="text-muted-foreground mt-1">
+            Update customer information and settings
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/${organizationId}/isp/customers`)}
+          className="gap-2"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Customers
+        </Button>
+      </div>
+
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Personal Information Section */}
+              <div className="space-y-4">
+                <h2 className="text-lg font-medium text-gradient-custom2">
+                  Personal Information
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter first name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter last name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Address</FormLabel>
+                        <FormControl>
+                          <Input placeholder="customer@example.com" {...field} type="email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+1 (555) 000-0000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Account Settings Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h2 className="text-lg font-medium text-gradient-custom2">
+                  Account Settings
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>PPPoE Username</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter username" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>PPPoE Password</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="text" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>PPPoE Password</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Enter password" 
+                            {...field} 
+                            type="text"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-              <FormField
-                control={form.control}
-                name="packageId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Package</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a package" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {packagesData?.packages.packages.map((pkg: ISPPackage) => (
-                          <SelectItem key={pkg.id} value={pkg.id}>
-                            {pkg.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Service Configuration Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h2 className="text-lg font-medium text-gradient-custom2">
+                  Service Configuration
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="packageId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Internet Package</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-background">
+                              <SelectValue>
+                                {packagesData?.packages.packages.find(
+                                  (pkg: ISPPackage) => pkg.id === field.value
+                                )?.name || "Select a package"}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {packagesData?.packages.packages.map((pkg: ISPPackage) => (
+                              <SelectItem key={pkg.id} value={pkg.id}>
+                                {pkg.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="stationId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Station</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a station" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {stationsData?.stations.stations.map((station: ISPStation) => (
-                          <SelectItem key={station.id} value={station.id}>
-                            {station.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="stationId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Connected Station</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-background">
+                              <SelectValue>
+                                {stationsData?.stations.stations.find(
+                                  (station: ISPStation) => station.id === field.value
+                                )?.name || "Select a station"}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {stationsData?.stations.stations.map((station: ISPStation) => (
+                              <SelectItem key={station.id} value={station.id}>
+                                {station.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="expirationDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Expiration Date</FormLabel>
-                    <FormControl>
-                      <DateTimePicker
-                        date={field.value}
-                        setDate={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="expirationDate"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Service Expiration Date</FormLabel>
+                        <FormControl>
+                          <DateTimePicker
+                            date={field.value}
+                            setDate={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-              <div className="flex justify-end space-x-2">
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-6 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => router.push(`/${organizationId}/isp/customers`)}
+                  className="gap-2"
+                  disabled={isUpdating}
                 >
+                  <X className="size-4" />
                   Cancel
                 </Button>
-                <Button type="submit">Update Customer</Button>
+                <Button 
+                  type="submit" 
+                  className="gap-2 bg-gradient-custom"
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <>
+                      <div className="size-4 border-2 border-white/30 border-t-white animate-spin rounded-full" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
               </div>
             </form>
           </Form>
@@ -311,6 +400,11 @@ export default function EditCustomerPage() {
     </div>
   );
 }
+
+
+
+
+
 
 
 
