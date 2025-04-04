@@ -79,6 +79,7 @@ class OrganizationResolver:
                 "permissions": [
                     OrganizationPermission.MANAGE_MEMBERS.value,
                     OrganizationPermission.MANAGE_ROLES.value,
+                    OrganizationPermission.VIEW_ORGANIZATION.value,
                     OrganizationPermission.MANAGE_ORGANIZATION.value,
                     OrganizationPermission.VIEW_ANALYTICS.value
                 ],
@@ -87,7 +88,7 @@ class OrganizationResolver:
             {
                 "name": "Member",
                 "description": "Regular organization member",
-                "permissions": [],
+                "permissions": [OrganizationPermission.VIEW_ORGANIZATION.value],
                 "isSystemRole": True
             }
         ]

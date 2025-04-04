@@ -14,10 +14,12 @@ import Link from "next/link";
 import { Settings, LogIn, User, DollarSign, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removeAuthToken } from "@/lib/auth-utils";
+import { useRouter } from "next/navigation";
 
 const ProfileAction = () => {
   const { data } = useQuery(CURRENT_USER);
   const currentUser = data?.currentUser;
+  const router = useRouter();
 
   if (!currentUser) {
     return (
@@ -84,7 +86,7 @@ const ProfileAction = () => {
             className="w-full h-8 sm:h-8 bg-transparent border border-red-500 hover:bg-red-50 dark:hover:bg-transparent dark:hover:border-red-300 text-red-500 cursor-pointer"
             onClick={() => {
               removeAuthToken();
-              window.location.reload();
+              router.push("/");
             }}
           >
             Sign out

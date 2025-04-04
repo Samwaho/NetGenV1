@@ -32,6 +32,7 @@ const formSchema = z.object({
 const availablePermissions = [
   { value: "MANAGE_MEMBERS", label: "Manage Members" },
   { value: "MANAGE_ROLES", label: "Manage Roles" },
+  { value: "VIEW_ORGANIZATION", label: "View Organization" },
   { value: "MANAGE_ORGANIZATION", label: "Manage Organization" },
   { value: "VIEW_ANALYTICS", label: "View Analytics" },
   { value: "MANAGE_BILLING", label: "Manage Billing" },

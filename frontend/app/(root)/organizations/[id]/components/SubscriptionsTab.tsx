@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { useState } from 'react';
 import { NewSubscriptionModal } from './NewSubscriptionModal';
 import { Subscription, SubscriptionsResponse } from '@/types/subscription';
+import { Organization } from '@/types/organization';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,15 +23,31 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { OrganizationPermissions } from "@/lib/permissions";
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { LockIcon } from 'lucide-react';
 
 interface SubscriptionsTabProps {
   organizationId: string;
+  organization: Organization;
+  currentUserId: string;
 }
 
-export function SubscriptionsTab({ organizationId }: SubscriptionsTabProps) {
+export function SubscriptionsTab({ 
+  organizationId, 
+  organization, 
+  currentUserId 
+}: SubscriptionsTabProps) {
   const [isNewSubscriptionModalOpen, setIsNewSubscriptionModalOpen] = useState(false);
   const [subscriptionToCancel, setSubscriptionToCancel] = useState<string | null>(null);
   
+  const canManageSubscriptions = hasOrganizationPermissions(
+    organization,
+    currentUserId,
+    OrganizationPermissions.MANAGE_SUBSCRIPTIONS
+  );
+
   const { data, loading, error } = useQuery<SubscriptionsResponse>(GET_SUBSCRIPTIONS);
   
   const [cancelSubscription, { loading: cancelling }] = useMutation(CANCEL_SUBSCRIPTION, {
@@ -91,12 +108,26 @@ export function SubscriptionsTab({ organizationId }: SubscriptionsTabProps) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Subscriptions</h2>
-        <Button 
-          onClick={() => setIsNewSubscriptionModalOpen(true)}
-          className="bg-gradient-custom text-white"
-        >
-          New Subscription
-        </Button>
+        {canManageSubscriptions ? (
+          <Button 
+            onClick={() => setIsNewSubscriptionModalOpen(true)}
+            className="bg-gradient-custom text-white"
+          >
+            New Subscription
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" disabled>
+                <LockIcon className="mr-2 h-4 w-4" />
+                New Subscription
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>You need subscription management permissions to create subscriptions</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {orgSubscriptions.length === 0 ? (
@@ -138,7 +169,7 @@ export function SubscriptionsTab({ organizationId }: SubscriptionsTabProps) {
                     </div>
                   </div>
                   <div className="space-x-2">
-                    {subscription.status === 'ACTIVE' && (
+                    {subscription.status === 'ACTIVE' && canManageSubscriptions && (
                       <Button
                         variant="destructive"
                         onClick={() => setSubscriptionToCancel(subscription.id)}
@@ -198,5 +229,10 @@ export function SubscriptionsTab({ organizationId }: SubscriptionsTabProps) {
     </div>
   );
 }
+
+
+
+
+
 
 

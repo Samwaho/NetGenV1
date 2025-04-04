@@ -1,3 +1,5 @@
+import { OrganizationPermissions } from "@/lib/permissions";
+
 export interface Organization {
   id: string;
   name: string;
@@ -6,30 +8,27 @@ export interface Organization {
     id: string;
     firstName: string;
     lastName: string;
-    email: string;
   };
-  members: {
+  members: Array<{
     user?: {
       id: string;
       firstName: string;
       lastName: string;
       email: string;
     };
-    email?: string;
     role: {
       name: string;
-      description?: string;
-      permissions: string[];
-      isSystemRole: boolean;
+      permissions: OrganizationPermissions[];
     };
     status: string;
-  }[];
-  roles: {
+    email?: string;
+  }>;
+  roles: Array<{
     name: string;
     description?: string;
-    permissions: string[];
+    permissions: OrganizationPermissions[];
     isSystemRole: boolean;
-  }[];
+  }>;
   status: string;
   createdAt: string;
   updatedAt: string;

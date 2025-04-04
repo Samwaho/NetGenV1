@@ -49,13 +49,14 @@ export const GET_ORGANIZATION = gql`
     organization(id: $id) {
       id
       name
+      description
       status
       createdAt
+      updatedAt
       owner {
         id
         firstName
         lastName
-        email
       }
       members {
         user {
@@ -64,17 +65,18 @@ export const GET_ORGANIZATION = gql`
           lastName
           email
         }
-        email
         role {
           name
+          permissions
         }
         status
+        email
       }
       roles {
         name
         description
-        isSystemRole
         permissions
+        isSystemRole
       }
     }
   }

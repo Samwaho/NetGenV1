@@ -1,8 +1,14 @@
-import { UserPlus, ChevronRight } from "lucide-react";
+import { UserPlus, ChevronRight, LockIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useState } from "react";
+import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { OrganizationPermissions } from "@/lib/permissions";
+import { Organization } from "@/types/organization";
+
 type OrganizationMember = {
   user?: {
     id: string;
@@ -19,20 +25,44 @@ type OrganizationMember = {
 
 type MembersTabProps = {
   members: OrganizationMember[];
-  onInvite: () => void;
+  organizationId: string;
+  organization: Organization;
+  currentUserId: string;
 };
 
-export const MembersTab = ({ members, onInvite }: MembersTabProps) => {
+export const MembersTab = ({ members, organization, currentUserId }: MembersTabProps) => {
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
+  const canManageMembers = hasOrganizationPermissions(
+    organization,
+    currentUserId,
+    OrganizationPermissions.MANAGE_MEMBERS
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Organization Members</h2>
-        <Button 
-          className="bg-gradient-custom text-white hover:text-white"
-          onClick={onInvite}
-        >
-          <UserPlus className="mr-2 h-4 w-4" /> Invite Member
-        </Button>
+        {canManageMembers ? (
+          <Button 
+            className="bg-gradient-custom text-white hover:text-white"
+            onClick={() => setIsInviteModalOpen(true)}
+          >
+            Invite Member
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" disabled>
+                <LockIcon className="mr-2 h-4 w-4" />
+                Invite Member
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>You need member management permissions to invite members</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
       <Card>
         <CardContent className="p-0">
@@ -89,3 +119,7 @@ export const MembersTab = ({ members, onInvite }: MembersTabProps) => {
     </div>
   );
 };
+
+
+
+
