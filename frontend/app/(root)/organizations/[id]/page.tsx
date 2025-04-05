@@ -42,7 +42,7 @@ const OrganizationPage = () => {
     'Unknown';
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
+    <div className="container max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
       <OrganizationHeader 
         name={organization.name}
         ownerName={ownerName}
@@ -55,7 +55,7 @@ const OrganizationPage = () => {
         status={organization.status} 
       />
       <Tabs defaultValue="members" className="space-y-4">
-        <TabsList className="w-full sm:w-auto">
+        <TabsList className="w-auto ">
           <TabsTrigger value="members" className="text-xs sm:text-sm">Members</TabsTrigger>
           <TabsTrigger value="roles" className="text-xs sm:text-sm">Roles</TabsTrigger>
           <TabsTrigger value="subscriptions" className="text-xs sm:text-sm">Subscriptions</TabsTrigger>

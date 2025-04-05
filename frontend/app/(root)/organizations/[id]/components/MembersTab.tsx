@@ -41,11 +41,11 @@ export const MembersTab = ({ members, organization, currentUserId }: MembersTabP
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-row justify-between items-center gap-4">
         <h2 className="text-lg sm:text-xl font-semibold">Organization Members</h2>
         {canManageMembers ? (
           <Button 
-            className="w-full sm:w-auto bg-gradient-custom text-white hover:text-white text-xs sm:text-sm"
+            className="w-auto bg-gradient-custom text-white hover:text-white text-xs sm:text-sm cursor-pointerv "
             onClick={() => setIsInviteModalOpen(true)}
           >
             <UserPlus className="mr-2 h-4 w-4" />

@@ -38,7 +38,7 @@ export const OrganizationHeader = ({
         <Link href={`/${organizationId}/isp`} className="w-full sm:w-auto">
           <Button 
             variant="outline"
-            className="w-full sm:w-auto bg-gradient-custom hover:bg-gradient-custom2 text-white transition-all duration-300 text-xs sm:text-sm"
+            className="w-full sm:w-auto bg-gradient-custom hover:text-white cursor-pointer text-white transition-all duration-300 text-xs sm:text-sm"
           >
             <Network className="mr-2 h-4 w-4" />
             ISP Management

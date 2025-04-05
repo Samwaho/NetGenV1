@@ -40,7 +40,7 @@ export const RolesTab = ({ roles, organizationId, organization, currentUserId }:
         <h2 className="text-xl font-semibold">Organization Roles</h2>
         {canManageRoles ? (
           <Button 
-            className="bg-gradient-custom text-white hover:text-white"
+            className="bg-gradient-custom text-white hover:text-white cursor-pointer"
             onClick={() => setIsCreateModalOpen(true)}
           >
             Create Role
