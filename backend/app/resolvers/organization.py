@@ -81,7 +81,17 @@ class OrganizationResolver:
                     OrganizationPermission.MANAGE_ROLES.value,
                     OrganizationPermission.VIEW_ORGANIZATION.value,
                     OrganizationPermission.MANAGE_ORGANIZATION.value,
-                    OrganizationPermission.VIEW_ANALYTICS.value
+                    OrganizationPermission.VIEW_ANALYTICS.value,
+                    OrganizationPermission.MANAGE_BILLING.value,
+                    OrganizationPermission.MANAGE_SUBSCRIPTIONS.value,
+                    OrganizationPermission.ACCESS_ISP_MANAGER.value,
+                    OrganizationPermission.VIEW_ISP_MANAGER_DASHBOARD.value,
+                    OrganizationPermission.VIEW_ISP_MANAGER_PACKAGES.value,
+                    OrganizationPermission.MANAGE_ISP_MANAGER_PACKAGES.value,
+                    OrganizationPermission.VIEW_ISP_MANAGER_CUSTOMERS.value,
+                    OrganizationPermission.MANAGE_ISP_MANAGER_CUSTOMERS.value,
+                    OrganizationPermission.VIEW_ISP_MANAGER_STATIONS.value,
+                    OrganizationPermission.MANAGE_ISP_MANAGER_STATIONS.value
                 ],
                 "isSystemRole": True
             },
