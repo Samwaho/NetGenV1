@@ -10,41 +10,41 @@ type OrganizationStatsProps = {
 
 export const OrganizationStats = ({ membersCount, rolesCount, status }: OrganizationStatsProps) => {
   return (
-    <div className="grid md:grid-cols-3 gap-6 mb-8">
-      <Card className="shadow-sm ">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+    <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
             Total Members
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2">
-            <Users className="h-5 w-5 text-primary" />
-            <span className="text-2xl font-bold">{membersCount}</span>
+            <Users className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
+            <span className="text-xl sm:text-2xl font-bold">{membersCount}</span>
           </div>
         </CardContent>
       </Card>
-      <Card className="shadow-sm ">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
             Available Roles
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <span className="text-2xl font-bold">{rolesCount}</span>
+            <Shield className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
+            <span className="text-xl sm:text-2xl font-bold">{rolesCount}</span>
           </div>
         </CardContent>
       </Card>
-      <Card className="shadow-sm ">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
             Organization Status
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Badge variant="outline" className="bg-gradient-custom text-white">
+          <Badge variant="outline" className="bg-gradient-custom text-white text-xs sm:text-sm">
             {status}
           </Badge>
         </CardContent>

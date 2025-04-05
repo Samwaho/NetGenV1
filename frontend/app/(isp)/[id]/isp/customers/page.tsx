@@ -81,7 +81,7 @@ export default function CustomersPage() {
         <ShieldAlert className="h-16 w-16 text-red-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-red-500">Access Denied</h2>
         <p className="text-muted-foreground mt-2">
-          You don't have permission to view customers.
+          You don&apos;t have permission to view customers.
         </p>
       </div>
     );
@@ -107,19 +107,19 @@ export default function CustomersPage() {
   const inactiveCustomers = totalCustomers - activeCustomers;
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gradient-custom">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gradient-custom">
             ISP Customers
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your internet service customers
           </p>
         </div>
         {canManageCustomers && (
           <Link href={`/${organizationId}/isp/customers/create`}>
-            <Button className="bg-gradient-custom text-white hover:text-white">
+            <Button className="w-full sm:w-auto bg-gradient-custom text-white hover:text-white">
               <Plus className="mr-2 h-4 w-4" /> Add Customer
             </Button>
           </Link>
@@ -128,16 +128,16 @@ export default function CustomersPage() {
 
       {dataLoading ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i} className="animate-pulse">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="text-xs sm:text-sm font-medium">
                     Loading...
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">--</div>
+                  <div className="text-xl sm:text-2xl font-bold">--</div>
                 </CardContent>
               </Card>
             ))}
@@ -146,31 +146,31 @@ export default function CustomersPage() {
         </>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm ">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-xs sm:text-sm font-medium">
                   Total Customers
                 </CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalCustomers}</div>
+                <div className="text-xl sm:text-2xl font-bold">{totalCustomers}</div>
                 <p className="text-xs text-muted-foreground">
                   Registered customers
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm ">
+            <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-xs sm:text-sm font-medium">
                   Active Customers
                 </CardTitle>
                 <UserCheck className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-500">
+                <div className="text-xl sm:text-2xl font-bold text-green-500">
                   {activeCustomers}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -179,15 +179,15 @@ export default function CustomersPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm ">
+            <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-xs sm:text-sm font-medium">
                   Online Now
                 </CardTitle>
                 <Wifi className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-500">
+                <div className="text-xl sm:text-2xl font-bold text-blue-500">
                   {onlineCustomers}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -196,15 +196,15 @@ export default function CustomersPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm ">
+            <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-xs sm:text-sm font-medium">
                   Inactive Customers
                 </CardTitle>
                 <UserX className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-500">
+                <div className="text-xl sm:text-2xl font-bold text-red-500">
                   {inactiveCustomers}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -213,10 +213,12 @@ export default function CustomersPage() {
               </CardContent>
             </Card>
           </div>
-          <DataTable 
-            columns={columns(canManageCustomers)} 
-            data={customers} 
-          />
+          <div className="overflow-x-auto">
+            <DataTable 
+              columns={columns(canManageCustomers)} 
+              data={customers} 
+            />
+          </div>
         </>
       )}
     </div>

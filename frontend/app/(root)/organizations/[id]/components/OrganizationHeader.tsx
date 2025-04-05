@@ -22,23 +22,23 @@ export const OrganizationHeader = ({
   organizationId 
 }: OrganizationHeaderProps) => {
   return (
-    <div className="flex items-start justify-between mb-8">
-      <div className="flex items-center space-x-4">
-        <div className="h-16 w-16 rounded-lg bg-gradient-custom2 flex items-center justify-center">
-          <Building2 className="h-8 w-8 text-white" />
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="h-12 sm:h-16 w-12 sm:w-16 rounded-lg bg-gradient-custom2 flex items-center justify-center">
+          <Building2 className="h-6 sm:h-8 w-6 sm:w-8 text-white" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-gradient-custom2">{name}</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gradient-custom2">{name}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Created by {ownerName} • {new Date(createdAt).toLocaleDateString()}
           </p>
         </div>
       </div>
-      <div className="flex items-center space-x-3">
-        <Link href={`/${organizationId}/isp`}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <Link href={`/${organizationId}/isp`} className="w-full sm:w-auto">
           <Button 
             variant="outline"
-            className="bg-gradient-custom hover:bg-gradient-custom2 text-white transition-all duration-300"
+            className="w-full sm:w-auto bg-gradient-custom hover:bg-gradient-custom2 text-white transition-all duration-300 text-xs sm:text-sm"
           >
             <Network className="mr-2 h-4 w-4" />
             ISP Management
@@ -46,16 +46,16 @@ export const OrganizationHeader = ({
         </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" className="h-8 sm:h-10 w-8 sm:w-10">
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem className="text-xs sm:text-sm">
               <Settings className="mr-2 h-4 w-4" />
               Organization Settings
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem className="text-xs sm:text-sm">
               <Shield className="mr-2 h-4 w-4" />
               Roles & Permissions
             </DropdownMenuItem>

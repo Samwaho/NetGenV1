@@ -42,22 +42,26 @@ const OrganizationPage = () => {
     'Unknown';
 
   return (
-    <div className="container mx-auto py-6 space-y-6 max-w-7xl mt-10">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
       <OrganizationHeader 
         name={organization.name}
         ownerName={ownerName}
         createdAt={organization.createdAt}
         organizationId={organizationId}
       />
-      <OrganizationStats membersCount={organization.members.length} rolesCount={organization.roles.length} status={organization.status} />
+      <OrganizationStats 
+        membersCount={organization.members.length} 
+        rolesCount={organization.roles.length} 
+        status={organization.status} 
+      />
       <Tabs defaultValue="members" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="roles">Roles</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="members" className="text-xs sm:text-sm">Members</TabsTrigger>
+          <TabsTrigger value="roles" className="text-xs sm:text-sm">Roles</TabsTrigger>
+          <TabsTrigger value="subscriptions" className="text-xs sm:text-sm">Subscriptions</TabsTrigger>
+          <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
         </TabsList>
-        <TabsContent value="members">
+        <TabsContent value="members" className="mt-4">
           <MembersTab 
             members={organization.members.map(member => ({
               ...member,
@@ -68,7 +72,7 @@ const OrganizationPage = () => {
             currentUserId={currentUserId}
           />
         </TabsContent>
-        <TabsContent value="roles">
+        <TabsContent value="roles" className="mt-4">
           <RolesTab 
             roles={organization.roles} 
             organizationId={organizationId}
@@ -76,14 +80,14 @@ const OrganizationPage = () => {
             currentUserId={currentUserId}
           />
         </TabsContent>
-        <TabsContent value="subscriptions">
+        <TabsContent value="subscriptions" className="mt-4">
           <SubscriptionsTab 
             organizationId={organizationId}
             organization={organization}
             currentUserId={currentUserId}
           />
         </TabsContent>
-        <TabsContent value="activity">
+        <TabsContent value="activity" className="mt-4">
           <ActivityTab organizationId={organizationId} />
         </TabsContent>
       </Tabs>

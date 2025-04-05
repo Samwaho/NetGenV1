@@ -79,22 +79,47 @@ export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] =
   {
     accessorKey: "username",
     header: "Username",
+    cell: ({ row }) => (
+      <div className="font-medium text-sm sm:text-base">
+        {row.getValue("username")}
+      </div>
+    ),
   },
   {
     accessorKey: "firstName",
     header: "First Name",
+    cell: ({ row }) => (
+      <div className="text-sm sm:text-base">
+        {row.getValue("firstName")}
+      </div>
+    ),
   },
   {
     accessorKey: "lastName",
     header: "Last Name",
+    cell: ({ row }) => (
+      <div className="text-sm sm:text-base">
+        {row.getValue("lastName")}
+      </div>
+    ),
   },
   {
     accessorKey: "email",
     header: "Email",
+    cell: ({ row }) => (
+      <div className="text-sm sm:text-base">
+        {row.getValue("email")}
+      </div>
+    ),
   },
   {
     accessorKey: "phone",
     header: "Phone",
+    cell: ({ row }) => (
+      <div className="text-sm sm:text-base">
+        {row.getValue("phone")}
+      </div>
+    ),
   },
   {
     accessorKey: "status",
@@ -104,7 +129,7 @@ export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] =
       return (
         <Badge
           variant={status === "ACTIVE" ? "default" : "destructive"}
-          className="capitalize"
+          className="capitalize text-xs sm:text-sm"
         >
           {status.toLowerCase()}
         </Badge>
@@ -117,7 +142,7 @@ export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] =
     cell: ({ row }) => {
       const online = row.getValue("online") as boolean;
       return (
-        <Badge variant={online ? "default" : "secondary"}>
+        <Badge variant={online ? "default" : "secondary"} className="text-xs sm:text-sm">
           {online ? "Online" : "Offline"}
         </Badge>
       );
@@ -126,17 +151,31 @@ export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] =
   {
     accessorKey: "package.name",
     header: "Package",
+    cell: ({ row }) => (
+      <div className="text-sm sm:text-base">
+        {row.getValue("package.name")}
+      </div>
+    ),
   },
   {
     accessorKey: "station.name",
     header: "Station",
+    cell: ({ row }) => (
+      <div className="text-sm sm:text-base">
+        {row.getValue("station.name")}
+      </div>
+    ),
   },
   {
     accessorKey: "expirationDate",
     header: "Expiration Date",
     cell: ({ row }) => {
       const date = new Date(row.getValue("expirationDate"));
-      return date.toLocaleDateString();
+      return (
+        <div className="text-sm sm:text-base">
+          {date.toLocaleDateString()}
+        </div>
+      );
     },
   },
   {
