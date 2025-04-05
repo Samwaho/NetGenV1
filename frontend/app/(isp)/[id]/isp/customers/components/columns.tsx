@@ -17,7 +17,7 @@ import { DELETE_ISP_CUSTOMER } from "@/graphql/isp_customers";
 import { toast } from "sonner";
 
 // Separate component for actions cell
-function ActionsCell({ customer }: { customer: ISPCustomer }) {
+function ActionsCell({ customer, canManageCustomers }: { customer: ISPCustomer; canManageCustomers: boolean }) {
   const router = useRouter();
   const params = useParams();
   const organizationId = params.id as string;
@@ -54,24 +54,28 @@ function ActionsCell({ customer }: { customer: ISPCustomer }) {
         >
           View Details
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/edit`)}
-        >
-          Edit
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-red-600"
-          onClick={handleDelete}
-        >
-          Delete
-        </DropdownMenuItem>
+        {canManageCustomers && (
+          <>
+            <DropdownMenuItem
+              onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/edit`)}
+            >
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-600"
+              onClick={handleDelete}
+            >
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-export const columns: ColumnDef<ISPCustomer>[] = [
+export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] => [
   {
     accessorKey: "username",
     header: "Username",
@@ -137,6 +141,6 @@ export const columns: ColumnDef<ISPCustomer>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell customer={row.original} />,
+    cell: ({ row }) => <ActionsCell customer={row.original} canManageCustomers={canManageCustomers} />,
   },
 ]; 

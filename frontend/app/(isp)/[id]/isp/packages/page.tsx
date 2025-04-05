@@ -5,22 +5,89 @@ import { GET_ISP_PACKAGES } from "@/graphql/isp_packages";
 import { DataTable } from "./components/PackagesTable";
 import { columns } from "./components/columns";
 import { Button } from "@/components/ui/button";
-import { Plus, Wifi, Network, Radio, TrendingUp } from "lucide-react";
+import { Plus, Wifi, Network, Radio, TrendingUp, ShieldAlert } from "lucide-react";
 import { PackageDialog } from "./components/PackageDialog";
 import { toast } from "sonner";
 import { ISPPackagesResponse } from "@/types/isp_package";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUser } from "@/hooks/useUser";
+import { useOrganization } from "@/hooks/useOrganization";
+import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { OrganizationPermissions } from "@/lib/permissions";
 
 export default function PackagesPage() {
   const params = useParams();
   const organizationId = params.id as string;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data, loading, error } = useQuery<ISPPackagesResponse>(
+  const { user, loading: userLoading } = useUser();
+  const { organization, loading: orgLoading } = useOrganization(organizationId);
+
+  const { data, loading: dataLoading, error } = useQuery<ISPPackagesResponse>(
     GET_ISP_PACKAGES,
-    { variables: { organizationId } }
+    { 
+      variables: { organizationId },
+      skip: !organization || !user, // Skip the query until we have user and org data
+    }
   );
+
+  // Show loading state while checking permissions
+  if (userLoading || orgLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gradient-custom">
+              ISP Packages
+            </h1>
+            <p className="text-muted-foreground">
+              Manage your internet service packages and plans
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Loading...
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">--</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <TableSkeleton columns={5} rows={5} />
+      </div>
+    );
+  }
+
+  const canViewPackages = organization && user && hasOrganizationPermissions(
+    organization,
+    user.id,
+    OrganizationPermissions.VIEW_ISP_MANAGER_PACKAGES
+  );
+
+  const canManagePackages = organization && user && hasOrganizationPermissions(
+    organization,
+    user.id,
+    OrganizationPermissions.MANAGE_ISP_MANAGER_PACKAGES
+  );
+
+  if (!canViewPackages) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <ShieldAlert className="h-16 w-16 text-red-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-red-500">Access Denied</h2>
+        <p className="text-muted-foreground mt-2">
+          You don't have permission to view packages.
+        </p>
+      </div>
+    );
+  }
 
   if (error) {
     toast.error("Failed to load packages");
@@ -60,15 +127,17 @@ export default function PackagesPage() {
             Manage your internet service packages and plans
           </p>
         </div>
-        <Button
-          onClick={() => setIsDialogOpen(true)}
-          className="bg-gradient-custom text-white hover:text-white"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Add Package
-        </Button>
+        {canManagePackages && (
+          <Button
+            onClick={() => setIsDialogOpen(true)}
+            className="bg-gradient-custom text-white hover:text-white"
+          >
+            <Plus className="mr-2 h-4 w-4" /> Add Package
+          </Button>
+        )}
       </div>
 
-      {loading ? (
+      {dataLoading ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
@@ -155,14 +224,16 @@ export default function PackagesPage() {
               </CardContent>
             </Card>
           </div>
-          <DataTable columns={columns} data={packages} />
+          <DataTable columns={columns(canManagePackages)} data={packages} />
         </>
       )}
-      <PackageDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        organizationId={organizationId}
-      />
+      {canManagePackages && (
+        <PackageDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          organizationId={organizationId}
+        />
+      )}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { PackageActions } from "./PackageActions";
 
-export const columns: ColumnDef<ISPPackage>[] = [
+export const columns = (canManagePackages: boolean): ColumnDef<ISPPackage>[] => [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -131,6 +131,8 @@ export const columns: ColumnDef<ISPPackage>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <PackageActions package={row.original} />,
+    cell: ({ row }) => canManagePackages ? (
+      <PackageActions package={row.original} />
+    ) : null,
   },
 ];

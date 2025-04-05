@@ -5,8 +5,9 @@ import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
 import { Badge } from "@/components/ui/badge";
 import { StationActions } from "./StationActions";
 import { formatDateToNowInTimezone } from "@/lib/utils";
+import { ISPStation } from "@/types/isp_station";
 
-export const columns: ColumnDef<any>[] = [
+export const columns = (canManageStations: boolean): ColumnDef<ISPStation>[] => [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -57,7 +58,9 @@ export const columns: ColumnDef<any>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <StationActions station={row.original} />,
+    cell: ({ row }) => canManageStations ? (
+      <StationActions station={row.original} />
+    ) : null,
   },
 ];
 
