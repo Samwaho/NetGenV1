@@ -149,20 +149,20 @@ export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] =
     },
   },
   {
-    accessorKey: "package.name",
+    accessorKey: "package",
     header: "Package",
     cell: ({ row }) => (
       <div className="text-sm sm:text-base">
-        {row.getValue("package.name")}
+        {row.original.package?.name || '-'}
       </div>
     ),
   },
   {
-    accessorKey: "station.name",
+    accessorKey: "station",
     header: "Station",
     cell: ({ row }) => (
       <div className="text-sm sm:text-base">
-        {row.getValue("station.name")}
+        {row.original.station?.name || '-'}
       </div>
     ),
   },

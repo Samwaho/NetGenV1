@@ -1,18 +1,18 @@
 import { gql } from "@apollo/client";
 
 export const GET_ACTIVITIES = gql`
-  query GetActivities($organizationId: String!) {
-    activities(organizationId: $organizationId) {
+  query GetActivities($organizationId: String!, $limit: Int, $skip: Int) {
+    activities(organizationId: $organizationId, limit: $limit, skip: $skip) {
       success
       message
       activities {
         id
         action
-        user {
-          id
+        userDetails {
           firstName
           lastName
           email
+          role
         }
         organization {
           id
@@ -27,20 +27,24 @@ export const GET_ACTIVITIES = gql`
 export const GET_ACTIVITY = gql`
   query GetActivity($id: String!) {
     activity(id: $id) {
-      id
-      action
-      user {
+      success
+      message
+      activity {
         id
-        firstName
-        lastName
-        email
+        action
+        userDetails {
+          firstName
+          lastName
+          email
+          role
+        }
+        organization {
+          id
+          name
+        }
+        createdAt
+        updatedAt
       }
-      organization {
-        id
-        name
-      }
-      createdAt
-      updatedAt
     }
   }
 `;
@@ -52,11 +56,11 @@ export const CREATE_ACTIVITY = gql`
       activity {
         id
         action
-        user {
-          id
+        userDetails {
           firstName
           lastName
           email
+          role
         }
         organization {
           id
@@ -76,11 +80,11 @@ export const DELETE_ACTIVITY = gql`
       activity {
         id
         action
-        user {
-          id
+        userDetails {
           firstName
           lastName
           email
+          role
         }
         organization {
           id

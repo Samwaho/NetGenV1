@@ -132,7 +132,7 @@ class OrganizationResolver:
         await record_activity(
             current_user.id,
             result.inserted_id,
-            f"created organization {input.name}"
+            f"created organization '{input.name}'"
         )
 
         return OrganizationResponse(
@@ -177,7 +177,7 @@ class OrganizationResolver:
         await record_activity(
             current_user.id,
             ObjectId(id),
-            f"updated organization details"
+            f"updated organization to '{input.name}'"
         )
 
         updated_org = await organizations.find_one({"_id": ObjectId(id)})
@@ -372,7 +372,7 @@ class OrganizationResolver:
             await record_activity(
                 current_user.id,
                 ObjectId(organization_id),
-                f"joined organization"
+                "joined organization"
             )
 
             # Get updated organization
@@ -437,7 +437,7 @@ class OrganizationResolver:
         await record_activity(
             current_user.id,
             ObjectId(organization_id),
-            f"created role {input.name}"
+            f"created role '{input.name}'"
         )
 
         updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
@@ -509,7 +509,7 @@ class OrganizationResolver:
         await record_activity(
             current_user.id,
             ObjectId(organization_id),
-            f"updated role {role_name}"
+            f"updated role '{role_name}' to '{input.name}'"
         )
 
         # If role name changed, update all members using this role
@@ -573,13 +573,156 @@ class OrganizationResolver:
         await record_activity(
             current_user.id,
             ObjectId(organization_id),
-            f"deleted role {role_name}"
+            f"deleted role '{role_name}'"
         )
 
         updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
         return OrganizationResponse(
             success=True,
             message="Role deleted successfully",
+            organization=await Organization.from_db(updated_org)
+        )
+
+    @strawberry.mutation
+    async def update_member(self, organization_id: str, user_id: str, role_name: str, info: strawberry.Info) -> OrganizationResponse:
+        """Update a member's role in the organization"""
+        context = info.context
+        current_user = await context.authenticate()
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        organization = await organizations.find_one({"_id": ObjectId(organization_id)})
+        if not organization:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        # Check if user has permission to manage members
+        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
+        if not user_member:
+            raise HTTPException(status_code=403, detail="Not a member of this organization")
+
+        user_role = next((role for role in organization["roles"] if role["name"] == user_member["roleName"]), None)
+        if not user_role or OrganizationPermission.MANAGE_MEMBERS.value not in user_role["permissions"]:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+        # Check if role exists
+        if not any(role["name"] == role_name for role in organization["roles"]):
+            raise HTTPException(status_code=404, detail="Role not found")
+
+        # Check if member exists
+        member_to_update = next((member for member in organization["members"] 
+                               if str(member["userId"]) == user_id 
+                               and member["status"] == OrganizationMemberStatus.ACTIVE.value), None)
+        if not member_to_update:
+            raise HTTPException(status_code=404, detail="Member not found")
+
+        # Prevent updating owner's role
+        if organization["ownerId"] == ObjectId(user_id):
+            raise HTTPException(status_code=403, detail="Cannot modify organization owner's role")
+
+        # Update member's role
+        await organizations.update_one(
+            {
+                "_id": ObjectId(organization_id),
+                "members": {
+                    "$elemMatch": {
+                        "userId": ObjectId(user_id),
+                        "status": OrganizationMemberStatus.ACTIVE.value
+                    }
+                }
+            },
+            {
+                "$set": {
+                    "members.$.roleName": role_name,
+                    "updatedAt": datetime.now(timezone.utc)
+                }
+            }
+        )
+
+        # Get member's name for activity log
+        member_user = await users.find_one({"_id": ObjectId(user_id)})
+        member_name = f"{member_user['firstName']} {member_user['lastName']}" if member_user else user_id
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"updated {member_name}'s role to {role_name}"
+        )
+
+        updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
+        return OrganizationResponse(
+            success=True,
+            message="Member role updated successfully",
+            organization=await Organization.from_db(updated_org)
+        )
+
+    @strawberry.mutation
+    async def remove_member(self, organization_id: str, user_id: str, info: strawberry.Info) -> OrganizationResponse:
+        """Remove a member from the organization"""
+        context = info.context
+        current_user = await context.authenticate()
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        organization = await organizations.find_one({"_id": ObjectId(organization_id)})
+        if not organization:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        # Check if user has permission to manage members
+        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
+        if not user_member:
+            raise HTTPException(status_code=403, detail="Not a member of this organization")
+
+        user_role = next((role for role in organization["roles"] if role["name"] == user_member["roleName"]), None)
+        if not user_role or OrganizationPermission.MANAGE_MEMBERS.value not in user_role["permissions"]:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+        # Check if member exists
+        member_to_remove = next((member for member in organization["members"] 
+                               if str(member["userId"]) == user_id 
+                               and member["status"] == OrganizationMemberStatus.ACTIVE.value), None)
+        if not member_to_remove:
+            raise HTTPException(status_code=404, detail="Member not found")
+
+        # Prevent removing the owner
+        if organization["ownerId"] == ObjectId(user_id):
+            raise HTTPException(status_code=403, detail="Cannot remove organization owner")
+
+        # Remove member from organization
+        await organizations.update_one(
+            {"_id": ObjectId(organization_id)},
+            {
+                "$pull": {
+                    "members": {
+                        "userId": ObjectId(user_id),
+                        "status": OrganizationMemberStatus.ACTIVE.value
+                    }
+                },
+                "$set": {"updatedAt": datetime.now(timezone.utc)}
+            }
+        )
+
+        # Remove organization from user's organizations list
+        await users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$pull": {"organizations": str(organization_id)}}
+        )
+
+        # Get member's name for activity log
+        member_user = await users.find_one({"_id": ObjectId(user_id)})
+        member_name = f"{member_user['firstName']} {member_user['lastName']}" if member_user else user_id
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"removed {member_name} from organization"
+        )
+
+        updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
+        return OrganizationResponse(
+            success=True,
+            message="Member removed successfully",
             organization=await Organization.from_db(updated_org)
         )
 

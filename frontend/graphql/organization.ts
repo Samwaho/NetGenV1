@@ -1,3 +1,4 @@
+import { Organization } from "@/types/organization";
 import { gql } from "@apollo/client";
 
 export const GET_ORGANIZATIONS = gql`
@@ -293,3 +294,80 @@ export const DELETE_ROLE = gql`
     }
   }
 `;
+
+export const UPDATE_MEMBER = gql`
+  mutation UpdateMember(
+    $organizationId: String!
+    $userId: String!
+    $roleName: String!
+  ) {
+    updateMember(
+      organizationId: $organizationId
+      userId: $userId
+      roleName: $roleName
+    ) {
+      success
+      message
+      organization {
+        id
+        members {
+          user {
+            id
+            firstName
+            lastName
+            email
+          }
+          email
+          role {
+            name
+          }
+          status
+        }
+      }
+    }
+  }
+`;
+
+export const REMOVE_MEMBER = gql`
+  mutation RemoveMember(
+    $organizationId: String!
+    $userId: String!
+  ) {
+    removeMember(
+      organizationId: $organizationId
+      userId: $userId
+    ) {
+      success
+      message
+      organization {
+        id
+        members {
+          user {
+            id
+            email
+          }
+          role {
+            name
+          }
+          status
+        }
+      }
+    }
+  }
+`;
+
+export interface UpdateMemberResponse {
+  updateMember: {
+    success: boolean;
+    message: string;
+    organization: Organization;
+  };
+}
+
+export interface RemoveMemberResponse {
+  removeMember: {
+    success: boolean;
+    message: string;
+    organization: Organization;
+  };
+}

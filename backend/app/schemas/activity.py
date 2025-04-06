@@ -2,52 +2,54 @@ import strawberry
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import field
-from app.schemas.user import User
+from bson.objectid import ObjectId
 from app.schemas.organization import Organization
-from app.config.database import users, organizations
+from app.config.database import organizations
+
+@strawberry.type
+class UserDetails:
+    firstName: str
+    lastName: str
+    email: str
+    role: str
 
 @strawberry.type
 class Activity:
     id: str
-    user: User
-    organization: Organization
     action: str
+    userDetails: Optional[UserDetails]
+    organization: Optional[Organization]
     createdAt: datetime
     updatedAt: datetime
 
     @classmethod
-    async def from_db(cls, activity) -> "Activity":
-        # Handle both dictionary and object types
-        if isinstance(activity, dict):
-            user_id = activity.get("userId")
-            org_id = activity.get("organizationId")
-            converted_activity = {
-                "id": activity["_id"],
-                "action": activity["action"],
-                "createdAt": activity["createdAt"],
-                "updatedAt": activity["updatedAt"]
-            }
-        else:
-            user_id = activity.userId
-            org_id = activity.organizationId
-            converted_activity = {
-                "id": activity._id,
-                "action": activity.action,
-                "createdAt": activity.createdAt,
-                "updatedAt": activity.updatedAt
-            }
+    async def from_db(cls, activity_data: dict) -> "Activity":
+        """Convert DB activity to Activity type"""
+        # Create UserDetails from embedded data
+        user_details = None
+        if "userDetails" in activity_data:
+            user_details = UserDetails(
+                firstName=activity_data["userDetails"]["firstName"],
+                lastName=activity_data["userDetails"]["lastName"],
+                email=activity_data["userDetails"]["email"],
+                role=activity_data["userDetails"]["role"]
+            )
 
-        # Fetch user data
-        user_data = await users.find_one({"_id": user_id})
-        user = await User.from_db(user_data) if user_data else None
-        converted_activity["user"] = user
+        # Fetch organization data using organizationId
+        organization = None
+        if "organizationId" in activity_data:
+            org_data = await organizations.find_one({"_id": activity_data["organizationId"]})
+            if org_data:
+                organization = await Organization.from_db(org_data)
 
-        # Fetch organization data
-        org_data = await organizations.find_one({"_id": org_id})
-        organization = await Organization.from_db(org_data) if org_data else None
-        converted_activity["organization"] = organization
-
-        return cls(**converted_activity)
+        return cls(
+            id=str(activity_data["_id"]),
+            action=activity_data["action"],
+            userDetails=user_details,
+            organization=organization,
+            createdAt=activity_data["createdAt"],
+            updatedAt=activity_data["updatedAt"]
+        )
 
 @strawberry.type
 class ActivityResponse:
