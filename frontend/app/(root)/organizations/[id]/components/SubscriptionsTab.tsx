@@ -3,10 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { 
-  GET_SUBSCRIPTIONS, 
-  CANCEL_SUBSCRIPTION 
-} from '@/graphql/subscription';
+import { GET_SUBSCRIPTIONS, CANCEL_SUBSCRIPTION } from '@/graphql/subscription';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { NewSubscriptionModal } from './NewSubscriptionModal';
@@ -22,11 +19,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CreditCard, CalendarRange, RefreshCcw, LockIcon } from 'lucide-react';
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 import { OrganizationPermissions } from "@/lib/permissions";
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { LockIcon } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SubscriptionsTabProps {
   organizationId: string;
@@ -34,13 +32,57 @@ interface SubscriptionsTabProps {
   currentUserId: string;
 }
 
-export function SubscriptionsTab({ 
-  organizationId, 
-  organization, 
-  currentUserId 
-}: SubscriptionsTabProps) {
+const SubscriptionsLoadingSkeleton = () => {
+  return (
+    <div className="space-y-4 p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-2 sm:py-4">
+        <div className="flex-1">
+          <Skeleton className="h-10 w-[250px]" /> {/* Search input skeleton */}
+        </div>
+        <div className="flex items-center space-x-2">
+          <Skeleton className="h-10 w-[150px]" /> {/* New Subscription button skeleton */}
+        </div>
+      </div>
+
+      {/* Subscriptions List */}
+      <div className="grid gap-4">
+        {[1, 2, 3].map((index) => (
+          <Card key={index} className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row justify-between gap-4">
+                <div className="space-y-4 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-7 w-[200px]" /> {/* Plan name skeleton */}
+                    <Skeleton className="h-6 w-[80px]" /> {/* Status badge skeleton */}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center text-sm">
+                      <Skeleton className="h-4 w-4 mr-2" /> {/* Icon skeleton */}
+                      <Skeleton className="h-4 w-[200px]" /> {/* Date range skeleton */}
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <Skeleton className="h-4 w-4 mr-2" /> {/* Icon skeleton */}
+                      <Skeleton className="h-4 w-[100px]" /> {/* Auto-renew skeleton */}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Skeleton className="h-8 w-[80px]" /> {/* Action button skeleton */}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export function SubscriptionsTab({ organizationId, organization, currentUserId }: SubscriptionsTabProps) {
   const [isNewSubscriptionModalOpen, setIsNewSubscriptionModalOpen] = useState(false);
   const [subscriptionToCancel, setSubscriptionToCancel] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const canManageSubscriptions = hasOrganizationPermissions(
     organization,
@@ -64,18 +106,13 @@ export function SubscriptionsTab({
 
   const handleCancel = async () => {
     if (!subscriptionToCancel) return;
-    
     await cancelSubscription({
       variables: { id: subscriptionToCancel },
     });
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <SubscriptionsLoadingSkeleton />;
   }
 
   if (error) {
@@ -87,9 +124,16 @@ export function SubscriptionsTab({
     );
   }
 
-  const orgSubscriptions = data?.subscriptions?.subscriptions.filter(
+  let orgSubscriptions = data?.subscriptions?.subscriptions.filter(
     (sub: Subscription) => sub.organization.id === organizationId
   ) || [];
+
+  // Filter subscriptions based on search query
+  if (searchQuery) {
+    orgSubscriptions = orgSubscriptions.filter(sub => 
+      sub.plan.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }
 
   const getStatusBadgeVariant = (status: string): 'default' | 'destructive' | 'secondary' | 'outline' => {
     switch (status.toLowerCase()) {
@@ -100,58 +144,78 @@ export function SubscriptionsTab({
       case 'expired':
         return 'secondary';
       default:
-        return 'default';
+        return 'outline';
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Subscriptions</h2>
-        {canManageSubscriptions ? (
-          <Button 
-            onClick={() => setIsNewSubscriptionModalOpen(true)}
-            className="bg-gradient-custom text-white"
-          >
-            New Subscription
-          </Button>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" disabled>
-                <LockIcon className="mr-2 h-4 w-4" />
-                New Subscription
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>You need subscription management permissions to create subscriptions</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+    <div className="space-y-4 p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-2 sm:py-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search subscriptions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="max-w-sm text-sm"
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          {canManageSubscriptions ? (
+            <Button 
+              onClick={() => setIsNewSubscriptionModalOpen(true)}
+              className="bg-gradient-custom text-white"
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              New Subscription
+            </Button>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" disabled>
+                  <LockIcon className="mr-2 h-4 w-4" />
+                  New Subscription
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>You need subscription management permissions to create subscriptions</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {orgSubscriptions.length === 0 ? (
         <Card>
-          <CardContent className="p-6 text-center text-muted-foreground">
-            <div className="py-8 space-y-3">
-              <p>No subscriptions found.</p>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsNewSubscriptionModalOpen(true)}
-              >
-                Create your first subscription
-              </Button>
+          <CardContent className="p-8 text-center">
+            <div className="flex flex-col items-center space-y-4">
+              <CreditCard className="h-12 w-12 text-muted-foreground" />
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold">No subscriptions found</h3>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery ? 'No subscriptions match your search.' : 'Get started by creating your first subscription.'}
+                </p>
+              </div>
+              {canManageSubscriptions && !searchQuery && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsNewSubscriptionModalOpen(true)}
+                  className="mt-2"
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Create your first subscription
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="grid gap-4">
           {orgSubscriptions.map((subscription) => (
             <Card key={subscription.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
+                <div className="flex flex-col sm:flex-row justify-between gap-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-lg">
                         {subscription.plan.name}
                       </h3>
@@ -159,21 +223,26 @@ export function SubscriptionsTab({
                         {subscription.status}
                       </Badge>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        Period: {format(new Date(subscription.startDate), 'PPP')} - {format(new Date(subscription.endDate), 'PPP')}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Auto-renew: {subscription.autoRenew ? 'Yes' : 'No'}
-                      </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <CalendarRange className="h-4 w-4 mr-2" />
+                        <span>
+                          {format(new Date(subscription.startDate), 'PPP')} - {format(new Date(subscription.endDate), 'PPP')}
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        <span>Auto-renew: {subscription.autoRenew ? 'Yes' : 'No'}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-x-2">
-                    {subscription.status === 'ACTIVE' && canManageSubscriptions && (
+                  {subscription.status === 'ACTIVE' && canManageSubscriptions && (
+                    <div className="flex justify-end">
                       <Button
                         variant="destructive"
                         onClick={() => setSubscriptionToCancel(subscription.id)}
                         disabled={cancelling}
+                        size="sm"
                       >
                         {cancelling ? (
                           <>
@@ -184,8 +253,8 @@ export function SubscriptionsTab({
                           'Cancel'
                         )}
                       </Button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -229,10 +298,5 @@ export function SubscriptionsTab({
     </div>
   );
 }
-
-
-
-
-
 
 

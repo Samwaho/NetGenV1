@@ -69,8 +69,7 @@ export const ActivityTab = ({ organizationId }: ActivityTabProps) => {
       limit: 100, // Adjust as needed
       skip: 0
     },
-    skip: !organizationId,
-    pollInterval: 30000, // Poll every 30 seconds for new activities
+    skip: !organizationId
   });
 
   const columns: ColumnDef<Activity>[] = [
