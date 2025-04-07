@@ -91,15 +91,17 @@ class OrganizationResolver:
                     OrganizationPermission.VIEW_ISP_MANAGER_CUSTOMERS.value,
                     OrganizationPermission.MANAGE_ISP_MANAGER_CUSTOMERS.value,
                     OrganizationPermission.VIEW_ISP_MANAGER_STATIONS.value,
-                    OrganizationPermission.MANAGE_ISP_MANAGER_STATIONS.value
+                    OrganizationPermission.MANAGE_ISP_MANAGER_STATIONS.value,
+                    OrganizationPermission.VIEW_ISP_MANAGER_INVENTORY.value,
+                    OrganizationPermission.MANAGE_ISP_MANAGER_INVENTORY.value
                 ],
-                "isSystemRole": True
+                "isSystemRole": False
             },
             {
                 "name": "Member",
                 "description": "Regular organization member",
                 "permissions": [OrganizationPermission.VIEW_ORGANIZATION.value],
-                "isSystemRole": True
+                "isSystemRole": False
             }
         ]
 

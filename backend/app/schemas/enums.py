@@ -24,6 +24,8 @@ class OrganizationPermission(str, Enum):
     MANAGE_ISP_MANAGER_CUSTOMERS = "MANAGE_ISP_MANAGER_CUSTOMERS"
     VIEW_ISP_MANAGER_STATIONS = "VIEW_ISP_MANAGER_STATIONS"
     MANAGE_ISP_MANAGER_STATIONS = "MANAGE_ISP_MANAGER_STATIONS"
+    VIEW_ISP_MANAGER_INVENTORY = "VIEW_ISP_MANAGER_INVENTORY"
+    MANAGE_ISP_MANAGER_INVENTORY = "MANAGE_ISP_MANAGER_INVENTORY"
 
 
 @strawberry.enum
@@ -64,3 +66,26 @@ class StationStatus(str, Enum):
     INACTIVE = "INACTIVE"
     MAINTENANCE = "MAINTENANCE"
     OFFLINE = "OFFLINE"
+
+@strawberry.enum
+class EquipmentCategory(str, Enum):
+    ROUTER = "ROUTER"
+    SWITCH = "SWITCH"
+    ACCESS_POINT = "ACCESS_POINT"
+    ANTENNA = "ANTENNA"
+    CABLE = "CABLE"
+    CONNECTOR = "CONNECTOR"
+    POWER_SUPPLY = "POWER_SUPPLY"
+    SERVER = "SERVER"
+    CPE = "CPE"  # Customer Premises Equipment
+    TOOLS = "TOOLS"
+    OTHER = "OTHER"
+
+@strawberry.enum
+class EquipmentStatus(str, Enum):
+    AVAILABLE = "AVAILABLE"
+    IN_USE = "IN_USE"
+    DEFECTIVE = "DEFECTIVE"
+    IN_REPAIR = "IN_REPAIR"
+    RESERVED = "RESERVED"
+    DISPOSED = "DISPOSED"
