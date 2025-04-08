@@ -225,7 +225,7 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
           {(Object.entries(columns) as [keyof typeof columns, ColumnConfig][]).map(([status, { title, className }]) => (
             <div
               key={status}
-              className="flex flex-col rounded-lg shadow-md"
+              className="flex flex-col bg-card rounded-lg shadow-md"
             >
               <div className="p-4 border-b bg-card rounded-t-lg">
                 <h3 className="font-semibold">{title}</h3>

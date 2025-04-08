@@ -66,7 +66,7 @@ export default async function ISPLayout({
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted p-4 flex items-center justify-center">
+      <div className="min-h-screen p-4 flex items-center justify-center">
         <Card className="max-w-md w-full glow transition-shadow duration-300">
           <CardContent className="p-6 space-y-6">
             <div className="flex flex-col items-center text-center space-y-4">
@@ -120,7 +120,7 @@ export default async function ISPLayout({
 
   if (!hasActiveSubscription) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted p-4 flex items-center justify-center">
+      <div className="min-h-screen p-4 flex items-center justify-center">
         <Card className="max-w-md w-full glow transition-shadow duration-300">
           <CardContent className="p-6 space-y-6">
             <div className="flex flex-col items-center text-center space-y-4">
