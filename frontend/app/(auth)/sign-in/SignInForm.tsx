@@ -123,7 +123,7 @@ const SignInForm = () => {
 
   return (
     <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4 sm:mt-8">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4 sm:mt-8 text-foreground">
             <FormField
                 control={form.control}
                 name="email"

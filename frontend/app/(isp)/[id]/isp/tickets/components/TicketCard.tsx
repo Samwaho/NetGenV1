@@ -20,6 +20,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useUser } from "@/hooks/useUser";
+import { useOrganization } from "@/hooks/useOrganization";
+import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { OrganizationPermissions } from "@/lib/permissions";
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -43,25 +49,45 @@ export function TicketCard({ ticket }: TicketCardProps) {
   const params = useParams();
   const router = useRouter();
   const organizationId = params.id as string;
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { user } = useUser();
+  const { organization } = useOrganization(organizationId);
+
+  const canManageTickets = organization && user && hasOrganizationPermissions(
+    organization,
+    user.id,
+    OrganizationPermissions.MANAGE_ISP_MANAGER_TICKETS
+  );
 
   const [deleteTicket] = useMutation(DELETE_ISP_TICKET, {
     onCompleted: () => {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
       toast.success("Ticket deleted successfully");
     },
     onError: (error) => {
+      setIsDeleting(false);
       toast.error(error.message);
     },
+    update: (cache) => {
+      cache.evict({ id: `Ticket:${ticket.id}` });
+      cache.gc();
+    },
+    refetchQueries: ['GetISPTickets'],
   });
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent card click navigation
-    await deleteTicket({
-      variables: { id: ticket.id },
-      update: (cache) => {
-        cache.evict({ id: cache.identify({ id: ticket.id, __typename: 'Ticket' }) });
-        cache.gc();
-      },
-    });
+    setIsDeleting(true);
+    try {
+      await deleteTicket({
+        variables: { id: ticket.id }
+      });
+    } catch (error) {
+      // Error is handled by onError above
+    }
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -69,10 +95,16 @@ export function TicketCard({ ticket }: TicketCardProps) {
     router.push(`/${organizationId}/isp/tickets/${ticket.id}/edit`);
   };
 
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigation
+    e.stopPropagation(); // Stop event from reaching the Link component
+    setIsDeleteDialogOpen(true);
+  };
+
   return (
     <Link href={`/${organizationId}/isp/tickets/${ticket.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer">
-        <CardHeader className="p-4 pb-2">
+      <Card className="hover:bg-muted/50 transition-colors">
+        <CardContent className="p-6">
           <div className="flex justify-between items-start">
             <div className="space-y-1.5">
               <h4 className="font-semibold text-sm line-clamp-2">{ticket.title}</h4>
@@ -94,7 +126,7 @@ export function TicketCard({ ticket }: TicketCardProps) {
               </Badge>
             </div>
           </div>
-        </CardHeader>
+        </CardContent>
         <CardContent className="p-4 pt-2 space-y-2">
           <p className="text-sm text-muted-foreground line-clamp-2">
             {ticket.description}
@@ -132,44 +164,57 @@ export function TicketCard({ ticket }: TicketCardProps) {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={handleEdit}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the ticket.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={(e) => e.preventDefault()}>
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} className="bg-destructive">
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          {canManageTickets && (
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={handleEdit}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    onClick={handleDeleteClick}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this ticket? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="bg-destructive hover:bg-destructive/90"
+                    >
+                      {isDeleting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        'Delete'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>

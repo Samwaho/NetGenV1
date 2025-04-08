@@ -131,6 +131,28 @@ class ISPTicketResolver:
         context: Context = info.context
         current_user = await context.authenticate()
 
+        # Find the ticket
+        ticket = await isp_tickets.find_one({"_id": ObjectId(id)})
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+
+        # Verify user has access to the organization
+        organization = await organizations.find_one({
+            "_id": ticket["organizationId"],
+            "members.userId": current_user.id
+        })
+        
+        if not organization:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this ticket")
+
+        # Record activity before deletion
+        await record_activity(
+            current_user.id,
+            ticket["organizationId"],
+            f"deleted ticket {ticket['title']}"
+        )
+
+        # Delete the ticket
         result = await isp_tickets.delete_one({"_id": ObjectId(id)})
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Ticket not found")

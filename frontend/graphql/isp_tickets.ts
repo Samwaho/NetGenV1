@@ -51,7 +51,12 @@ export const GET_ISP_TICKET = gql`
         lastName
         email
       }
-      assignedTo
+      assignedTo {
+        id
+        firstName
+        lastName
+        email
+      }
       category
       dueDate
       resolution
@@ -105,8 +110,8 @@ export const CREATE_ISP_TICKET = gql`
 `;
 
 export const UPDATE_ISP_TICKET = gql`
-  mutation UpdateISPTicket($id: String!, $input: UpdateTicketInput!) {
-    updateTicket(id: $id, input: $input) {
+  mutation UpdateISPTicket($input: UpdateISPTicketInput!) {
+    updateTicket(input: $input) {
       success
       message
       ticket {
@@ -127,11 +132,9 @@ export const UPDATE_ISP_TICKET = gql`
           lastName
           email
         }
-        station {
-          id
-          name
-          location
-        }
+        category
+        dueDate
+        resolution
         organization {
           id
           name
@@ -145,10 +148,7 @@ export const UPDATE_ISP_TICKET = gql`
 
 export const DELETE_ISP_TICKET = gql`
   mutation DeleteISPTicket($id: String!) {
-    deleteTicket(id: $id) {
-      success
-      message
-    }
+    deleteTicket(id: $id)
   }
 `;
 
@@ -218,15 +218,13 @@ export interface CreateTicketInput {
 }
 
 export interface UpdateTicketInput {
+  id: string;
   title?: string;
   description?: string;
   status?: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
   priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-  assignedToId?: string;
-  stationId?: string;
+  category?: string;
+  dueDate?: string;
+  assignedTo?: string;
+  resolution?: string;
 }
-
-
-
-
-

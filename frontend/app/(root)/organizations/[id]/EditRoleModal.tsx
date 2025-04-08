@@ -49,6 +49,14 @@ const availablePermissions = [
   { value: "VIEW_ISP_MANAGER_DASHBOARD", label: "View ISP Manager Dashboard" },
   { value: "VIEW_ISP_MANAGER_PACKAGES", label: "View ISP Manager Packages" },
   { value: "MANAGE_ISP_MANAGER_PACKAGES", label: "Manage ISP Manager Packages" },
+  { value: "VIEW_ISP_MANAGER_CUSTOMERS", label: "View ISP Manager Customers" },
+  { value: "MANAGE_ISP_MANAGER_CUSTOMERS", label: "Manage ISP Manager Customers" },
+  { value: "VIEW_ISP_MANAGER_STATIONS", label: "View ISP Manager Stations" },
+  { value: "MANAGE_ISP_MANAGER_STATIONS", label: "Manage ISP Manager Stations" },
+  { value: "VIEW_ISP_MANAGER_INVENTORY", label: "View ISP Manager Inventory" },
+  { value: "MANAGE_ISP_MANAGER_INVENTORY", label: "Manage ISP Manager Inventory" },
+  { value: "VIEW_ISP_MANAGER_TICKETS", label: "View ISP Manager Tickets" },
+  { value: "MANAGE_ISP_MANAGER_TICKETS", label: "Manage ISP Manager Tickets" },
 ];
 
 interface EditRoleModalProps {

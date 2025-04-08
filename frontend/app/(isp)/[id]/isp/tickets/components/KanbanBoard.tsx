@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Ticket } from "@/graphql/isp_tickets";
 import { TicketCard } from "./TicketCard";
 import { useMutation } from "@apollo/client";
@@ -10,7 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, TicketIcon } from "lucide-react";
 import { subDays, isAfter, parseISO, startOfToday } from "date-fns";
-import { formatDateToNowInTimezone } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useUser } from "@/hooks/useUser";
+import { useOrganization } from "@/hooks/useOrganization";
+import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { OrganizationPermissions } from "@/lib/permissions";
+import { useParams } from "next/navigation";
 
 interface KanbanBoardProps {
   tickets: Ticket[];
@@ -53,7 +58,17 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
   const [dateFilter, setDateFilter] = useState("all");
-  const [localTickets, setLocalTickets] = useState<Ticket[]>(tickets);
+  const params = useParams();
+  const organizationId = params.id as string;
+  const { user } = useUser();
+  const { organization } = useOrganization(organizationId);
+  const [localTickets, setLocalTickets] = useState(tickets);
+  
+  const canManageTickets = organization && user && hasOrganizationPermissions(
+    organization,
+    user.id,
+    [OrganizationPermissions.MANAGE_ISP_MANAGER_TICKETS]
+  );
 
   // Filter tickets based on search query, priority, and date
   const filteredTickets = useMemo(() => {
@@ -104,35 +119,37 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
   // Get total pages based on the column with most tickets
   const maxTicketsInColumn = Math.max(
     ...Object.keys(columns).map(
-      (status) => filteredTickets.filter((t) => t.status === status).length
+      (status) => filteredTickets.filter((t) => t.status === status as keyof typeof columns).length
     )
   );
   const totalPages = Math.ceil(maxTicketsInColumn / ITEMS_PER_PAGE);
 
-  const onDragEnd = async (result: any) => {
-    const { destination, source, draggableId } = result;
-
-    if (!destination) return;
-
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
+  const onDragEnd = async (result: DropResult) => {
+    if (!canManageTickets) {
+      toast.error("You don't have permission to update ticket status");
       return;
     }
 
-    const newStatus = destination.droppableId as keyof typeof columns;
+    const { destination, source, draggableId } = result;
 
-    // Create new array with updated status
-    const newTickets = localTickets.map((ticket: Ticket) => 
-      ticket.id === draggableId 
-        ? { ...ticket, status: newStatus }
+    // Return if dropped outside or in the same position
+    if (!destination || 
+        (destination.droppableId === source.droppableId && 
+         destination.index === source.index)) {
+      return;
+    }
+
+    const newStatus = destination.droppableId;
+    
+    // Create new array with updated ticket status
+    const newTickets = localTickets.map((ticket: Ticket) =>
+      ticket.id === draggableId
+        ? { ...ticket, status: newStatus as keyof typeof columns }
         : ticket
     );
     
     setLocalTickets(newTickets);
 
-    // Update in the backend using the new mutation
     try {
       await updateTicketStatus({
         variables: {
@@ -141,8 +158,7 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
         },
       });
       
-      // Add success toast with type-safe access
-      toast.success(`Ticket status updated to ${columns[newStatus].title}`);
+      toast.success(`Ticket status updated to ${columns[newStatus as keyof typeof columns].title}`);
     } catch (error) {
       toast.error("Failed to update ticket status");
       // Revert the optimistic update
@@ -217,7 +233,7 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
                   {filteredTickets.filter(t => t.status === status).length} tickets
                 </div>
               </div>
-              <Droppable droppableId={status}>
+              <Droppable droppableId={status} isDropDisabled={!canManageTickets}>
                 {(provided) => (
                   <div
                     ref={provided.innerRef}
@@ -229,12 +245,14 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
                         key={ticket.id}
                         draggableId={ticket.id}
                         index={index}
+                        isDragDisabled={!canManageTickets}
                       >
-                        {(provided) => (
+                        {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
+                            className={cn("mb-4", snapshot.isDragging && "rotate-2")}
                           >
                             <TicketCard ticket={ticket} />
                           </div>
