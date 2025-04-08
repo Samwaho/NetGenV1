@@ -92,10 +92,10 @@ export default function EditInventoryPage({ params }: EditInventoryPageProps) {
   useEffect(() => {
     if (inventoryData?.inventory?.inventory) {
       const inventory = inventoryData.inventory.inventory;
-      
-      const formData = {
+      // Set form values
+      const formValues = {
         name: inventory.name || "",
-        category: inventory.category as keyof typeof EquipmentCategoryEnum || "ROUTER",
+        category: inventory.category,  // Don't provide fallback here
         model: inventory.model || "",
         manufacturer: inventory.manufacturer || "",
         serialNumber: inventory.serialNumber || "",
@@ -110,11 +110,9 @@ export default function EditInventoryPage({ params }: EditInventoryPageProps) {
         specifications: inventory.specifications || "",
         notes: inventory.notes || "",
       };
-
-      // Use setValue instead of reset to ensure immediate update
-      Object.entries(formData).forEach(([key, value]) => {
-        form.setValue(key as any, value);
-      });
+      
+      // Set all values at once
+      form.reset(formValues);
     }
   }, [inventoryData, form]);
 
@@ -130,33 +128,33 @@ export default function EditInventoryPage({ params }: EditInventoryPageProps) {
     <FormField
       control={form.control}
       name="category"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>Category</FormLabel>
-          <Select 
-            onValueChange={field.onChange} 
-            value={field.value}
-          >
-            <FormControl>
-              <SelectTrigger className="bg-background">
-                <SelectValue>
-                  {Object.keys(EquipmentCategoryEnum).find(
-                    (category) => category === field.value
-                  )?.replace(/_/g, ' ') || 'Select category'}
-                </SelectValue>
-              </SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {Object.keys(EquipmentCategoryEnum).map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category.replace(/_/g, ' ')}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )}
+      render={({ field }) => {
+        return (
+          <FormItem>
+            <FormLabel>Category</FormLabel>
+            <Select 
+              onValueChange={field.onChange} 
+              defaultValue={field.value}
+            >
+              <FormControl>
+                <SelectTrigger className="bg-background">
+                  <SelectValue defaultValue={field.value}>
+                    {field.value?.replace(/_/g, ' ')}
+                  </SelectValue>
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {Object.keys(EquipmentCategoryEnum).map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category.replace(/_/g, ' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        );
+      }}
     />
   );
 
@@ -500,7 +498,5 @@ export default function EditInventoryPage({ params }: EditInventoryPageProps) {
     </div>
   );
 }
-
-
 
 
