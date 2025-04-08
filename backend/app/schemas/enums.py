@@ -26,6 +26,8 @@ class OrganizationPermission(str, Enum):
     MANAGE_ISP_MANAGER_STATIONS = "MANAGE_ISP_MANAGER_STATIONS"
     VIEW_ISP_MANAGER_INVENTORY = "VIEW_ISP_MANAGER_INVENTORY"
     MANAGE_ISP_MANAGER_INVENTORY = "MANAGE_ISP_MANAGER_INVENTORY"
+    VIEW_ISP_MANAGER_TICKETS = "VIEW_ISP_MANAGER_TICKETS"
+    MANAGE_ISP_MANAGER_TICKETS = "MANAGE_ISP_MANAGER_TICKETS"
 
 
 @strawberry.enum
@@ -89,3 +91,18 @@ class EquipmentStatus(str, Enum):
     IN_REPAIR = "IN_REPAIR"
     RESERVED = "RESERVED"
     DISPOSED = "DISPOSED"
+
+@strawberry.enum
+class TicketStatus(str, Enum):
+    OPEN = "OPEN"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+    CLOSED = "CLOSED"
+
+@strawberry.enum
+class TicketPriority(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
+

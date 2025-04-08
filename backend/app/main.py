@@ -14,6 +14,7 @@ from app.resolvers.isp_station import ISPStationResolver
 from app.resolvers.isp_package import ISPPackageResolver
 from app.resolvers.isp_customer import ISPCustomerResolver
 from app.resolvers.isp_inventory import ISPInventoryResolver
+from app.resolvers.isp_ticket import ISPTicketResolver
 
 @strawberry.type
 class Query(
@@ -25,7 +26,8 @@ class Query(
     ISPStationResolver,
     ISPPackageResolver,
     ISPCustomerResolver,
-    ISPInventoryResolver
+    ISPInventoryResolver,
+    ISPTicketResolver
 ):
     pass
 
@@ -39,7 +41,8 @@ class Mutation(
     ISPStationResolver,
     ISPPackageResolver,
     ISPCustomerResolver,
-    ISPInventoryResolver
+    ISPInventoryResolver,
+    ISPTicketResolver
 ):
     pass
 
