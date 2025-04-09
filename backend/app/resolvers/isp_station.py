@@ -32,9 +32,17 @@ class ISPStationResolver:
             raise HTTPException(status_code=404, detail="Station not found")
 
         # Verify user has access to the organization this station belongs to
+        org_id = station["organizationId"]
         org = await organizations.find_one({
-            "_id": station["organizationId"],
-            "members.userId": current_user.id
+            "$and": [
+                {
+                    "$or": [
+                        {"_id": ObjectId(org_id) if isinstance(org_id, str) else org_id},
+                        {"_id": str(org_id) if isinstance(org_id, ObjectId) else org_id}
+                    ]
+                },
+                {"members.userId": current_user.id}
+            ]
         })
         
         if not org:
@@ -209,6 +217,7 @@ class ISPStationResolver:
             message="Station deleted successfully",
             station=await ISPStation.from_db(station)
         )
+
 
 
 

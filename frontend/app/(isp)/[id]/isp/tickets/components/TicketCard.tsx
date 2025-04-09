@@ -102,8 +102,7 @@ export function TicketCard({ ticket }: TicketCardProps) {
   };
 
   return (
-    <Link href={`/${organizationId}/isp/tickets/${ticket.id}`}>
-      <Card className="hover:bg-muted/50 transition-colors">
+      <Card className="hover:bg-muted/50 transition-colors cursor-grab">
         <CardContent className="p-6">
           <div className="flex justify-between items-start">
             <div className="space-y-1.5">
@@ -217,7 +216,6 @@ export function TicketCard({ ticket }: TicketCardProps) {
           )}
         </CardContent>
       </Card>
-    </Link>
   );
 }
 

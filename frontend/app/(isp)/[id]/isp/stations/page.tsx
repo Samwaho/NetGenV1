@@ -7,7 +7,6 @@ import { DataTable } from "./components/StationsTable";
 import { columns } from "./components/columns";
 import { Button } from "@/components/ui/button";
 import { Plus, Signal, SignalHigh, SignalLow, SignalMedium, ShieldAlert } from "lucide-react";
-import { StationDialog } from "./components/StationDialog";
 import { toast } from "sonner";
 import { ISPStationsResponse } from "@/types/isp_station";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -17,21 +16,21 @@ import { useUser } from "@/hooks/useUser";
 import { useOrganization } from "@/hooks/useOrganization";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 import { OrganizationPermissions } from "@/lib/permissions";
+import Link from "next/link";
 
 export default function StationsPage() {
   const params = useParams();
   const organizationId = params.id as string;
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user, loading: userLoading } = useUser();
   const { organization, loading: orgLoading } = useOrganization(organizationId);
 
   const { data, loading: dataLoading, error } = useQuery<ISPStationsResponse>(GET_ISP_STATIONS, {
     variables: { organizationId },
-    skip: !organization || !user, // Skip the query until we have user and org data
+    skip: !organizationId || !organization || !user, // Add organizationId check
   });
 
-  // Show loading state while checking permissions
-  if (userLoading || orgLoading) {
+  // Show loading state while checking permissions or if organizationId is missing
+  if (userLoading || orgLoading || !organizationId) {
     return (
       <div className="container mx-auto px-4 py-8 space-y-8">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -104,12 +103,13 @@ export default function StationsPage() {
           </p>
         </div>
         {canManageStations && (
-          <Button
-            onClick={() => setIsDialogOpen(true)}
-            className="w-full sm:w-auto bg-gradient-custom text-white hover:text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add Station
-          </Button>
+          <Link href={`/${organizationId}/isp/stations/create`}>
+            <Button
+              className="w-full sm:w-auto bg-gradient-custom text-white hover:text-white"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add Station
+            </Button>
+          </Link>
         )}
       </div>
 
@@ -204,14 +204,6 @@ export default function StationsPage() {
             <DataTable columns={columns(canManageStations)} data={stations} />
           </div>
         </>
-      )}
-
-      {canManageStations && (
-        <StationDialog 
-          open={isDialogOpen} 
-          onOpenChange={setIsDialogOpen} 
-          organizationId={organizationId}
-        />
       )}
     </div>
   );

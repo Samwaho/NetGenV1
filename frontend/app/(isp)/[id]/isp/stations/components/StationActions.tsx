@@ -10,9 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ISPStation } from "@/types/isp_station";
-import { EditStationDialog } from "./EditStationDialog";
 import { useMutation } from "@apollo/client";
-import { DELETE_ISP_STATION, GET_ISP_STATIONS } from "@/graphql/isp_stations";
+import { DELETE_ISP_STATION } from "@/graphql/isp_stations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,17 +23,29 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useRouter, useParams } from "next/navigation";
 
 interface StationActionsProps {
   station: ISPStation;
+  organizationId?: string;
 }
 
-export function StationActions({ station }: StationActionsProps) {
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+export function StationActions({ station, organizationId: propOrgId }: StationActionsProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const router = useRouter();
+  const params = useParams();
+  
+  // Use organizationId from props or fallback to params
+  const organizationId = propOrgId || params?.id;
+
+  // Validate organizationId
+  if (!organizationId) {
+    console.error("Organization ID is missing");
+    return null;
+  }
 
   const [deleteStation, { loading: isDeleting }] = useMutation(DELETE_ISP_STATION, {
-    refetchQueries: [GET_ISP_STATIONS],
+    refetchQueries: ["GetISPStations"],
     onCompleted: (data) => {
       if (data.deleteStation.success) {
         toast.success("Station deleted successfully");
@@ -49,6 +60,11 @@ export function StationActions({ station }: StationActionsProps) {
   });
 
   const handleDelete = async () => {
+    if (!station.id) {
+      toast.error("Invalid station ID");
+      return;
+    }
+
     try {
       await deleteStation({
         variables: {
@@ -58,6 +74,14 @@ export function StationActions({ station }: StationActionsProps) {
     } catch (error) {
       // Error is handled by onError above
     }
+  };
+
+  const handleEdit = () => {
+    if (!organizationId || !station.id) {
+      toast.error("Missing required information");
+      return;
+    }
+    router.push(`/${organizationId}/isp/stations/${station.id}/edit`);
   };
 
   return (
@@ -70,7 +94,7 @@ export function StationActions({ station }: StationActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+          <DropdownMenuItem onClick={handleEdit}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit
           </DropdownMenuItem>
@@ -84,29 +108,23 @@ export function StationActions({ station }: StationActionsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <EditStationDialog
-        station={station}
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-      />
-
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the station &quot;{station.name}&quot;. 
-              This action cannot be undone.
+              This action cannot be undone. This will permanently delete the station
+              and all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -114,3 +132,5 @@ export function StationActions({ station }: StationActionsProps) {
     </>
   );
 }
+
+
