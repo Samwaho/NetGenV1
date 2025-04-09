@@ -6,7 +6,6 @@ import { DataTable } from "./components/PackagesTable";
 import { columns } from "./components/columns";
 import { Button } from "@/components/ui/button";
 import { Plus, Wifi, Network, Radio, TrendingUp, ShieldAlert } from "lucide-react";
-import { PackageDialog } from "./components/PackageDialog";
 import { toast } from "sonner";
 import { ISPPackagesResponse } from "@/types/isp_package";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -16,11 +15,11 @@ import { useUser } from "@/hooks/useUser";
 import { useOrganization } from "@/hooks/useOrganization";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 import { OrganizationPermissions } from "@/lib/permissions";
+import Link from "next/link";
 
 export default function PackagesPage() {
   const params = useParams();
   const organizationId = params.id as string;
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user, loading: userLoading } = useUser();
   const { organization, loading: orgLoading } = useOrganization(organizationId);
 
@@ -128,12 +127,15 @@ export default function PackagesPage() {
           </p>
         </div>
         {canManagePackages && (
+          <Link
+            href={`/${organizationId}/isp/packages/create`}
+          >
           <Button
-            onClick={() => setIsDialogOpen(true)}
             className="w-full sm:w-auto bg-gradient-custom text-white hover:text-white"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Package
           </Button>
+          </Link>
         )}
       </div>
 
@@ -228,13 +230,6 @@ export default function PackagesPage() {
             <DataTable columns={columns(canManagePackages)} data={packages} />
           </div>
         </>
-      )}
-      {canManagePackages && (
-        <PackageDialog
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          organizationId={organizationId}
-        />
       )}
     </div>
   );

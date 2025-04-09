@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { ISPPackage } from "@/types/isp_package";
-import { PackageDialog } from "./PackageDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,14 +23,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 
 interface PackageActionsProps {
   package: ISPPackage;
 }
 
 export function PackageActions({ package: pkg }: PackageActionsProps) {
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const router = useRouter();
+  const params = useParams();
+  const organizationId = params.id as string;
+
 
   const [deletePackage] = useMutation(DELETE_ISP_PACKAGE, {
     onCompleted: () => {
@@ -62,10 +66,12 @@ export function PackageActions({ package: pkg }: PackageActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </DropdownMenuItem>
+          <Link href={`/${organizationId}/isp/packages/${pkg.id}/edit`} passHref>
+            <DropdownMenuItem>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </DropdownMenuItem>
+          </Link>
           <DropdownMenuItem
             onClick={() => setIsDeleteDialogOpen(true)}
             className="text-red-600"
@@ -75,13 +81,6 @@ export function PackageActions({ package: pkg }: PackageActionsProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <PackageDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        organizationId={pkg.organization.id}
-        packageToEdit={pkg}
-      />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
