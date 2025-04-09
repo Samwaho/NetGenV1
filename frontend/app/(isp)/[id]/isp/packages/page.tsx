@@ -1,35 +1,174 @@
 "use client";
-import { useState } from "react";
 import { useQuery } from "@apollo/client";
-import { GET_ISP_PACKAGES } from "@/graphql/isp_packages";
+import { GET_ISP_PACKAGES, PackageFilterOptions } from "@/graphql/isp_packages";
 import { DataTable } from "./components/PackagesTable";
 import { columns } from "./components/columns";
 import { Button } from "@/components/ui/button";
 import { Plus, Wifi, Network, Radio, TrendingUp, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
-import { ISPPackagesResponse } from "@/types/isp_package";
+import { ISPPackage } from "@/types/isp_package";
 import { TableSkeleton } from "@/components/TableSkeleton";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from "@/hooks/useUser";
 import { useOrganization } from "@/hooks/useOrganization";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 import { OrganizationPermissions } from "@/lib/permissions";
 import Link from "next/link";
+import { useMemo, useCallback, useEffect, memo, useState } from "react";
+
+// Define types
+interface StatCardProps {
+  title: string;
+  value: number | string;
+  subtext: string;
+  icon: React.ReactNode;
+  color: string;
+}
+
+// Update the interface for GraphQL response
+interface PackagesQueryResponse {
+  packages: {
+    success: boolean;
+    message: string;
+    packages: ISPPackage[];
+    totalCount: number;
+  }
+}
+
+// Memoized stats card component to prevent unnecessary re-renders
+const StatCard = memo(({ title, value, subtext, icon, color }: StatCardProps) => (
+  <Card className="shadow-sm">
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-xs sm:text-sm font-medium">
+        {title}
+      </CardTitle>
+      {icon}
+    </CardHeader>
+    <CardContent>
+      <div className={`text-xl sm:text-2xl font-bold ${color}`}>
+        {value}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {subtext}
+      </p>
+    </CardContent>
+  </Card>
+));
+StatCard.displayName = "StatCard";
 
 export default function PackagesPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const organizationId = params.id as string;
   const { user, loading: userLoading } = useUser();
   const { organization, loading: orgLoading } = useOrganization(organizationId);
 
-  const { data, loading: dataLoading, error } = useQuery<ISPPackagesResponse>(
+  // Get filter parameters from URL or use defaults
+  const page = parseInt(searchParams.get("page") || "1");
+  const pageSize = parseInt(searchParams.get("pageSize") || "10");
+  const sortBy = searchParams.get("sortBy") || "createdAt";
+  const sortDirection = (searchParams.get("sortDirection") || "desc") as "asc" | "desc";
+  const search = searchParams.get("search") || undefined;
+
+  // State for filter options - initialize from URL params
+  const [filterOptions, setFilterOptions] = useState<PackageFilterOptions>(() => ({
+    page,
+    pageSize,
+    sortBy,
+    sortDirection,
+    search
+  }));
+
+  // Update URL when filter options change - use replace instead of push to avoid history stack
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filterOptions.page && filterOptions.page > 1) params.set("page", filterOptions.page.toString());
+    if (filterOptions.pageSize && filterOptions.pageSize !== 10) params.set("pageSize", filterOptions.pageSize.toString());
+    if (filterOptions.sortBy && filterOptions.sortBy !== "createdAt") params.set("sortBy", filterOptions.sortBy);
+    if (filterOptions.sortDirection && filterOptions.sortDirection !== "desc") params.set("sortDirection", filterOptions.sortDirection);
+    if (filterOptions.search) params.set("search", filterOptions.search);
+    
+    const queryString = params.toString();
+    const newPath = queryString 
+      ? `/${organizationId}/isp/packages?${queryString}`
+      : `/${organizationId}/isp/packages`;
+
+    // Only update if the path has actually changed
+    if (window.location.pathname + window.location.search !== newPath) {
+      router.replace(newPath);
+    }
+  }, [filterOptions, organizationId, router]);
+
+  // Handler for filter changes from DataTable
+  const handleFilterChange = useCallback((newFilters: PackageFilterOptions) => {
+    setFilterOptions(prev => {
+      // Only update if there are actual changes
+      const hasChanges = Object.entries(newFilters).some(([key, value]) => 
+        prev[key as keyof PackageFilterOptions] !== value
+      );
+      
+      return hasChanges ? { ...prev, ...newFilters } : prev;
+    });
+  }, []);
+
+  // Query with pagination, sorting and filtering
+  const { data, loading: dataLoading, error } = useQuery<PackagesQueryResponse>(
     GET_ISP_PACKAGES,
     { 
-      variables: { organizationId },
+      variables: { 
+        organizationId,
+        page: filterOptions.page,
+        pageSize: filterOptions.pageSize,
+        sortBy: filterOptions.sortBy,
+        sortDirection: filterOptions.sortDirection,
+        search: filterOptions.search
+      },
       skip: !organization || !user, // Skip the query until we have user and org data
+      fetchPolicy: "cache-and-network", // Use cache first, then update from network
+      nextFetchPolicy: "cache-first", // Use cache for subsequent requests
+      notifyOnNetworkStatusChange: true, // Show loading state on refetch
     }
   );
+
+  const packages = data?.packages.packages || [];
+  const totalCount = data?.packages.totalCount || 0;
+
+  // Calculate statistics using useMemo to avoid recalculation on rerenders
+  const stats = useMemo(() => {
+    const pppoePackages = packages.filter(pkg => pkg.serviceType === "PPPOE").length;
+    const hotspotPackages = packages.filter(pkg => pkg.serviceType === "HOTSPOT").length;
+    const staticPackages = packages.filter(pkg => pkg.serviceType === "STATIC").length;
+    const dhcpPackages = packages.filter(pkg => pkg.serviceType === "DHCP").length;
+    
+    // Find most popular service type
+    const serviceTypeCounts = packages.reduce((acc, pkg) => {
+      acc[pkg.serviceType] = (acc[pkg.serviceType] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const mostPopularEntry = Object.entries(serviceTypeCounts)
+      .sort(([, a], [, b]) => b - a)[0] || ["N/A", 0];
+    
+    const mostPopularType = mostPopularEntry[0];
+    const mostPopularCount = mostPopularEntry[1];
+    
+    return {
+      totalPackages: totalCount,
+      pppoePackages,
+      hotspotPackages,
+      staticPackages,
+      dhcpPackages,
+      mostPopularType,
+      mostPopularCount,
+      pppoePercentage: totalCount > 0 ? `${((pppoePackages / packages.length) * 100).toFixed(1)}% of visible` : 'No packages',
+      hotspotPercentage: totalCount > 0 ? `${((hotspotPackages / packages.length) * 100).toFixed(1)}% of visible` : 'No packages',
+      popularPercentage: totalCount > 0 && mostPopularCount > 0 
+        ? `${((mostPopularCount / packages.length) * 100).toFixed(1)}% of packages` 
+        : 'No packages',
+    };
+  }, [packages, totalCount]);
 
   // Show loading state while checking permissions
   if (userLoading || orgLoading) {
@@ -99,22 +238,6 @@ export default function PackagesPage() {
     );
   }
 
-  const packages = data?.packages.packages || [];
-
-  // Calculate statistics
-  const totalPackages = packages.length;
-  const pppoePackages = packages.filter(pkg => pkg.serviceType === "PPPOE").length;
-  const hotspotPackages = packages.filter(pkg => pkg.serviceType === "HOTSPOT").length;
-  
-  // Find most popular service type
-  const serviceTypeCounts = packages.reduce((acc, pkg) => {
-    acc[pkg.serviceType] = (acc[pkg.serviceType] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const mostPopularServiceType = Object.entries(serviceTypeCounts)
-    .sort(([, a], [, b]) => b - a)[0]?.[0] || "N/A";
-
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -129,6 +252,7 @@ export default function PackagesPage() {
         {canManagePackages && (
           <Link
             href={`/${organizationId}/isp/packages/create`}
+            prefetch={true}
           >
           <Button
             className="w-full sm:w-auto bg-gradient-custom text-white hover:text-white"
@@ -139,7 +263,7 @@ export default function PackagesPage() {
         )}
       </div>
 
-      {dataLoading ? (
+      {dataLoading && !data ? (
         <>
           <div className="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
@@ -160,74 +284,47 @@ export default function PackagesPage() {
       ) : (
         <>
           <div className="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-xs sm:text-sm font-medium">
-                  Total Packages
-                </CardTitle>
-                <Wifi className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold">{totalPackages}</div>
-                <p className="text-xs text-muted-foreground">
-                  Available service packages
-                </p>
-              </CardContent>
-            </Card>
+            <StatCard
+              title="Total Packages"
+              value={stats.totalPackages}
+              subtext="Available service packages"
+              icon={<Wifi className="h-4 w-4 text-muted-foreground" />}
+              color=""
+            />
 
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-xs sm:text-sm font-medium">
-                  PPPoE Packages
-                </CardTitle>
-                <Network className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold text-blue-500">
-                  {pppoePackages}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {totalPackages > 0 ? `${((pppoePackages / totalPackages) * 100).toFixed(1)}% of total` : 'No packages'}
-                </p>
-              </CardContent>
-            </Card>
+            <StatCard
+              title="PPPoE Packages"
+              value={stats.pppoePackages}
+              subtext={stats.pppoePercentage}
+              icon={<Network className="h-4 w-4 text-blue-500" />}
+              color="text-blue-500"
+            />
 
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-xs sm:text-sm font-medium">
-                  Hotspot Packages
-                </CardTitle>
-                <Radio className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold text-green-500">
-                  {hotspotPackages}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {totalPackages > 0 ? `${((hotspotPackages / totalPackages) * 100).toFixed(1)}% of total` : 'No packages'}
-                </p>
-              </CardContent>
-            </Card>
+            <StatCard
+              title="Hotspot Packages"
+              value={stats.hotspotPackages}
+              subtext={stats.hotspotPercentage}
+              icon={<Radio className="h-4 w-4 text-green-500" />}
+              color="text-green-500"
+            />
 
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-xs sm:text-sm font-medium">
-                  Most Popular
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold text-yellow-500">
-                  {mostPopularServiceType}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {totalPackages > 0 ? `${((serviceTypeCounts[mostPopularServiceType] / totalPackages) * 100).toFixed(1)}% of packages` : 'No packages'}
-                </p>
-              </CardContent>
-            </Card>
+            <StatCard
+              title="Most Popular"
+              value={stats.mostPopularType}
+              subtext={stats.popularPercentage}
+              icon={<TrendingUp className="h-4 w-4 text-yellow-500" />}
+              color="text-yellow-500"
+            />
           </div>
           <div className="overflow-x-auto">
-            <DataTable columns={columns(canManagePackages)} data={packages} />
+            <DataTable 
+              columns={columns(canManagePackages)} 
+              data={packages}
+              totalCount={totalCount}
+              filterOptions={filterOptions}
+              onFilterChange={handleFilterChange}
+              isLoading={dataLoading}
+            />
           </div>
         </>
       )}

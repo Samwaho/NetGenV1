@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,6 +22,7 @@ import { OrganizationPermissions } from "@/lib/permissions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 
+// Memoize form schema
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
@@ -38,48 +39,68 @@ const formSchema = z.object({
 });
 
 export default function EditPackagePage() {
+  // State and hooks
   const [isSubmitting, setIsSubmitting] = useState(false);
   const params = useParams();
   const router = useRouter();
-  const organizationId = params.id as string;
-  const packageId = params.packageId as string;
+  const organizationId = useMemo(() => params.id as string, [params.id]);
+  const packageId = useMemo(() => params.packageId as string, [params.packageId]);
   const { user, loading: userLoading } = useUser();
   const { organization, loading: orgLoading } = useOrganization(organizationId);
 
+  // Memoize navigation handler
+  const navigateBack = useCallback(() => {
+    router.push(`/${organizationId}/isp/packages`);
+  }, [router, organizationId]);
+
+  // Query package data with optimized caching
   const { data, loading: packageLoading, error } = useQuery(GET_ISP_PACKAGE, {
     variables: { id: packageId },
     onError: (error) => {
       toast.error(error.message);
-      router.push(`/${organizationId}/isp/packages`);
+      navigateBack();
     },
-    fetchPolicy: "network-only"
+    fetchPolicy: "network-only",
+    nextFetchPolicy: "cache-first"
   });
 
+  // Configure mutation with optimized caching
   const [updatePackage] = useMutation(UPDATE_ISP_PACKAGE, {
     refetchQueries: ["GetISPPackages"],
     onError: (error) => {
       toast.error(error.message || "Failed to update package");
-    }
+      setIsSubmitting(false);
+    },
+    onCompleted: () => {
+      toast.success("Package updated successfully");
+      navigateBack();
+      setIsSubmitting(false);
+    },
+    fetchPolicy: "no-cache"
   });
+
+  // Memoize default form values
+  const defaultValues = useMemo(() => ({
+    name: "",
+    description: "",
+    serviceType: "PPPOE" as "PPPOE" | "HOTSPOT" | "STATIC" | "DHCP",
+    downloadSpeed: 0,
+    uploadSpeed: 0,
+    burstDownload: undefined,
+    burstUpload: undefined,
+    thresholdDownload: undefined,
+    thresholdUpload: undefined,
+    burstTime: undefined,
+    addressPool: "",
+    price: 0,
+  }), []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      serviceType: "PPPOE",
-      downloadSpeed: 0,
-      uploadSpeed: 0,
-      burstDownload: undefined,
-      burstUpload: undefined,
-      thresholdDownload: undefined,
-      thresholdUpload: undefined,
-      burstTime: undefined,
-      addressPool: "",
-      price: 0,
-    },
+    defaultValues,
   });
 
+  // Update form when data is loaded
   useEffect(() => {
     if (data?.package.package) {
       const pkg = data.package.package;
@@ -89,11 +110,11 @@ export default function EditPackagePage() {
         serviceType: pkg.serviceType || "PPPOE",
         downloadSpeed: pkg.downloadSpeed || 0,
         uploadSpeed: pkg.uploadSpeed || 0,
-        burstDownload: pkg.burstDownload,
-        burstUpload: pkg.burstUpload,
-        thresholdDownload: pkg.thresholdDownload,
-        thresholdUpload: pkg.thresholdUpload,
-        burstTime: pkg.burstTime,
+        burstDownload: pkg.burstDownload ?? undefined,
+        burstUpload: pkg.burstUpload ?? undefined,
+        thresholdDownload: pkg.thresholdDownload ?? undefined,
+        thresholdUpload: pkg.thresholdUpload ?? undefined,
+        burstTime: pkg.burstTime ?? undefined,
         addressPool: pkg.addressPool || "",
         price: pkg.price || 0,
       });
@@ -102,13 +123,17 @@ export default function EditPackagePage() {
 
   const isLoading = userLoading || orgLoading || packageLoading;
 
-  const canManagePackages = organization && user && hasOrganizationPermissions(
-    organization,
-    user.id,
-    OrganizationPermissions.MANAGE_ISP_MANAGER_PACKAGES
-  );
+  // Memoize permissions check to avoid recalculation
+  const canManagePackages = useMemo(() => (
+    organization && user && hasOrganizationPermissions(
+      organization,
+      user.id,
+      OrganizationPermissions.MANAGE_ISP_MANAGER_PACKAGES
+    )
+  ), [organization, user]);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  // Memoize submit handler to prevent recreating on each render
+  const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
       await updatePackage({
@@ -117,14 +142,11 @@ export default function EditPackagePage() {
           input: values,
         },
       });
-      toast.success("Package updated successfully");
-      router.push(`/${organizationId}/isp/packages`);
+      // Success handling moved to mutation onCompleted
     } catch {
-      // Error is handled by mutation onError
-    } finally {
-      setIsSubmitting(false);
+      // Error handling moved to mutation onError
     }
-  }
+  }, [updatePackage, packageId]);
 
   if (!canManagePackages) {
     return (
@@ -146,7 +168,7 @@ export default function EditPackagePage() {
           <p className="text-muted-foreground">{error.message}</p>
           <Button
             variant="outline"
-            onClick={() => router.push(`/${organizationId}/isp/packages`)}
+            onClick={navigateBack}
             className="mt-4"
           >
             Back to Packages
@@ -171,7 +193,7 @@ export default function EditPackagePage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => router.push(`/${organizationId}/isp/packages`)}
+          onClick={navigateBack}
           className="gap-2"
         >
           <ArrowLeft className="size-4" />
@@ -327,8 +349,9 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -345,8 +368,9 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -363,8 +387,9 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -381,8 +406,9 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -399,8 +425,9 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -431,7 +458,7 @@ export default function EditPackagePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push(`/${organizationId}/isp/packages`)}
+                  onClick={navigateBack}
                   disabled={isSubmitting}
                   className="gap-2"
                 >

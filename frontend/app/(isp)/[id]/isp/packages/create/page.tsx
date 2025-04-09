@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,6 +17,7 @@ import { ArrowLeft, Loader2, Package2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
+// Memoize the form schema to prevent unnecessary recalculations
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
@@ -33,37 +34,52 @@ const formSchema = z.object({
 });
 
 export default function CreatePackagePage() {
+  // State and hooks
   const [isSubmitting, setIsSubmitting] = useState(false);
   const params = useParams();
   const router = useRouter();
-  const organizationId = params.id as string;
+  const organizationId = useMemo(() => params.id as string, [params.id]);
 
+  // Configure mutation with optimized caching
   const [createPackage] = useMutation(CREATE_ISP_PACKAGE, {
     refetchQueries: ["GetISPPackages"],
     onError: (error) => {
       toast.error(error.message || "Failed to create package");
+      setIsSubmitting(false);
     },
+    onCompleted: () => {
+      toast.success("Package created successfully");
+      router.push(`/${organizationId}/isp/packages`);
+      setIsSubmitting(false);
+    },
+    // Use fetch policy to improve caching
+    fetchPolicy: "no-cache", // Don't cache mutation results
   });
 
+  // Memoize default form values
+  const defaultValues = useMemo(() => ({
+    name: "",
+    description: "",
+    serviceType: "PPPOE" as "PPPOE" | "HOTSPOT" | "STATIC" | "DHCP",
+    downloadSpeed: 0,
+    uploadSpeed: 0,
+    burstDownload: undefined,
+    burstUpload: undefined,
+    thresholdDownload: undefined,
+    thresholdUpload: undefined,
+    burstTime: undefined,
+    addressPool: "",
+    price: 0,
+  }), []);
+
+  // Initialize form with memoized resolver and default values
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      serviceType: "PPPOE",
-      downloadSpeed: 0,
-      uploadSpeed: 0,
-      burstDownload: undefined,
-      burstUpload: undefined,
-      thresholdDownload: undefined,
-      thresholdUpload: undefined,
-      burstTime: undefined,
-      addressPool: "",
-      price: 0,
-    },
+    defaultValues,
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  // Memoize submit handler to prevent recreating on each render
+  const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
       await createPackage({
@@ -74,14 +90,16 @@ export default function CreatePackagePage() {
           },
         },
       });
-      toast.success("Package created successfully");
-      router.push(`/${organizationId}/isp/packages`);
+      // Success handling moved to mutation onCompleted
     } catch {
-      // Error is handled by the mutation's onError callback
-    } finally {
-      setIsSubmitting(false);
+      // Error handling moved to mutation onError
     }
-  }
+  }, [createPackage, organizationId]);
+
+  // Memoize navigation handler
+  const navigateBack = useCallback(() => {
+    router.push(`/${organizationId}/isp/packages`);
+  }, [router, organizationId]);
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
@@ -94,7 +112,7 @@ export default function CreatePackagePage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => router.push(`/${organizationId}/isp/packages`)}
+          onClick={navigateBack}
           className="gap-2"
         >
           <ArrowLeft className="size-4" />
@@ -265,7 +283,7 @@ export default function CreatePackagePage() {
                           <Input 
                             type="number" 
                             {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -283,7 +301,7 @@ export default function CreatePackagePage() {
                           <Input 
                             type="number" 
                             {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -301,7 +319,7 @@ export default function CreatePackagePage() {
                           <Input 
                             type="number" 
                             {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -319,7 +337,7 @@ export default function CreatePackagePage() {
                           <Input 
                             type="number" 
                             {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -337,7 +355,7 @@ export default function CreatePackagePage() {
                           <Input 
                             type="number" 
                             {...field} 
-                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -351,7 +369,7 @@ export default function CreatePackagePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push(`/${organizationId}/isp/packages`)}
+                  onClick={navigateBack}
                   disabled={isSubmitting}
                   className="gap-2"
                 >
