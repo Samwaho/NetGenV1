@@ -2,7 +2,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ISPCustomer } from "@/types/isp_customer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,42 +15,70 @@ import { useRouter, useParams } from "next/navigation";
 import { useMutation } from "@apollo/client";
 import { DELETE_ISP_CUSTOMER } from "@/graphql/isp_customers";
 import { toast } from "sonner";
+import { useState, memo } from "react";
 
 // Separate component for actions cell
-function ActionsCell({ customer, canManageCustomers }: { customer: ISPCustomer; canManageCustomers: boolean }) {
+const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCustomer; canManageCustomers: boolean }) => {
   const router = useRouter();
   const params = useParams();
   const organizationId = params.id as string;
-  const [deleteCustomer] = useMutation(DELETE_ISP_CUSTOMER);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [deleteCustomer] = useMutation(DELETE_ISP_CUSTOMER, {
+    update: (cache) => {
+      // Properly handle cache updates after deletion
+      const normalizedId = cache.identify({ id: customer.id, __typename: 'ISPCustomer' });
+      cache.evict({ id: normalizedId });
+      cache.gc();
+    },
+    onCompleted: () => {
+      toast.success("Customer deleted successfully");
+      setIsDeleting(false);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete customer");
+      setIsDeleting(false);
+    }
+  });
 
   const handleDelete = async () => {
     try {
+      setIsDeleting(true);
       await deleteCustomer({
         variables: { id: customer.id },
-        update: (cache) => {
-          const normalizedId = cache.identify({ id: customer.id, __typename: 'ISPCustomer' });
-          cache.evict({ id: normalizedId });
-          cache.gc();
-        },
       });
-      toast.success("Customer deleted successfully");
     } catch {
-      toast.error("Failed to delete customer");
+      // Error is handled in onError callback
     }
+  };
+
+  // Prefetch the edit page on hover
+  const prefetchEdit = () => {
+    router.prefetch(`/${organizationId}/isp/customers/${customer.id}/edit`);
+  };
+
+  // Prefetch the details page on hover
+  const prefetchDetails = () => {
+    router.prefetch(`/${organizationId}/isp/customers/${customer.id}`);
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
+        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
           <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
+          {isDeleting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <MoreHorizontal className="h-4 w-4" />
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuItem
           onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}`)}
+          onMouseEnter={prefetchDetails}
         >
           View Details
         </DropdownMenuItem>
@@ -58,6 +86,7 @@ function ActionsCell({ customer, canManageCustomers }: { customer: ISPCustomer; 
           <>
             <DropdownMenuItem
               onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/edit`)}
+              onMouseEnter={prefetchEdit}
             >
               Edit
             </DropdownMenuItem>
@@ -65,16 +94,34 @@ function ActionsCell({ customer, canManageCustomers }: { customer: ISPCustomer; 
             <DropdownMenuItem
               className="text-red-600"
               onClick={handleDelete}
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? "Deleting..." : "Delete"}
             </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});
+ActionsCell.displayName = "ActionsCell";
 
+// Format date consistently
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(undefined, { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  } catch {
+    return 'Invalid date';
+  }
+};
+
+// Define columns as a regular function - no need for useMemo here as it's called once
+// and the component using it will handle memoization if needed
 export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] => [
   {
     accessorKey: "username",
@@ -170,10 +217,9 @@ export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] =
     accessorKey: "expirationDate",
     header: "Expiration Date",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("expirationDate"));
       return (
         <div className="text-sm sm:text-base">
-          {date.toLocaleDateString()}
+          {formatDate(row.getValue("expirationDate") as string)}
         </div>
       );
     },

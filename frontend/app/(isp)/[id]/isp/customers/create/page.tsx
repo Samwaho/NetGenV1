@@ -28,10 +28,34 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, Loader2, UserPlus, Mail, Phone, User, Lock, Package2, Radio, Calendar } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { memo, useState } from "react";
+
+// Type definitions
+interface Package {
+  id: string;
+  name: string;
+}
+
+interface Station {
+  id: string;
+  name: string;
+}
+
+interface PackagesResponse {
+  packages: {
+    packages: Package[];
+  };
+}
+
+interface StationsResponse {
+  stations: {
+    stations: Station[];
+  };
+}
 
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -49,10 +73,34 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+// Memoized form section component to prevent unnecessary re-renders
+const FormSection = memo(({ 
+  title, 
+  description, 
+  children 
+}: { 
+  title: string; 
+  description: string; 
+  children: React.ReactNode 
+}) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-xl font-semibold">{title}</h2>
+      <p className="text-sm text-muted-foreground">
+        {description}
+      </p>
+    </div>
+    <Separator />
+    {children}
+  </div>
+));
+FormSection.displayName = "FormSection";
+
 export default function CreateCustomerPage() {
   const params = useParams();
   const router = useRouter();
   const organizationId = params.id as string;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -69,20 +117,40 @@ export default function CreateCustomerPage() {
     },
   });
 
-  const { data: packagesData, loading: packagesLoading } = useQuery(GET_ISP_PACKAGES, {
-    variables: { organizationId },
-  });
+  const { data: packagesData, loading: packagesLoading } = useQuery<PackagesResponse>(
+    GET_ISP_PACKAGES, 
+    {
+      variables: { organizationId },
+      fetchPolicy: "cache-first", // Use cache if available
+      nextFetchPolicy: "cache-only", // Don't refetch after initial load
+    }
+  );
   
-  const { data: stationsData, loading: stationsLoading } = useQuery(GET_ISP_STATIONS, {
-    variables: { organizationId },
-  });
+  const { data: stationsData, loading: stationsLoading } = useQuery<StationsResponse>(
+    GET_ISP_STATIONS, 
+    {
+      variables: { organizationId },
+      fetchPolicy: "cache-first", // Use cache if available
+      nextFetchPolicy: "cache-only", // Don't refetch after initial load
+    }
+  );
 
-  const [createCustomer, { loading: createLoading }] = useMutation(CREATE_ISP_CUSTOMER, {
+  const [createCustomer] = useMutation(CREATE_ISP_CUSTOMER, {
     refetchQueries: ["GetISPCustomers"],
+    onError: (error) => {
+      toast.error(error.message || "Failed to create customer");
+      setIsSubmitting(false);
+    },
+    onCompleted: () => {
+      toast.success("Customer created successfully");
+      router.push(`/${organizationId}/isp/customers`);
+      setIsSubmitting(false);
+    }
   });
 
   const onSubmit = async (data: FormValues) => {
     try {
+      setIsSubmitting(true);
       const submissionData = {
         ...data,
         organizationId,
@@ -92,18 +160,20 @@ export default function CreateCustomerPage() {
       await createCustomer({
         variables: { input: submissionData },
       });
-      
-      toast.success("Customer created successfully");
-      router.push(`/${organizationId}/isp/customers`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating customer:", error);
-      toast.error(error.message || "Failed to create customer");
+      const errorMessage = error instanceof Error ? error.message : "Failed to create customer";
+      toast.error(errorMessage);
+      setIsSubmitting(false);
     }
   };
 
   if (packagesLoading || stationsLoading) {
     return <LoadingSpinner />;
   }
+
+  const packages = packagesData?.packages.packages || [];
+  const stations = stationsData?.stations.stations || [];
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
@@ -129,14 +199,10 @@ export default function CreateCustomerPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               {/* Personal Information Section */}
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold">Personal Information</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Enter the customer's basic contact information
-                  </p>
-                </div>
-                <Separator />
+              <FormSection 
+                title="Personal Information"
+                description="Enter the customer&apos;s basic contact information"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -203,17 +269,13 @@ export default function CreateCustomerPage() {
                     )}
                   />
                 </div>
-              </div>
+              </FormSection>
 
               {/* PPPoE Credentials Section */}
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold">PPPoE Credentials</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Set up authentication credentials for network access
-                  </p>
-                </div>
-                <Separator />
+              <FormSection
+                title="PPPoE Credentials"
+                description="Set up authentication credentials for network access"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -243,7 +305,12 @@ export default function CreateCustomerPage() {
                         <FormControl>
                           <div className="relative">
                             <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input className="pl-9" placeholder="password" {...field} />
+                            <Input 
+                              className="pl-9" 
+                              placeholder="password" 
+                              type="password"
+                              {...field} 
+                            />
                           </div>
                         </FormControl>
                         <FormDescription>
@@ -254,17 +321,13 @@ export default function CreateCustomerPage() {
                     )}
                   />
                 </div>
-              </div>
+              </FormSection>
 
               {/* Service Configuration Section */}
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold">Service Configuration</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Configure the customer's service package and connection details
-                  </p>
-                </div>
-                <Separator />
+              <FormSection
+                title="Service Configuration"
+                description="Configure the customer&apos;s service package and connection details"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -282,7 +345,7 @@ export default function CreateCustomerPage() {
                             </div>
                           </FormControl>
                           <SelectContent>
-                            {packagesData?.packages.packages.map((pkg: any) => (
+                            {packages.map((pkg) => (
                               <SelectItem key={pkg.id} value={pkg.id}>
                                 {pkg.name}
                               </SelectItem>
@@ -312,7 +375,7 @@ export default function CreateCustomerPage() {
                             </div>
                           </FormControl>
                           <SelectContent>
-                            {stationsData?.stations.stations.map((station: any) => (
+                            {stations.map((station) => (
                               <SelectItem key={station.id} value={station.id}>
                                 {station.name}
                               </SelectItem>
@@ -344,21 +407,21 @@ export default function CreateCustomerPage() {
                           </div>
                         </FormControl>
                         <FormDescription>
-                          When the customer's service subscription will expire
+                          When the customer&apos;s service subscription will expire
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-              </div>
+              </FormSection>
 
               <div className="flex justify-end space-x-4 pt-6 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => router.push(`/${organizationId}/isp/customers`)}
-                  disabled={createLoading}
+                  disabled={isSubmitting}
                   className="gap-2"
                 >
                   <ArrowLeft className="size-4" />
@@ -366,10 +429,10 @@ export default function CreateCustomerPage() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={createLoading}
+                  disabled={isSubmitting}
                   className="bg-gradient-custom text-white hover:text-white gap-2"
                 >
-                  {createLoading ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
                       Creating...

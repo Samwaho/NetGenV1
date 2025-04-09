@@ -28,13 +28,47 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ISPPackage } from "@/types/isp_package";
 import { ISPStation } from "@/types/isp_station";
-import React from "react";
+import React, { memo, useState } from "react";
 import { ArrowLeft, X, Save, Loader2, Mail, Phone, User, Lock, Package2, Radio, Calendar } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+
+// Interface for API responses
+interface CustomerResponse {
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    username: string;
+    password?: string;
+    package: {
+      id: string;
+      name: string;
+    };
+    station: {
+      id: string;
+      name: string;
+    };
+    expirationDate: string;
+  };
+}
+
+interface PackagesResponse {
+  packages: {
+    packages: ISPPackage[];
+  };
+}
+
+interface StationsResponse {
+  stations: {
+    stations: ISPStation[];
+  };
+}
 
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -52,26 +86,73 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+// Memoized form section component to prevent unnecessary re-renders
+const FormSection = memo(({ 
+  title, 
+  description, 
+  children 
+}: { 
+  title: string; 
+  description: string; 
+  children: React.ReactNode 
+}) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-xl font-semibold">{title}</h2>
+      <p className="text-sm text-muted-foreground">
+        {description}
+      </p>
+    </div>
+    <Separator />
+    {children}
+  </div>
+));
+FormSection.displayName = "FormSection";
+
 export default function EditCustomerPage() {
   const params = useParams();
   const router = useRouter();
   const organizationId = params.id as string;
   const customerId = params.customerId as string;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: customerData, loading: customerLoading } = useQuery(GET_ISP_CUSTOMER, {
-    variables: { id: customerId },
-  });
+  const { data: customerData, loading: customerLoading } = useQuery<CustomerResponse>(
+    GET_ISP_CUSTOMER, 
+    {
+      variables: { id: customerId },
+      fetchPolicy: "cache-and-network",
+      nextFetchPolicy: "cache-first",
+    }
+  );
 
-  const { data: packagesData, loading: packagesLoading } = useQuery(GET_ISP_PACKAGES, {
-    variables: { organizationId },
-  });
+  const { data: packagesData, loading: packagesLoading } = useQuery<PackagesResponse>(
+    GET_ISP_PACKAGES, 
+    {
+      variables: { organizationId },
+      fetchPolicy: "cache-first",
+    }
+  );
   
-  const { data: stationsData, loading: stationsLoading } = useQuery(GET_ISP_STATIONS, {
-    variables: { organizationId },
-  });
+  const { data: stationsData, loading: stationsLoading } = useQuery<StationsResponse>(
+    GET_ISP_STATIONS, 
+    {
+      variables: { organizationId },
+      fetchPolicy: "cache-first",
+    }
+  );
 
-  const [updateCustomer, { loading: isUpdating }] = useMutation(UPDATE_ISP_CUSTOMER, {
+  const [updateCustomer] = useMutation(UPDATE_ISP_CUSTOMER, {
     refetchQueries: ["GetISPCustomers"],
+    onError: (error) => {
+      console.error("Error updating customer:", error);
+      toast.error(error.message || "Failed to update customer");
+      setIsSubmitting(false);
+    },
+    onCompleted: () => {
+      toast.success("Customer updated successfully");
+      router.push(`/${organizationId}/isp/customers`);
+      setIsSubmitting(false);
+    }
   });
 
   const form = useForm<FormValues>({
@@ -99,7 +180,7 @@ export default function EditCustomerPage() {
         email: customer.email,
         phone: customer.phone,
         username: customer.username,
-        password: customer.password || "",
+        password: "",
         packageId: customer.package.id,
         stationId: customer.station.id,
         expirationDate: new Date(customer.expirationDate),
@@ -109,6 +190,7 @@ export default function EditCustomerPage() {
 
   const onSubmit = async (data: FormValues) => {
     try {
+      setIsSubmitting(true);
       const submissionData = {
         ...data,
         expirationDate: data.expirationDate.toISOString(),
@@ -124,12 +206,11 @@ export default function EditCustomerPage() {
           input: submissionData,
         },
       });
-      
-      toast.success("Customer updated successfully");
-      router.push(`/${organizationId}/isp/customers`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error updating customer:", error);
-      toast.error("Failed to update customer");
+      const errorMessage = error instanceof Error ? error.message : "Failed to update customer";
+      toast.error(errorMessage);
+      setIsSubmitting(false);
     }
   };
 
@@ -138,13 +219,17 @@ export default function EditCustomerPage() {
     return <LoadingSpinner />;
   }
 
+  // Process data once to avoid duplicate calculations in render
+  const packages = packagesData?.packages.packages || [];
+  const stations = stationsData?.stations.stations || [];
+  
   // Get the current package and station names
-  const currentPackage = packagesData?.packages.packages.find(
-    (pkg: ISPPackage) => pkg.id === customerData?.customer?.package?.id
+  const currentPackage = packages.find(
+    (pkg) => pkg.id === customerData?.customer?.package?.id
   );
 
-  const currentStation = stationsData?.stations.stations.find(
-    (station: ISPStation) => station.id === customerData?.customer?.station?.id
+  const currentStation = stations.find(
+    (station) => station.id === customerData?.customer?.station?.id
   );
 
   return (
@@ -171,14 +256,10 @@ export default function EditCustomerPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               {/* Personal Information Section */}
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold">Personal Information</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Update the customer's basic contact information
-                  </p>
-                </div>
-                <Separator />
+              <FormSection
+                title="Personal Information"
+                description="Update the customer&apos;s basic contact information"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -245,17 +326,13 @@ export default function EditCustomerPage() {
                     )}
                   />
                 </div>
-              </div>
+              </FormSection>
 
               {/* PPPoE Credentials Section */}
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold">PPPoE Credentials</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Manage authentication credentials for network access
-                  </p>
-                </div>
-                <Separator />
+              <FormSection
+                title="PPPoE Credentials"
+                description="Manage authentication credentials for network access"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -287,7 +364,7 @@ export default function EditCustomerPage() {
                             <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input 
                               className="pl-9" 
-                              type="text"
+                              type="password"
                               placeholder="Leave blank to keep current password" 
                               {...field} 
                             />
@@ -301,17 +378,13 @@ export default function EditCustomerPage() {
                     )}
                   />
                 </div>
-              </div>
+              </FormSection>
 
               {/* Service Configuration Section */}
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold">Service Configuration</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Manage the customer's service package and connection details
-                  </p>
-                </div>
-                <Separator />
+              <FormSection
+                title="Service Configuration"
+                description="Manage the customer&apos;s service package and connection details"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -329,7 +402,7 @@ export default function EditCustomerPage() {
                             </div>
                           </FormControl>
                           <SelectContent>
-                            {packagesData?.packages.packages.map((pkg: ISPPackage) => (
+                            {packages.map((pkg) => (
                               <SelectItem key={pkg.id} value={pkg.id}>
                                 {pkg.name}
                               </SelectItem>
@@ -359,7 +432,7 @@ export default function EditCustomerPage() {
                             </div>
                           </FormControl>
                           <SelectContent>
-                            {stationsData?.stations.stations.map((station: ISPStation) => (
+                            {stations.map((station) => (
                               <SelectItem key={station.id} value={station.id}>
                                 {station.name}
                               </SelectItem>
@@ -391,21 +464,21 @@ export default function EditCustomerPage() {
                           </div>
                         </FormControl>
                         <FormDescription>
-                          When the customer's service subscription will expire
+                          When the customer&apos;s service subscription will expire
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-              </div>
+              </FormSection>
 
-              <div className="flex justify-end space-x-4 pt-6">
+              <div className="flex justify-end space-x-4 pt-6 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => router.push(`/${organizationId}/isp/customers`)}
-                  disabled={isUpdating}
+                  disabled={isSubmitting}
                   className="gap-2"
                 >
                   <X className="size-4" />
@@ -413,10 +486,10 @@ export default function EditCustomerPage() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={isUpdating}
+                  disabled={isSubmitting}
                   className="gap-2 bg-gradient-custom text-white hover:text-white"
                 >
-                  {isUpdating ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
                       Saving Changes...
