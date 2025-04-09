@@ -13,6 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,7 +30,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, UserPlus, Mail, Phone, User, Lock, Package2, Radio, Calendar } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -104,18 +106,38 @@ export default function CreateCustomerPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-8 max-w-3xl">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gradient-custom">Create New Customer</h1>
+          <p className="text-muted-foreground mt-1">
+            Add a new customer to your internet service
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/${organizationId}/isp/customers`)}
+          className="gap-2"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Customers
+        </Button>
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle>Create New Customer</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               {/* Personal Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Personal Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">Personal Information</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Enter the customer's basic contact information
+                  </p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -123,7 +145,10 @@ export default function CreateCustomerPage() {
                       <FormItem>
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={createLoading} />
+                          <div className="relative">
+                            <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="John" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -136,23 +161,26 @@ export default function CreateCustomerPage() {
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={createLoading} />
+                          <div className="relative">
+                            <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="Doe" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Email Address</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" disabled={createLoading} />
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="john.doe@example.com" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -165,7 +193,10 @@ export default function CreateCustomerPage() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input {...field} type="tel" disabled={createLoading} />
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="+1234567890" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -175,9 +206,15 @@ export default function CreateCustomerPage() {
               </div>
 
               {/* PPPoE Credentials Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">PPPoE Credentials</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">PPPoE Credentials</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Set up authentication credentials for network access
+                  </p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="username"
@@ -185,8 +222,14 @@ export default function CreateCustomerPage() {
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={createLoading} />
+                          <div className="relative">
+                            <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="username" {...field} />
+                          </div>
                         </FormControl>
+                        <FormDescription>
+                          This will be used for PPPoE authentication
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -196,10 +239,16 @@ export default function CreateCustomerPage() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>PPPoE Password</FormLabel>
+                        <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input {...field} type="password" disabled={createLoading} />
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="password" {...field} />
+                          </div>
                         </FormControl>
+                        <FormDescription>
+                          Secure password for PPPoE connection
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -208,24 +257,29 @@ export default function CreateCustomerPage() {
               </div>
 
               {/* Service Configuration Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Service Configuration</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">Service Configuration</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Configure the customer's service package and connection details
+                  </p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="packageId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Package</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                          disabled={createLoading}
-                        >
+                        <FormLabel>Internet Package</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a package" />
-                            </SelectTrigger>
+                            <div className="relative">
+                              <Package2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <SelectTrigger className="pl-9">
+                                <SelectValue placeholder="Select a package" />
+                              </SelectTrigger>
+                            </div>
                           </FormControl>
                           <SelectContent>
                             {packagesData?.packages.packages.map((pkg: any) => (
@@ -235,6 +289,9 @@ export default function CreateCustomerPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Choose the service package for this customer
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -244,16 +301,15 @@ export default function CreateCustomerPage() {
                     name="stationId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Station</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                          disabled={createLoading}
-                        >
+                        <FormLabel>Connection Station</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a station" />
-                            </SelectTrigger>
+                            <div className="relative">
+                              <Radio className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <SelectTrigger className="pl-9">
+                                <SelectValue placeholder="Select a station" />
+                              </SelectTrigger>
+                            </div>
                           </FormControl>
                           <SelectContent>
                             {stationsData?.stations.stations.map((station: any) => (
@@ -263,42 +319,67 @@ export default function CreateCustomerPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Select the station where the customer will connect
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expirationDate"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Service Expiration Date</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <div className="pl-9">
+                              <DateTimePicker
+                                date={field.value}
+                                setDate={field.onChange}
+                              />
+                            </div>
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          When the customer's service subscription will expire
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-
-                <FormField
-                  control={form.control}
-                  name="expirationDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Expiration Date</FormLabel>
-                      <FormControl>
-                        <DateTimePicker
-                          date={field.value}
-                          setDate={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-4">
+              <div className="flex justify-end space-x-4 pt-6 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => router.push(`/${organizationId}/isp/customers`)}
                   disabled={createLoading}
+                  className="gap-2"
                 >
+                  <ArrowLeft className="size-4" />
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createLoading}>
-                  {createLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {createLoading ? "Creating..." : "Create Customer"}
+                <Button 
+                  type="submit" 
+                  disabled={createLoading}
+                  className="bg-gradient-custom text-white hover:text-white gap-2"
+                >
+                  {createLoading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="size-4" />
+                      Create Customer
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
@@ -308,4 +389,6 @@ export default function CreateCustomerPage() {
     </div>
   );
 }
+
+
 

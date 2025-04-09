@@ -13,6 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,7 +33,8 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ISPPackage } from "@/types/isp_package";
 import { ISPStation } from "@/types/isp_station";
 import React from "react";
-import { ArrowLeft, X, Save } from "lucide-react";
+import { ArrowLeft, X, Save, Loader2, Mail, Phone, User, Lock, Package2, Radio, Calendar } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -164,16 +166,20 @@ export default function EditCustomerPage() {
         </Button>
       </div>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-6">
+      <Card>
+        <CardContent className="pt-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               {/* Personal Information Section */}
-              <div className="space-y-4">
-                <h2 className="text-lg font-medium text-gradient-custom2">
-                  Personal Information
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">Personal Information</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Update the customer's basic contact information
+                  </p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -181,13 +187,15 @@ export default function EditCustomerPage() {
                       <FormItem>
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter first name" {...field} />
+                          <div className="relative">
+                            <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="John" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="lastName"
@@ -195,15 +203,15 @@ export default function EditCustomerPage() {
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter last name" {...field} />
+                          <div className="relative">
+                            <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="Doe" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="email"
@@ -211,13 +219,15 @@ export default function EditCustomerPage() {
                       <FormItem>
                         <FormLabel>Email Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="customer@example.com" {...field} type="email" />
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="john.doe@example.com" type="email" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="phone"
@@ -225,7 +235,10 @@ export default function EditCustomerPage() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="+1 (555) 000-0000" {...field} />
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="+1234567890" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -234,39 +247,55 @@ export default function EditCustomerPage() {
                 </div>
               </div>
 
-              {/* Account Settings Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h2 className="text-lg font-medium text-gradient-custom2">
-                  Account Settings
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* PPPoE Credentials Section */}
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">PPPoE Credentials</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Manage authentication credentials for network access
+                  </p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>PPPoE Username</FormLabel>
+                        <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter username" {...field} />
+                          <div className="relative">
+                            <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9" placeholder="username" {...field} />
+                          </div>
                         </FormControl>
+                        <FormDescription>
+                          Used for PPPoE authentication
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>PPPoE Password</FormLabel>
+                        <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Enter password" 
-                            {...field} 
-                            type="text"
-                          />
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                              className="pl-9" 
+                              type="text"
+                              placeholder="Leave blank to keep current password" 
+                              {...field} 
+                            />
+                          </div>
                         </FormControl>
+                        <FormDescription>
+                          Leave empty to keep the current password
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -275,29 +304,29 @@ export default function EditCustomerPage() {
               </div>
 
               {/* Service Configuration Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h2 className="text-lg font-medium text-gradient-custom2">
-                  Service Configuration
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">Service Configuration</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Manage the customer's service package and connection details
+                  </p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="packageId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Internet Package</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value}
-                        >
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger className="bg-background">
-                              <SelectValue>
-                                {packagesData?.packages.packages.find(
-                                  (pkg: ISPPackage) => pkg.id === field.value
-                                )?.name || "Select a package"}
-                              </SelectValue>
-                            </SelectTrigger>
+                            <div className="relative">
+                              <Package2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
+                              <SelectTrigger className="pl-9">
+                                <SelectValue placeholder="Select a package" />
+                              </SelectTrigger>
+                            </div>
                           </FormControl>
                           <SelectContent>
                             {packagesData?.packages.packages.map((pkg: ISPPackage) => (
@@ -307,29 +336,27 @@ export default function EditCustomerPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Current package: {currentPackage?.name}
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="stationId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Connected Station</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value}
-                        >
+                        <FormLabel>Connection Station</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger className="bg-background">
-                              <SelectValue>
-                                {stationsData?.stations.stations.find(
-                                  (station: ISPStation) => station.id === field.value
-                                )?.name || "Select a station"}
-                              </SelectValue>
-                            </SelectTrigger>
+                            <div className="relative">
+                              <Radio className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
+                              <SelectTrigger className="pl-9">
+                                <SelectValue placeholder="Select a station" />
+                              </SelectTrigger>
+                            </div>
                           </FormControl>
                           <SelectContent>
                             {stationsData?.stations.stations.map((station: ISPStation) => (
@@ -339,11 +366,13 @@ export default function EditCustomerPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Current station: {currentStation?.name}
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="expirationDate"
@@ -351,11 +380,19 @@ export default function EditCustomerPage() {
                       <FormItem className="col-span-2">
                         <FormLabel>Service Expiration Date</FormLabel>
                         <FormControl>
-                          <DateTimePicker
-                            date={field.value}
-                            setDate={field.onChange}
-                          />
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
+                            <div className="pl-9">
+                              <DateTimePicker
+                                date={field.value}
+                                setDate={field.onChange}
+                              />
+                            </div>
+                          </div>
                         </FormControl>
+                        <FormDescription>
+                          When the customer's service subscription will expire
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -363,27 +400,26 @@ export default function EditCustomerPage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-3 pt-6 border-t">
+              <div className="flex justify-end space-x-4 pt-6">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => router.push(`/${organizationId}/isp/customers`)}
-                  className="gap-2"
                   disabled={isUpdating}
+                  className="gap-2"
                 >
                   <X className="size-4" />
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
-                  className="gap-2 bg-gradient-custom"
                   disabled={isUpdating}
+                  className="gap-2 bg-gradient-custom text-white hover:text-white"
                 >
                   {isUpdating ? (
                     <>
-                      <div className="size-4 border-2 border-white/30 border-t-white animate-spin rounded-full" />
-                      Saving...
+                      <Loader2 className="size-4 animate-spin" />
+                      Saving Changes...
                     </>
                   ) : (
                     <>
@@ -400,13 +436,5 @@ export default function EditCustomerPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
 
 
