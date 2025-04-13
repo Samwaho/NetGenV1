@@ -301,7 +301,7 @@ export default function InventoryPage() {
               color="text-red-500"
             />
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
             <DataTable 
               columns={columns(canManageInventory)} 
               data={inventoryItems} 

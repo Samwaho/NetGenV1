@@ -240,7 +240,7 @@ export default function StationsPage() {
             />
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
             <DataTable
               columns={columns(canManageStations)}
               data={stations}

@@ -358,7 +358,7 @@ export function DataTable<TData, TValue>({
   ), [table.getRowModel().rows, columns.length, isLoading]);
 
   return (
-    <div className="space-y-4 p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
+    <div className="space-y-4 ">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-2 sm:py-4">
         <SearchInput 
           value={globalFilterValue} 
