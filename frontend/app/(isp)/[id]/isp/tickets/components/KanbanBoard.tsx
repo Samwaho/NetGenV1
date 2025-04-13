@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Ticket } from "@/graphql/isp_tickets";
+import { Ticket, TicketFilterOptions } from "@/graphql/isp_tickets";
 import { TicketCard } from "./TicketCard";
 import { useMutation } from "@apollo/client";
 import { UPDATE_TICKET_STATUS } from "@/graphql/isp_tickets";
@@ -19,6 +19,8 @@ import { useParams } from "next/navigation";
 
 interface KanbanBoardProps {
   tickets: Ticket[];
+  filterOptions?: TicketFilterOptions;
+  onFilterChange?: (newFilters: TicketFilterOptions) => void;
 }
 
 // Define the column structure type
@@ -52,8 +54,39 @@ const columns: ColumnDefinition = {
 
 const ITEMS_PER_PAGE = 5;
 
-export function KanbanBoard({ tickets }: KanbanBoardProps) {
-  const [updateTicketStatus] = useMutation(UPDATE_TICKET_STATUS);
+export function KanbanBoard({ tickets, filterOptions, onFilterChange }: KanbanBoardProps) {
+  const [updateTicketStatus] = useMutation(UPDATE_TICKET_STATUS, {
+    optimisticResponse: (vars) => {
+      // Find the existing ticket to copy its fields
+      const existingTicket = tickets.find(t => t.id === vars.ticketId);
+      
+      return {
+        updateTicketStatus: {
+          success: true,
+          message: "Status updated successfully",
+          ticket: {
+            ...existingTicket,  // Spread all existing ticket fields
+            id: vars.ticketId,
+            status: vars.status,
+            updatedAt: new Date().toISOString(),
+            __typename: "ISPTicket"
+          }
+        }
+      };
+    },
+    update: (cache, { data }) => {
+      const ticketId = data?.updateTicketStatus.ticket.id;
+      const updatedTicket = data?.updateTicketStatus.ticket;
+      
+      cache.modify({
+        id: cache.identify({ __typename: 'ISPTicket', id: ticketId }),
+        fields: {
+          status: () => updatedTicket.status,
+          updatedAt: () => updatedTicket.updatedAt
+        }
+      });
+    }
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
@@ -62,13 +95,27 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
   const organizationId = params.id as string;
   const { user } = useUser();
   const { organization } = useOrganization(organizationId);
-  const [localTickets, setLocalTickets] = useState(tickets);
-  
   const canManageTickets = organization && user && hasOrganizationPermissions(
     organization,
     user.id,
     [OrganizationPermissions.MANAGE_ISP_MANAGER_TICKETS]
   );
+
+  // Update parent filters when search changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    // Propagate to parent if onFilterChange exists
+    if (onFilterChange) {
+      onFilterChange({
+        ...filterOptions,
+        search: value,
+        // Reset pagination when search changes
+        page: 1
+      });
+    }
+  };
 
   // Filter tickets based on search query, priority, and date
   const filteredTickets = useMemo(() => {
@@ -132,7 +179,6 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
 
     const { destination, source, draggableId } = result;
 
-    // Return if dropped outside or in the same position
     if (!destination || 
         (destination.droppableId === source.droppableId && 
          destination.index === source.index)) {
@@ -140,34 +186,19 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
     }
 
     const newStatus = destination.droppableId;
-    
-    // Create new array with updated ticket status
-    const newTickets = localTickets.map((ticket: Ticket) =>
-      ticket.id === draggableId
-        ? { ...ticket, status: newStatus as keyof typeof columns }
-        : ticket
-    );
-    
-    setLocalTickets(newTickets);
 
     try {
       await updateTicketStatus({
         variables: {
           ticketId: draggableId,
           status: newStatus,
-        },
+        }
       });
       
       toast.success(`Ticket status updated to ${columns[newStatus as keyof typeof columns].title}`);
     } catch (error) {
       toast.error("Failed to update ticket status");
-      // Revert the optimistic update
-      const revertedTickets = localTickets.map((ticket: Ticket) => 
-        ticket.id === draggableId 
-          ? { ...ticket, status: source.droppableId as keyof typeof columns }
-          : ticket
-      );
-      setLocalTickets(revertedTickets);
+      // No need for manual state management here as Apollo will handle cache updates
     }
   };
 
@@ -180,7 +211,7 @@ export function KanbanBoard({ tickets }: KanbanBoardProps) {
           <Input
             placeholder="Search tickets..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="bg-card"
           />
           <Select
