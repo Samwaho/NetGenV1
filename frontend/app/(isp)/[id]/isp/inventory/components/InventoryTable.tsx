@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback, useMemo, memo } from 'react';
 import {
   ColumnDef,
   flexRender,
@@ -7,10 +8,9 @@ import {
   useReactTable,
   getPaginationRowModel,
   getSortedRowModel,
-  SortingState,
   getFilteredRowModel,
-  ColumnFiltersState,
-  FilterFn,
+  Table as TableInstance,
+  PaginationState
 } from "@tanstack/react-table";
 
 import {
@@ -23,90 +23,231 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import {
+import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { rankItem } from "@tanstack/match-sorter-utils";
+import { InventoryFilterOptions } from "@/graphql/isp_inventory";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  totalCount?: number;
+  filterOptions?: InventoryFilterOptions;
+  onFilterChange?: (filters: InventoryFilterOptions) => void;
+  isLoading?: boolean;
 }
+
+// Type-safe pagination controls component
+interface PaginationControlsProps<TData> {
+  table: TableInstance<TData>;
+  canPreviousPage: boolean;
+  canNextPage: boolean;
+  pageCount: number;
+  totalCount?: number;
+  pageIndex?: number;
+  pageSize?: number;
+  isLoading?: boolean;
+}
+
+function PaginationControlsComponent<TData>({ 
+  table,
+  canPreviousPage,
+  canNextPage,
+  pageCount,
+  isLoading
+}: PaginationControlsProps<TData>) {
+  return (
+    <div className="flex items-center space-x-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => table.setPageIndex(0)}
+        disabled={!canPreviousPage || isLoading}
+        className="h-8 w-8 p-0"
+        aria-label="First page"
+      >
+        <ChevronsLeft className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => table.previousPage()}
+        disabled={!canPreviousPage || isLoading}
+        className="h-8 px-2"
+      >
+        <ChevronLeft className="mr-1 h-4 w-4" />
+        Previous
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => table.nextPage()}
+        disabled={!canNextPage || isLoading}
+        className="h-8 px-2"
+      >
+        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        Next
+        <ChevronRight className="ml-1 h-4 w-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => table.setPageIndex(pageCount - 1)}
+        disabled={!canNextPage || isLoading}
+        className="h-8 w-8 p-0"
+        aria-label="Last page"
+      >
+        <ChevronsRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+// Memoized version
+const PaginationControls = memo(PaginationControlsComponent) as typeof PaginationControlsComponent;
+
+// Type-safe view options component
+interface ViewOptionsProps<TData> {
+  table: TableInstance<TData>;
+}
+
+function ViewOptionsComponent<TData>({ table }: ViewOptionsProps<TData>) {
+  return (
+    <div className="flex items-center gap-2">
+      <p className="text-sm text-muted-foreground">View</p>
+      <Select
+        value={`${table.getState().pagination.pageSize}`}
+        onValueChange={(value) => {
+          table.setPageSize(Number(value));
+        }}
+      >
+        <SelectTrigger className="h-8 w-[70px]">
+          <SelectValue placeholder={table.getState().pagination.pageSize} />
+        </SelectTrigger>
+        <SelectContent side="top">
+          {[10, 20, 30, 50, 100].map((pageSize) => (
+            <SelectItem key={pageSize} value={`${pageSize}`}>
+              {pageSize}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// Memoized version
+const ViewOptions = memo(ViewOptionsComponent) as typeof ViewOptionsComponent;
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  totalCount = 0,
+  filterOptions = {
+    page: 1,
+    pageSize: 20,
+    sortBy: "createdAt",
+    sortDirection: "desc",
+  },
+  onFilterChange,
+  isLoading = false
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  // Local state for search value
+  const [globalFilterValue, setGlobalFilterValue] = useState<string>(() => filterOptions.search || "");
+  
+  // Memoize the initial pagination state
+  const initialPaginationState = useMemo<PaginationState>(
+    () => ({
+      pageIndex: (filterOptions.page || 1) - 1, // Convert 1-indexed to 0-indexed
+      pageSize: filterOptions.pageSize || 20,
+    }),
+    [filterOptions.page, filterOptions.pageSize]
+  );
 
-  const fuzzyFilter: FilterFn<TData> = (row, columnId, value, addMeta) => {
-    const itemRank = rankItem(row.getValue(columnId), value);
-    addMeta({ itemRank });
-    return itemRank.passed;
-  };
-
+  // Create the table instance
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
     getPaginationRowModel: getPaginationRowModel(),
+    manualSorting: true,
     getSortedRowModel: getSortedRowModel(),
+    manualFiltering: true,
     getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: fuzzyFilter,
+    pageCount: Math.ceil(totalCount / (filterOptions.pageSize || 20)),
+    initialState: {
+      pagination: initialPaginationState,
+    },
+    onPaginationChange: (updater) => {
+      if (!onFilterChange) return;
+      
+      const nextState = typeof updater === 'function' 
+        ? updater(table.getState().pagination) 
+        : updater;
+        
+      // Only update if there are actual changes
+      if (nextState.pageIndex + 1 !== filterOptions.page || 
+          nextState.pageSize !== filterOptions.pageSize) {
+        onFilterChange({
+          ...filterOptions,
+          page: nextState.pageIndex + 1,
+          pageSize: nextState.pageSize,
+        });
+      }
+    },
     state: {
-      sorting,
-      columnFilters,
-      globalFilter,
+      pagination: initialPaginationState,
     },
   });
 
+  // Memoize table state values
+  const { pageSize, pageIndex } = table.getState().pagination;
+  const pageCount = table.getPageCount();
+  const canPreviousPage = pageIndex > 0;
+  const canNextPage = pageIndex < pageCount - 1;
+
+  // Handle search changes
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setGlobalFilterValue(value);
+    
+    if (onFilterChange) {
+      onFilterChange({
+        ...filterOptions,
+        search: value,
+        page: 1, // Reset to first page on new search
+      });
+    }
+  }, [filterOptions, onFilterChange]);
+
   return (
-    <div className="space-y-4 p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
-      <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
-        <Input
-          placeholder="Search all columns..."
-          value={globalFilter}
-          onChange={(event) => setGlobalFilter(event.target.value)}
-          className="max-w-sm"
-        />
-        <div className="flex items-center space-x-2">
-          <p className="text-xs sm:text-sm">Rows per page</p>
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={(value) => {
-              table.setPageSize(Number(value));
-            }}
-          >
-            <SelectTrigger className="h-8 w-[70px] text-xs sm:text-sm">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((pageSize) => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="space-y-4 bg-card rounded-md p-4 shadow-md">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Input
+            placeholder="Search inventory..."
+            value={globalFilterValue}
+            onChange={handleSearchChange}
+            className="max-w-xs w-full"
+            disabled={isLoading}
+          />
         </div>
+        <ViewOptions table={table} />
       </div>
-      <div className="rounded-md border overflow-x-auto">
+      
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-xs sm:text-sm">
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -119,84 +260,52 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              // Loading rows
+              Array.from({ length: pageSize }).map((_, index) => (
+                <TableRow key={`loading-${index}`} className="animate-pulse">
+                  {table.getHeaderGroups()[0]?.headers.map((header) => (
+                    <TableCell key={`loading-cell-${header.id}-${index}`}>
+                      <div className="h-4 bg-gray-200 rounded dark:bg-gray-700 w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="text-xs sm:text-sm">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center text-sm sm:text-base"
-                >
-                  No results.
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No results found.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-      <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-2 py-2 sm:py-4">
-        <div className="flex-1 text-xs sm:text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} row(s) total
+      
+      <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {data.length > 0 ? pageIndex * pageSize + 1 : 0} to {Math.min((pageIndex + 1) * pageSize, totalCount)} of {totalCount} items
         </div>
-        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 lg:space-x-8">
-          <div className="flex items-center space-x-2">
-            <p className="text-xs sm:text-sm font-medium">Page</p>
-            <span className="text-xs sm:text-sm font-medium">
-              {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-              className="hidden sm:block"
-            >
-              First
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-              className="hidden sm:block"
-            >
-              Last
-            </Button>
-          </div>
-        </div>
+        <PaginationControls 
+          table={table}
+          canPreviousPage={canPreviousPage}
+          canNextPage={canNextPage}
+          pageCount={pageCount}
+          isLoading={isLoading}
+        />
       </div>
     </div>
   );
