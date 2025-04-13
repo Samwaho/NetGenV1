@@ -1,28 +1,52 @@
 import { gql } from "@apollo/client";
 
+const STATION_FIELDS = gql`
+  fragment StationFields on ISPStation {
+    id
+    name
+    description
+    organization {
+      id
+      name
+    }
+    location
+    buildingType
+    notes
+    status
+    coordinates
+    createdAt
+    updatedAt
+  }
+`;
+
 export const GET_ISP_STATIONS = gql`
-  query GetISPStations($organizationId: String!) {
-    stations(organizationId: $organizationId) {
+  query GetISPStations(
+    $organizationId: String!,
+    $page: Int = 1,
+    $pageSize: Int = 20,
+    $sortBy: String = "createdAt",
+    $sortDirection: String = "desc",
+    $search: String = null,
+    $filterStatus: String = null
+  ) {
+    stations(
+      organizationId: $organizationId,
+      page: $page,
+      pageSize: $pageSize,
+      sortBy: $sortBy,
+      sortDirection: $sortDirection,
+      search: $search,
+      filterStatus: $filterStatus
+    ) {
       success
       message
       stations {
-        id
-        name
-        description
-        organization {
-          id
-          name
-        }
-        location
-        buildingType
-        notes
-        status
-        coordinates
-        createdAt
-        updatedAt
+        ...StationFields
       }
+      totalCount
     }
   }
+  ${STATION_FIELDS}
 `;
 
 export const GET_ISP_STATION = gql`

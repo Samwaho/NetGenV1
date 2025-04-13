@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Union, cast
+from functools import lru_cache
 import strawberry
-from fastapi import HTTPException
+from fastapi import HTTPException, status
+from pymongo import ASCENDING, DESCENDING
+from bson.objectid import ObjectId
 from app.config.database import isp_stations, organizations
 from app.schemas.isp_station import (
     ISPStation,
@@ -12,11 +15,79 @@ from app.schemas.isp_station import (
     StationStatus
 )
 from app.config.deps import Context
-from bson.objectid import ObjectId
 from app.config.utils import record_activity
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+# Constants
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
+NOT_AUTHORIZED = "Not authorized to access this organization"
+
+# Cache for organization permissions
+permission_cache: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+async def clear_station_cache(org_id: Optional[str] = None):
+    """Clear relevant caches when stations are modified"""
+    if org_id and org_id in permission_cache:
+        del permission_cache[org_id]
+
+@lru_cache(maxsize=20)
+def get_sort_field(field: str) -> str:
+    """Map GraphQL sort fields to database fields"""
+    field_map = {
+        "name": "name",
+        "location": "location",
+        "status": "status",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt",
+    }
+    return field_map.get(field, "createdAt")
+
+async def validate_organization_access(org_id: Union[str, ObjectId], user_id: str) -> Dict[str, Any]:
+    """
+    Validate user access to an organization with caching.
+    
+    Args:
+        org_id: Organization ID
+        user_id: User ID
+        
+    Returns:
+        Organization document
+        
+    Raises:
+        HTTPException: If user doesn't have access
+    """
+    org_id_str = str(org_id)
+    cache_key = f"{org_id_str}:{user_id}"
+    
+    if org_id_str in permission_cache and user_id in permission_cache[org_id_str]:
+        cached_data = permission_cache[org_id_str][user_id]
+        if cached_data["timestamp"] > datetime.now(timezone.utc).timestamp() - 300:  # 5 min TTL
+            return cached_data["org"]
+    
+    org = await organizations.find_one({
+        "_id": ObjectId(org_id),
+        "members.userId": user_id
+    })
+    
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=NOT_AUTHORIZED
+        )
+    
+    if org_id_str not in permission_cache:
+        permission_cache[org_id_str] = {}
+    
+    permission_cache[org_id_str][user_id] = {
+        "timestamp": datetime.now(timezone.utc).timestamp(),
+        "org": org
+    }
+    
+    return org
 
 @strawberry.type
 class ISPStationResolver:
@@ -55,38 +126,83 @@ class ISPStationResolver:
         )
 
     @strawberry.field
-    async def stations(self, info: strawberry.Info, organization_id: str) -> ISPStationsResponse:
-        """Get all ISP stations for a specific organization"""
+    async def stations(
+        self, 
+        info: strawberry.Info, 
+        organization_id: str,
+        page: Optional[int] = 1,
+        page_size: Optional[int] = DEFAULT_PAGE_SIZE,
+        sort_by: Optional[str] = "createdAt",
+        sort_direction: Optional[str] = "desc",
+        search: Optional[str] = None,
+        filter_status: Optional[str] = None
+    ) -> ISPStationsResponse:
+        """Get all ISP stations for a specific organization with pagination and filtering"""
         context: Context = info.context
         current_user = await context.authenticate()
 
-        # Verify user has access to the organization this station belongs to
-        org = await organizations.find_one({
-            "_id": ObjectId(organization_id),
-            "members.userId": current_user.id
-        })
-        
-        if not org:
-            raise HTTPException(status_code=403, detail="Not authorized to access this organization")
+        try:
+            # Verify organization access first
+            org = await validate_organization_access(organization_id, current_user.id)
 
-        # Try both ObjectId and string formats
-        all_stations = await isp_stations.find({
-            "$or": [
-                {"organizationId": ObjectId(organization_id)},
-                {"organizationId": organization_id}
-            ]
-        }).to_list(None)
+            # Build the query filter with flexible organizationId matching
+            query_filter = {
+                "$or": [
+                    {"organizationId": ObjectId(organization_id)},
+                    {"organizationId": organization_id}
+                ]
+            }
+            
+            if search:
+                query_filter["$or"] = [
+                    {"name": {"$regex": search, "$options": "i"}},
+                    {"description": {"$regex": search, "$options": "i"}},
+                    {"location": {"$regex": search, "$options": "i"}}
+                ]
+            
+            if filter_status:
+                query_filter["status"] = filter_status
 
-        station_list = []
-        for station in all_stations:
-            converted_station = await ISPStation.from_db(station)
-            station_list.append(converted_station)
+            # Log the query for debugging
+            logger.debug(f"Query filter: {query_filter}")
+            logger.debug(f"Organization ID: {organization_id}")
 
-        return ISPStationsResponse(
-            success=True,
-            message="Stations retrieved successfully",
-            stations=station_list
-        )
+            # Get total count before pagination
+            total_count = await isp_stations.count_documents(query_filter)
+            logger.debug(f"Total count: {total_count}")
+
+            # Apply sorting with proper field mapping
+            sort_field = get_sort_field(sort_by)
+            sort_direction_value = DESCENDING if sort_direction == "desc" else ASCENDING
+            sort_options = [(sort_field, sort_direction_value)]
+
+            # Get paginated results
+            cursor = isp_stations.find(query_filter)
+            cursor = cursor.sort(sort_options)
+            cursor = cursor.skip((page - 1) * page_size).limit(page_size)
+            
+            stations = []
+            async for station in cursor:
+                logger.debug(f"Found station: {station['name']}")
+                stations.append(await ISPStation.from_db(station))
+
+            logger.debug(f"Returning {len(stations)} stations")
+
+            return ISPStationsResponse(
+                success=True,
+                message="Stations retrieved successfully",
+                stations=stations,
+                totalCount=total_count
+            )
+
+        except Exception as e:
+            logger.error(f"Error fetching stations: {str(e)}")
+            return ISPStationsResponse(
+                success=False,
+                message=f"Error fetching stations: {str(e)}",
+                stations=[],
+                totalCount=0
+            )
 
     @strawberry.mutation
     async def create_station(self, input: CreateISPStationInput, info: strawberry.Info) -> ISPStationResponse:
