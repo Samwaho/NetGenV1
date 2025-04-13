@@ -52,9 +52,9 @@ class OrganizationMember:
                 email=user_id
             )
 
-        # Fetch user data for active members
+        # Fetch user data for active members - use skip_orgs=True to prevent infinite recursion
         user_data = await users.find_one({"_id": user_id}) if user_id else None
-        user = await User.from_db(user_data) if user_data else None
+        user = await User.from_db(user_data, skip_orgs=True) if user_data else None
 
         return cls(
             user=user,
@@ -101,9 +101,9 @@ class Organization:
             created_at = organization.createdAt
             updated_at = organization.updatedAt
 
-        # Fetch owner data
+        # Fetch owner data - use skip_orgs=True to prevent infinite recursion
         owner_data = await users.find_one({"_id": owner_id}) if owner_id else None
-        owner = await User.from_db(owner_data) if owner_data else None
+        owner = await User.from_db(owner_data, skip_orgs=True) if owner_data else None
 
         # Process roles
         processed_roles = []

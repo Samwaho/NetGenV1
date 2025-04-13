@@ -5,6 +5,7 @@ from dataclasses import field
 from app.models.user import DBUser
 from app.schemas.enums import UserRole
 import logging
+from bson.objectid import ObjectId
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class User:
     updatedAt: datetime
 
     @classmethod
-    async def from_db(cls, user) -> "User":
+    async def from_db(cls, user, skip_orgs=False) -> "User":
         from app.schemas.organization import Organization
         from app.config.database import organizations
 
@@ -56,14 +57,23 @@ class User:
             }
             user_orgs = user.organizations if hasattr(user, 'organizations') else []
 
-        # Handle organizations if present
-        if user_orgs:
+        # Handle organizations if present and not skipping
+        if user_orgs and not skip_orgs:
             # Fetch organization objects from database using the IDs
             org_objects = []
             for org_id in user_orgs:
-                org = await organizations.find_one({"_id": org_id})
-                if org:
-                    org_objects.append(org)
+                try:
+                    # Convert string ID to ObjectId for MongoDB query
+                    object_id = ObjectId(org_id)
+                    org = await organizations.find_one({"_id": object_id})
+                    if org:
+                        org_objects.append(org)
+                except Exception as e:
+                    logger.error(f"Error converting organization ID to ObjectId: {str(e)}")
+                    # Try with the original ID as fallback
+                    org = await organizations.find_one({"_id": org_id})
+                    if org:
+                        org_objects.append(org)
 
             # Use list comprehension with await
             orgs = []

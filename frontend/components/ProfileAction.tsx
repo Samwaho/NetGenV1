@@ -11,17 +11,29 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { Settings, LogIn, User, DollarSign, Building2 } from "lucide-react";
+import {  LogIn, User, DollarSign, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removeAuthToken } from "@/lib/auth-utils";
 import { useRouter } from "next/navigation";
 
 const ProfileAction = () => {
-  const { data } = useQuery(CURRENT_USER);
+  const { data, loading, error } = useQuery(CURRENT_USER, {
+    fetchPolicy: 'network-only',
+  });
   const currentUser = data?.currentUser;
   const router = useRouter();
 
-  if (!currentUser) {
+  if (loading) {
+    return (
+      <Avatar>
+        <AvatarFallback className="text-sm font-semibold text-center uppercase bg-gradient-custom text-white">
+          ...
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
+
+  if (error || !currentUser) {
     return (
       <Link href="/sign-in">
         <Button className="flex items-center gap-2 bg-gradient-custom text-white cursor-pointer">
