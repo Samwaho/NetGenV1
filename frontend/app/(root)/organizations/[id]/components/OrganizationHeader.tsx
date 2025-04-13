@@ -44,23 +44,6 @@ export const OrganizationHeader = ({
             ISP Management
           </Button>
         </Link>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-8 sm:h-10 w-8 sm:w-10">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem className="text-xs sm:text-sm">
-              <Settings className="mr-2 h-4 w-4" />
-              Organization Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-xs sm:text-sm">
-              <Shield className="mr-2 h-4 w-4" />
-              Roles & Permissions
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );

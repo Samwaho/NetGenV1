@@ -13,6 +13,7 @@ import { MembersTab } from "./components/MembersTab";
 import { RolesTab } from "./components/RolesTab";
 import { SubscriptionsTab } from "./components/SubscriptionsTab";
 import { ActivityTab } from "./components/ActivityTab";
+import { DetailsTab } from "./components/DetailsTab";
 
 const OrganizationPage = () => {
   const params = useParams();
@@ -60,14 +61,20 @@ const OrganizationPage = () => {
           <TabsTrigger value="roles" className="text-xs sm:text-sm">Roles</TabsTrigger>
           <TabsTrigger value="subscriptions" className="text-xs sm:text-sm">Subscriptions</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
+          <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
         </TabsList>
+        <TabsContent value="details" className="mt-4">
+          <DetailsTab 
+            organization={organization}
+            currentUserId={currentUserId}
+          />
+        </TabsContent>
         <TabsContent value="members" className="mt-4">
           <MembersTab 
             members={organization.members.map(member => ({
               ...member,
               status: member.status as "ACTIVE" | "PENDING" | "INACTIVE"
             }))} 
-            organizationId={organizationId}
             organization={organization}
             currentUserId={currentUserId}
           />
@@ -96,6 +103,8 @@ const OrganizationPage = () => {
 };
 
 export default OrganizationPage;
+
+
 
 
 

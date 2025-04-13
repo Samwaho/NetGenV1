@@ -19,7 +19,6 @@ interface SidebarItem {
     | typeof Box
     | typeof Building
     | typeof Package
-    | typeof UserCog
     | typeof Ticket
     | typeof DollarSign
     | typeof Warehouse;
@@ -50,11 +49,6 @@ export const sidebarData: SidebarItem[] = [
     title: "Inventory",
     path: (id) => `/${id}/isp/inventory`,
     icon: Package,
-  },
-  {
-    title: "Staff",
-    path: (id) => `/${id}/isp/staff`,
-    icon: UserCog,
   },
   {
     title: "Support Tickets",

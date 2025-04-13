@@ -75,13 +75,6 @@ const ProfileAction = () => {
             <Building2 className="w-4 h-4" />
             Organizations
           </Link>
-          <Link
-            href="/settings"
-            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted"
-          >
-            <Settings className="w-4 h-4" />
-            Settings
-          </Link>
           <Button
             className="w-full h-8 sm:h-8 bg-transparent border border-red-500 hover:bg-red-50 dark:hover:bg-transparent dark:hover:border-red-300 text-red-500 cursor-pointer"
             onClick={() => {
