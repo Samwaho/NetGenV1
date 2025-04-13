@@ -63,7 +63,6 @@ export default function ProfilePage() {
     );
   }
   const { currentUser } = data;
-  console.log(currentUser);
   
   // Safely get the organizations count
   const organizationsCount = currentUser?.organizations?.length || 0;
@@ -137,27 +136,9 @@ export default function ProfilePage() {
                 />
               </div>{" "}
             </div>
-            <div className="space-y-2">
-              <Label>Member Since</Label>{" "}
-              <div className="relative">
-                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />{" "}
-                <Input
-                  className="pl-9"
-                  value={formatDate(currentUser.createdAt)}
-                  disabled
-                />
-              </div>{" "}
-            </div>
+            
           </div>
           <div className="flex justify-end gap-4 pt-4">
-            {" "}
-            <Button
-              variant="outline"
-              onClick={() => toast.info("Feature coming soon!")}
-            >
-              {" "}
-              Change Password
-            </Button>{" "}
             <Button
               className="bg-gradient-custom text-white hover:text-white"
               onClick={() => toast.info("Feature coming soon!")}
