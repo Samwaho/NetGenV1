@@ -40,7 +40,24 @@ export interface CustomerResponse {
     lastName: string;
     username: string;
     status: string;
-    // ... other fields
+    expirationDate: string;
+    email: string;
+    phone: string;
+    organization: {
+      id: string;
+      name: string;
+    };
+    package: {
+      id: string;
+      name: string;
+    };
+    station: {
+      id: string;
+      name: string;
+    };
+    online: boolean;
+    createdAt: string;
+    updatedAt: string;
   };
 }
 

@@ -19,10 +19,11 @@ import {
   Timer
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { formatBytes, formatDuration } from "@/lib/utils";
-import { format } from "date-fns";
+import { formatBytes, formatDuration, formatDateToNowInTimezone } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Clock as ClockIcon } from "lucide-react";
+import { LoadingSkeleton } from "./components/LoadingSkeleton";
 
 interface StatsCardProps {
   title: string;
@@ -91,8 +92,32 @@ export default function CustomerAccountingPage() {
     }
   );
 
+  const getExpirationStatus = (expirationDate: string | undefined) => {
+    if (!expirationDate) {
+      return { label: "Unknown", variant: "secondary" as const };
+    }
+
+    const now = new Date();
+    const expDate = new Date(expirationDate);
+    
+    if (expDate < now) {
+      return { label: "Expired", variant: "destructive" as const };
+    }
+    
+    const daysLeft = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft < 7) {
+      return { label: "Expiring Soon", variant: "secondary" as const };
+    }
+    
+    return { label: "Active", variant: "default" as const };
+  };
+
   if (customerLoading || accountingLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+        <LoadingSkeleton />
+      </div>
+    );
   }
 
   const customer = customerData?.customer;
@@ -114,17 +139,32 @@ export default function CustomerAccountingPage() {
     );
   }
 
+  const expirationStatus = getExpirationStatus(customer?.expirationDate);
+
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+        <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gradient-custom">
             Customer Usage
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            {customer.firstName} {customer.lastName} ({customer.username})
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm sm:text-base text-muted-foreground">
+              {customer.firstName} {customer.lastName} ({customer.username})
+            </p>
+            <div className="flex items-center gap-3">
+              <Badge variant={expirationStatus.variant}>
+                {expirationStatus.label}
+              </Badge>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <ClockIcon className="h-4 w-4" />
+                <span>
+                  Expires {formatDateToNowInTimezone(customer.expirationDate)}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
         <Button
           variant="outline"
@@ -208,13 +248,13 @@ export default function CustomerAccountingPage() {
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Start Time</p>
                   <p className="font-medium">
-                    {latestSession.startTime ? format(new Date(latestSession.startTime), 'PPp') : 'N/A'}
+                    {latestSession.startTime ? formatDateToNowInTimezone(latestSession.startTime) : 'N/A'}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Last Update</p>
                   <p className="font-medium">
-                    {latestSession.lastUpdate ? format(new Date(latestSession.lastUpdate), 'PPp') : 'N/A'}
+                    {latestSession.lastUpdate ? formatDateToNowInTimezone(latestSession.lastUpdate) : 'N/A'}
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -288,6 +328,7 @@ export default function CustomerAccountingPage() {
     </div>
   );
 }
+
 
 
 
