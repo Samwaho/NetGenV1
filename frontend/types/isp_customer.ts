@@ -32,6 +32,18 @@ export interface ISPCustomersResponse {
   };
 }
 
+export interface CustomerResponse {
+  customer: {
+    __typename: string;
+    id: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    status: string;
+    // ... other fields
+  };
+}
+
 export interface CreateISPCustomerInput {
   firstName: string;
   lastName: string;

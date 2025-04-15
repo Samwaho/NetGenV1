@@ -20,8 +20,10 @@ activities = db.activities
 isp_packages = db.isp_packages
 isp_stations = db.isp_stations
 isp_customers = db.isp_customers
+isp_customers_accounting = db.isp_customers_accounting
 isp_inventories = db.isp_inventories
 isp_tickets = db.isp_tickets
+
 
 async def connect_to_database():
     """Test database connection"""
