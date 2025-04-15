@@ -31,6 +31,12 @@ class ISPPackage:
     burstTime: Optional[int] = None
     serviceType: IspManagerPackageType = IspManagerPackageType.PPPOE
     addressPool: Optional[str] = None
+    # Session management
+    sessionTimeout: Optional[int] = None  # in seconds
+    idleTimeout: Optional[int] = None     # in seconds
+    # QoS and VLAN
+    priority: Optional[int] = None  # 1-8 for MikroTik queue priority
+    vlanId: Optional[int] = None    # VLAN ID if using VLANs
     createdAt: datetime
     updatedAt: datetime
     
@@ -50,6 +56,10 @@ class ISPPackage:
         "burstTime": "burstTime",
         "serviceType": "serviceType",
         "addressPool": "addressPool",
+        "sessionTimeout": "sessionTimeout",
+        "idleTimeout": "idleTimeout",
+        "priority": "priority",
+        "vlanId": "vlanId",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     }
@@ -110,6 +120,12 @@ class BaseISPPackageInput:
     burstTime: Optional[int] = None
     serviceType: Optional[IspManagerPackageType] = None
     addressPool: Optional[str] = None
+    # Session management
+    sessionTimeout: Optional[int] = None
+    idleTimeout: Optional[int] = None
+    # QoS and VLAN
+    priority: Optional[int] = None
+    vlanId: Optional[int] = None
 
 
 @strawberry.input

@@ -31,6 +31,12 @@ const formSchema = z.object({
   burstTime: z.number().optional(),
   addressPool: z.string().optional(),
   price: z.number().min(0, "Price must be positive"),
+  // Session management
+  sessionTimeout: z.number().optional(),
+  idleTimeout: z.number().optional(),
+  // QoS and VLAN
+  priority: z.number().min(1).max(8).optional(),
+  vlanId: z.number().optional(),
 });
 
 export default function CreatePackagePage() {
@@ -70,6 +76,12 @@ export default function CreatePackagePage() {
     burstTime: undefined,
     addressPool: "",
     price: 0,
+    // Session management
+    sessionTimeout: undefined,
+    idleTimeout: undefined,
+    // QoS and VLAN
+    priority: undefined,
+    vlanId: undefined,
   }), []);
 
   // Initialize form with memoized resolver and default values
@@ -351,6 +363,90 @@ export default function CreatePackagePage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Burst Time (seconds)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Advanced Configuration Section */}
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">Advanced Configuration</h2>
+                  <p className="text-sm text-muted-foreground">Configure session management, QoS, and VLAN settings</p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="sessionTimeout"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Session Timeout (seconds)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="idleTimeout"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Idle Timeout (seconds)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Queue Priority (1-8)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min={1}
+                            max={8}
+                            {...field} 
+                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="vlanId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>VLAN ID</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 

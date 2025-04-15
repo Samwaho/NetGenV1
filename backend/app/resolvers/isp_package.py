@@ -273,6 +273,10 @@ class ISPPackageResolver:
                 "burstTime": input.burstTime,
                 "serviceType": input.serviceType,
                 "addressPool": input.addressPool,
+                "sessionTimeout": input.sessionTimeout,
+                "idleTimeout": input.idleTimeout,
+                "priority": input.priority,
+                "vlanId": input.vlanId,
                 "createdAt": datetime.now(timezone.utc),
                 "updatedAt": datetime.now(timezone.utc)
             }
@@ -362,6 +366,10 @@ class ISPPackageResolver:
                     "burstTime": input.burstTime,
                     "serviceType": input.serviceType,
                     "addressPool": input.addressPool,
+                    "sessionTimeout": input.sessionTimeout,
+                    "idleTimeout": input.idleTimeout,
+                    "priority": input.priority,
+                    "vlanId": input.vlanId,
                     "updatedAt": datetime.now(timezone.utc)
                 }.items() if value is not None
             }

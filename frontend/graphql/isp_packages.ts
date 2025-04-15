@@ -20,6 +20,12 @@ const ISP_PACKAGE_FRAGMENT = gql`
     burstTime
     serviceType
     addressPool
+    # Session management
+    sessionTimeout
+    idleTimeout
+    # QoS and VLAN
+    priority
+    vlanId
     createdAt
     updatedAt
   }

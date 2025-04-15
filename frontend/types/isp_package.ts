@@ -17,6 +17,12 @@ export type ISPPackage = {
   serviceType: 'PPPOE' | 'HOTSPOT' | 'STATIC' | 'DHCP';
   status: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
   addressPool: string;
+  // Session management
+  sessionTimeout?: number;
+  idleTimeout?: number;
+  // QoS and VLAN
+  priority?: number;
+  vlanId?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -51,6 +57,12 @@ export type CreateISPPackageInput = {
   burstTime: number;
   serviceType: string;
   addressPool: string;
+  // Session management
+  sessionTimeout?: number;
+  idleTimeout?: number;
+  // QoS and VLAN
+  priority?: number;
+  vlanId?: number;
 };
 
 export type UpdateISPPackageInput = Partial<CreateISPPackageInput>;

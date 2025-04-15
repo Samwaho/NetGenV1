@@ -19,5 +19,11 @@ class DBISPPackage:
     burstTime: Optional[int]
     serviceType: IspManagerPackageType
     addressPool: Optional[str]
+    # Session management
+    sessionTimeout: Optional[int]
+    idleTimeout: Optional[int]
+    # QoS and VLAN
+    priority: Optional[int]
+    vlanId: Optional[int]
     createdAt: datetime
     updatedAt: datetime
