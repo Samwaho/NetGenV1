@@ -51,10 +51,30 @@ export function formatDuration(seconds: number): string {
   return parts.join(' ');
 }
 
+export const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
 
+export const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    notation: "compact",
+    compactDisplay: "short",
+  }).format(value);
+};
 
-
-
-
+export const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+  }).format(date);
+};
 
 
