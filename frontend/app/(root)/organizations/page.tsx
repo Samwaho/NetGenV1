@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Plus, Users, Building2, ArrowRight, LockIcon } from "lucide-react";
 import { useQuery } from "@apollo/client";
 import { GET_ORGANIZATIONS } from "@/graphql/organization";
@@ -88,7 +87,7 @@ const OrganizationCard = ({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>You don't have permission to view this organization</p>
+              <p>You don&apos;t have permission to view this organization</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -97,20 +96,50 @@ const OrganizationCard = ({
   );
 };
 
+const OrganizationSkeleton = () => {
+  return (
+    <Card className="flex flex-col">
+      <CardHeader>
+        <Skeleton className="h-8 w-3/4 mb-2" />
+        <Skeleton className="h-4 w-full" />
+      </CardHeader>
+      <CardContent className="flex-1">
+        <div className="space-y-4">
+          <Skeleton className="h-5 w-1/3" />
+          <Skeleton className="h-4 w-2/5" />
+        </div>
+      </CardContent>
+      <CardFooter>
+        <Skeleton className="h-10 w-full" />
+      </CardFooter>
+    </Card>
+  );
+};
+
+const LoadingState = () => {
+  return (
+    <div className="container mx-auto px-4 py-16 max-w-6xl">
+      <div className="text-center mb-16">
+        <Skeleton className="h-10 w-2/3 mx-auto mb-4" />
+        <Skeleton className="h-6 w-1/2 mx-auto mb-8" />
+        <Skeleton className="h-10 w-48 mx-auto" />
+      </div>
+      
+      <div className="grid md:grid-cols-3 gap-8">
+        {[...Array(6)].map((_, i) => (
+          <OrganizationSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const Page = () => {
   const { data: userData, loading: userLoading } = useQuery(CURRENT_USER);
   const { loading, error, data } = useQuery<OrganizationsResponse>(GET_ORGANIZATIONS);
 
   if (loading || userLoading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-[200px]" />
-          ))}
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (error || !userData?.currentUser) {

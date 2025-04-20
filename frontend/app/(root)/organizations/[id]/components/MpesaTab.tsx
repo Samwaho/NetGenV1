@@ -146,7 +146,6 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
             <h3 className="font-medium text-blue-800">Information</h3>
             <p className="text-blue-700 text-sm">
               Callback URLs will be automatically generated for you when you save the configuration.
-              You will need to register these callback URLs in your Safaricom Developer Portal.
             </p>
           </div>
         </div>
