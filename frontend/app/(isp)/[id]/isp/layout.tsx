@@ -1,19 +1,7 @@
-import Header from "@/components/Header";
+import IspHeader from "@/components/IspHeader";
 import Sidebar from "@/components/sidebar/Sidebar";
 import MobileSidebar from "@/components/sidebar/MobileSidebar";
 import { Separator } from "@/components/ui/separator";
-import { client } from "@/lib/apollo-client";
-import { GET_SUBSCRIPTIONS } from "@/graphql/subscription";
-import { GET_ORGANIZATION } from "@/graphql/organization";
-import { cookies } from "next/headers";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import Link from "next/link";
-import { AlertCircle, Lock } from "lucide-react";
-import { redirect } from "next/navigation";
-import { hasOrganizationPermissions } from "@/lib/permission-utils";
-import { OrganizationPermissions } from "@/lib/permissions";
-import { jwtDecode } from "jwt-decode";
 import AuthCheck from "@/components/auth/AuthCheck";
 
 export default async function ISPLayout({
@@ -41,7 +29,7 @@ export default async function ISPLayout({
               <div className="md:hidden">
                 <MobileSidebar organizationId={organizationId} />
               </div>
-              <Header />
+              <IspHeader organizationId={organizationId} />
             </div>
             <Separator className="bg-slate-300 dark:bg-slate-800" />
             <div className="mt-4">{children}</div>
