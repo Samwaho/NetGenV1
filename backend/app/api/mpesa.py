@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException, Depends
-from app.config.database import organizations, mpesa_transactions, isp_customers, isp_packages, isp_customer_payments
+from app.config.database import organizations, isp_mpesa_transactions, isp_customers, isp_packages, isp_customer_payments
 from bson.objectid import ObjectId
 import logging
 from datetime import datetime, timezone, timedelta
@@ -311,7 +311,7 @@ async def store_transaction(organization_id: str, callback_type: str, payload: D
             transaction_data["updatedAt"] = datetime.now(timezone.utc)
         
         # Store the data
-        await mpesa_transactions.insert_one(transaction_data)
+        await isp_mpesa_transactions.insert_one(transaction_data)
         
     except Exception as e:
         logger.error(f"Error storing Mpesa transaction: {str(e)}")
@@ -555,7 +555,7 @@ async def initiate_stk_push(organization_id: str, request: Request):
             result = response.json()
             
             # Store minimal transaction information
-            await mpesa_transactions.insert_one({
+            await isp_mpesa_transactions.insert_one({
                 "organizationId": ObjectId(organization_id),
                 "phoneNumber": phone_number,
                 "amount": amount,

@@ -17,6 +17,7 @@ from app.resolvers.isp_inventory import ISPInventoryResolver
 from app.resolvers.isp_ticket import ISPTicketResolver
 from app.resolvers.isp_customers_accounting import ISPCustomerAccountingResolver
 from app.resolvers.isp_customer_payments import ISPCustomerPaymentResolver
+from app.resolvers.isp_transactions import ISPTransactionResolver
 from app.resolvers.dashboard import DashboardResolver
 from app.api import mpesa
 from app.tasks.scheduler import start_scheduler
@@ -35,6 +36,7 @@ class Query(
     ISPTicketResolver,
     ISPCustomerAccountingResolver,
     ISPCustomerPaymentResolver,
+    ISPTransactionResolver,
     DashboardResolver
 ):
     pass
@@ -53,6 +55,7 @@ class Mutation(
     ISPTicketResolver,
     ISPCustomerAccountingResolver,
     ISPCustomerPaymentResolver,
+    ISPTransactionResolver,
     DashboardResolver
 ):
     pass
