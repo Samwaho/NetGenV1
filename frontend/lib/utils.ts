@@ -1,25 +1,37 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { formatDistanceToNow, parseISO } from "date-fns"
+import { formatDistanceToNow } from "date-fns"
 import { TZDate, tz } from "@date-fns/tz"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatDateToNowInTimezone(date: string | Date, timezone: string = "Africa/Nairobi"): string {
-  // Parse the input date as UTC first
-  const utcDate = typeof date === 'string' 
-    ? new Date(date + 'Z')  // Append Z to treat the input as UTC
-    : date
-    
-  // Create TZDate with the UTC date
-  const tzDate = new TZDate(utcDate, timezone)
+export function formatDateToNowInTimezone(date: string | Date | null | undefined, timezone: string = "Africa/Nairobi"): string {
+  if (!date) return 'No date available';
   
-  return formatDistanceToNow(tzDate, { 
-    addSuffix: true,
-    in: tz(timezone)
-  })
+  try {
+    // Parse the input date as UTC first
+    const utcDate = typeof date === 'string' 
+      ? new Date(date)  // Let the Date constructor handle the parsing
+      : date
+      
+    // Check if the date is valid
+    if (isNaN(utcDate.getTime())) {
+      return 'Invalid date';
+    }
+    
+    // Create TZDate with the UTC date
+    const tzDate = new TZDate(utcDate, timezone)
+    
+    return formatDistanceToNow(tzDate, { 
+      addSuffix: true,
+      in: tz(timezone)
+    })
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
 }
 
 export function formatBytes(bytes: number): string {
