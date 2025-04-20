@@ -16,7 +16,10 @@ from app.resolvers.isp_customer import ISPCustomerResolver
 from app.resolvers.isp_inventory import ISPInventoryResolver
 from app.resolvers.isp_ticket import ISPTicketResolver
 from app.resolvers.isp_customers_accounting import ISPCustomerAccountingResolver
+from app.resolvers.isp_customer_payments import ISPCustomerPaymentResolver
 from app.resolvers.dashboard import DashboardResolver
+from app.api import mpesa
+from app.tasks.scheduler import start_scheduler
 
 @strawberry.type
 class Query(
@@ -31,6 +34,7 @@ class Query(
     ISPInventoryResolver,
     ISPTicketResolver,
     ISPCustomerAccountingResolver,
+    ISPCustomerPaymentResolver,
     DashboardResolver
 ):
     pass
@@ -48,6 +52,7 @@ class Mutation(
     ISPInventoryResolver,
     ISPTicketResolver,
     ISPCustomerAccountingResolver,
+    ISPCustomerPaymentResolver,
     DashboardResolver
 ):
     pass
@@ -73,10 +78,15 @@ app.add_middleware(
 # GraphQL endpoint
 app.include_router(graphql_app, prefix="/graphql")
 
+# Mpesa API routes
+app.include_router(mpesa.router, prefix="/api/isp-customer-payments", tags=["mpesa"])
+
 @app.on_event("startup")
 async def startup_db_client():
     """Connect to MongoDB on startup"""
     await connect_to_database()
+    # Start the scheduler
+    start_scheduler()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

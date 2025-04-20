@@ -9,7 +9,8 @@ from app.schemas.organization import (
     OrganizationResponse,
     OrganizationsResponse,
     CreateOrganizationInput,
-    OrganizationMember
+    OrganizationMember,
+    MpesaConfigurationInput
 )
 from app.schemas.enums import OrganizationStatus, OrganizationMemberStatus, OrganizationPermission
 from app.schemas.user import User
@@ -21,6 +22,7 @@ import jwt
 from app.config.deps import Context
 from bson.objectid import ObjectId
 from app.config.utils import record_activity
+from app.api.mpesa import register_c2b_urls, get_mpesa_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +95,14 @@ class OrganizationResolver:
                     OrganizationPermission.VIEW_ISP_MANAGER_STATIONS.value,
                     OrganizationPermission.MANAGE_ISP_MANAGER_STATIONS.value,
                     OrganizationPermission.VIEW_ISP_MANAGER_INVENTORY.value,
-                    OrganizationPermission.MANAGE_ISP_MANAGER_INVENTORY.value
+                    OrganizationPermission.MANAGE_ISP_MANAGER_INVENTORY.value,
+                    OrganizationPermission.VIEW_ISP_MANAGER_TICKETS.value,
+                    OrganizationPermission.MANAGE_ISP_MANAGER_TICKETS.value,
+                    OrganizationPermission.VIEW_MPESA_CONFIG.value,
+                    OrganizationPermission.MANAGE_MPESA_CONFIG.value,
+                    OrganizationPermission.VIEW_MPESA_TRANSACTIONS.value,
+                    OrganizationPermission.VIEW_CUSTOMER_PAYMENTS.value,
+                    OrganizationPermission.MANAGE_CUSTOMER_PAYMENTS.value
                 ],
                 "isSystemRole": False
             },
@@ -117,6 +126,26 @@ class OrganizationResolver:
             }],
             "roles": default_roles,
             "status": OrganizationStatus.ACTIVE.value,
+            "mpesaConfig": {
+                "shortCode": None,
+                "businessName": None,
+                "accountReference": None,
+                "isActive": False,
+                "consumerKey": None,
+                "consumerSecret": None,
+                "passKey": None,
+                "environment": "sandbox",
+                "callbackUrl": None,
+                "stkPushCallbackUrl": None,
+                "c2bCallbackUrl": None,
+                "b2cResultUrl": None,
+                "b2cTimeoutUrl": None,
+                "transactionType": "CustomerPayBillOnline",
+                "stkPushShortCode": None,
+                "stkPushPassKey": None,
+                "createdAt": datetime.now(timezone.utc),
+                "updatedAt": datetime.now(timezone.utc)
+            },
             "createdAt": datetime.now(timezone.utc),
             "updatedAt": datetime.now(timezone.utc)
         }
@@ -725,6 +754,118 @@ class OrganizationResolver:
         return OrganizationResponse(
             success=True,
             message="Member removed successfully",
+            organization=await Organization.from_db(updated_org)
+        )
+
+    @strawberry.mutation
+    async def update_mpesa_configuration(self, organization_id: str, input: MpesaConfigurationInput, info: strawberry.Info) -> OrganizationResponse:
+        """Update Mpesa configuration for an organization"""
+        context = info.context
+        current_user = await context.authenticate()
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        organization = await organizations.find_one({"_id": ObjectId(organization_id)})
+        if not organization:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        # Check if user has permission to update organization
+        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
+        if not user_member:
+            raise HTTPException(status_code=403, detail="Not a member of this organization")
+
+        user_role = next((role for role in organization["roles"] if role["name"] == user_member["roleName"]), None)
+        if not user_role or OrganizationPermission.MANAGE_MPESA_CONFIG.value not in user_role["permissions"]:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        
+        # Create Mpesa configuration with only essential fields
+        mpesa_config = {
+            "shortCode": input.shortCode,
+            "businessName": input.businessName,
+            "accountReference": input.accountReference,
+            "isActive": input.isActive,
+            "consumerKey": input.consumerKey,
+            "consumerSecret": input.consumerSecret,
+            "passKey": input.passKey,
+            "environment": input.environment,
+            "transactionType": input.transactionType,
+            "stkPushShortCode": input.stkPushShortCode or input.shortCode,
+            "stkPushPassKey": input.stkPushPassKey or input.passKey,
+            "updatedAt": datetime.now(timezone.utc)
+        }
+        
+        # Preserve existing callback URLs and creation date if they exist
+        if organization.get("mpesaConfig"):
+            existing_config = organization["mpesaConfig"]
+            for field in ["callbackUrl", "stkPushCallbackUrl", "c2bCallbackUrl", 
+                         "validationUrl", "b2cResultUrl", "b2cTimeoutUrl", "callbacksRegistered", "createdAt"]:
+                if field in existing_config and existing_config[field]:
+                    mpesa_config[field] = existing_config[field]
+            
+            if "createdAt" not in mpesa_config:
+                mpesa_config["createdAt"] = datetime.now(timezone.utc)
+
+        # Update organization with Mpesa configuration
+        await organizations.update_one(
+            {"_id": ObjectId(organization_id)},
+            {
+                "$set": {
+                    "mpesaConfig": mpesa_config,
+                    "updatedAt": datetime.now(timezone.utc)
+                }
+            }
+        )
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"updated Mpesa configuration for the organization"
+        )
+
+        # Try to automatically register the callbacks with Mpesa API
+        auto_registration_result = False
+        registration_message = ""
+        if input.isActive and input.consumerKey and input.consumerSecret and input.shortCode:
+            try:
+                # Get access token
+                access_token = await get_mpesa_access_token(
+                    input.consumerKey,
+                    input.consumerSecret,
+                    input.environment or "sandbox"
+                )
+                
+                if access_token:
+                    # Register C2B URLs - let register_c2b_urls handle the URL generation
+                    auto_registration_result = await register_c2b_urls(
+                        organization_id,
+                        input.shortCode,
+                        access_token,
+                        input.environment or "sandbox"
+                    )
+                    
+                    if auto_registration_result:
+                        registration_message = " and callbacks registered with M-Pesa"
+                        # Add activity for successful registration
+                        await record_activity(
+                            current_user.id,
+                            ObjectId(organization_id),
+                            "registered Mpesa callbacks"
+                        )
+                    else:
+                        registration_message = " but callback registration failed"
+                else:
+                    registration_message = " but couldn't obtain M-Pesa token"
+            except Exception as e:
+                logger.error(f"Error registering Mpesa callbacks: {str(e)}")
+                registration_message = f" but callback registration failed: {str(e)}"
+        elif input.isActive:
+            registration_message = " (callback registration requires credentials)"
+
+        updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
+        return OrganizationResponse(
+            success=True,
+            message="Mpesa configuration updated successfully" + registration_message,
             organization=await Organization.from_db(updated_org)
         )
 

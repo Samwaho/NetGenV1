@@ -38,6 +38,26 @@ export const GET_ORGANIZATIONS = gql`
           permissions
           isSystemRole
         }
+        mpesaConfig {
+          shortCode
+          businessName
+          accountReference
+          isActive
+          consumerKey
+          consumerSecret
+          passKey
+          environment
+          callbackUrl
+          stkPushCallbackUrl
+          c2bCallbackUrl
+          b2cResultUrl
+          b2cTimeoutUrl
+          transactionType
+          stkPushShortCode
+          stkPushPassKey
+          createdAt
+          updatedAt
+        }
         status
         createdAt
         updatedAt
@@ -78,6 +98,26 @@ export const GET_ORGANIZATION = gql`
         description
         permissions
         isSystemRole
+      }
+      mpesaConfig {
+        shortCode
+        businessName
+        accountReference
+        isActive
+        consumerKey
+        consumerSecret
+        passKey
+        environment
+        callbackUrl
+        stkPushCallbackUrl
+        c2bCallbackUrl
+        b2cResultUrl
+        b2cTimeoutUrl
+        transactionType
+        stkPushShortCode
+        stkPushPassKey
+        createdAt
+        updatedAt
       }
     }
   }
@@ -356,6 +396,44 @@ export const REMOVE_MEMBER = gql`
   }
 `;
 
+export const UPDATE_MPESA_CONFIGURATION = gql`
+  mutation UpdateMpesaConfiguration(
+    $organizationId: String!,
+    $input: MpesaConfigurationInput!
+  ) {
+    updateMpesaConfiguration(
+      organizationId: $organizationId,
+      input: $input
+    ) {
+      success
+      message
+      organization {
+        id
+        mpesaConfig {
+          shortCode
+          businessName
+          accountReference
+          isActive
+          consumerKey
+          consumerSecret
+          passKey
+          environment
+          callbackUrl
+          stkPushCallbackUrl
+          c2bCallbackUrl
+          b2cResultUrl
+          b2cTimeoutUrl
+          transactionType
+          stkPushShortCode
+          stkPushPassKey
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
 export interface UpdateMemberResponse {
   updateMember: {
     success: boolean;
@@ -366,6 +444,31 @@ export interface UpdateMemberResponse {
 
 export interface RemoveMemberResponse {
   removeMember: {
+    success: boolean;
+    message: string;
+    organization: Organization;
+  };
+}
+
+export interface UpdateMpesaConfigurationVariables {
+  organizationId: string;
+  input: {
+    shortCode: string;
+    businessName: string;
+    accountReference?: string;
+    isActive: boolean;
+    consumerKey?: string;
+    consumerSecret?: string;
+    passKey?: string;
+    environment?: string;
+    transactionType?: string;
+    stkPushShortCode?: string;
+    stkPushPassKey?: string;
+  };
+}
+
+export interface UpdateMpesaConfigurationResponse {
+  updateMpesaConfiguration: {
     success: boolean;
     message: string;
     organization: Organization;

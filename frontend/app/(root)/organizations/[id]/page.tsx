@@ -14,6 +14,7 @@ import { RolesTab } from "./components/RolesTab";
 import { SubscriptionsTab } from "./components/SubscriptionsTab";
 import { ActivityTab } from "./components/ActivityTab";
 import { DetailsTab } from "./components/DetailsTab";
+import { MpesaTab } from "./components/MpesaTab";
 
 const OrganizationPage = () => {
   const params = useParams();
@@ -62,6 +63,7 @@ const OrganizationPage = () => {
           <TabsTrigger value="subscriptions" className="text-xs sm:text-sm">Subscriptions</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
           <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
+          <TabsTrigger value="mpesa" className="text-xs sm:text-sm">Mpesa</TabsTrigger>
         </TabsList>
         <TabsContent value="details" className="mt-4">
           <DetailsTab 
@@ -96,6 +98,13 @@ const OrganizationPage = () => {
         </TabsContent>
         <TabsContent value="activity" className="mt-4">
           <ActivityTab organizationId={organizationId} />
+        </TabsContent>
+        <TabsContent value="mpesa" className="mt-4">
+          <MpesaTab 
+            organization={organization}
+            organizationId={organizationId}
+            currentUserId={currentUserId}
+          />
         </TabsContent>
       </Tabs>
     </div>
