@@ -82,6 +82,12 @@ const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCusto
         >
           View Details
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/payments`)}
+          onMouseEnter={prefetchDetails}
+        >
+          View Payment History
+        </DropdownMenuItem>
         {canManageCustomers && (
           <>
             <DropdownMenuItem

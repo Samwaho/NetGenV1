@@ -77,4 +77,14 @@ export const formatDate = (dateString: string): string => {
   }).format(date);
 };
 
+// Add KES currency formatter
+export const formatKESCurrency = (value: number): string => {
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
 
