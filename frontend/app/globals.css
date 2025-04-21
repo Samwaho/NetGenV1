@@ -121,19 +121,13 @@
   }
 
   .bg-gradient-custom {
-    @apply bg-gradient-to-br from-primary via-purple-600 to-pink-500 hover:from-pink-500 hover:via-purple-600 hover:to-primary;
-    background-size: 200% 200%;
-    animation: gradient 5s ease infinite;
+    @apply bg-gradient-to-tl from-pink-500 to-purple-600 hover:from-purple-600 hover:to-pink-500;
   }
   .bg-gradient-custom2 {
     @apply bg-gradient-to-tl from-slate-600 to-slate-800 hover:from-slate-800 hover:to-slate-600;
   }
   .text-gradient-custom {
-    @apply bg-gradient-to-br from-primary via-purple-600 to-pink-500;
-    -webkit-background-clip: text;
-    background-clip: text;
-    background-size: 200% 200%;
-    animation: gradient 5s ease infinite;
+    @apply bg-gradient-to-tl from-pink-500 to-purple-600 bg-clip-text text-transparent;
   }
   .text-gradient-custom2 {
     @apply bg-gradient-to-tl from-slate-600 to-slate-800 bg-clip-text text-transparent;
@@ -158,22 +152,10 @@
   .glass-effect {
     @apply bg-background/30 backdrop-blur-md border border-border/50 shadow-lg;
     background-image: linear-gradient(
-      125deg,
-      rgba(255, 255, 255, 0.3),
-      rgba(255, 255, 255, 0.05) 70%
+      to bottom right,
+      rgba(255, 255, 255, 0.2),
+      rgba(255, 255, 255, 0.05)
     );
-  }
-
-  @keyframes gradient {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
   }
 }
 
