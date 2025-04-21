@@ -1,0 +1,284 @@
+# Dependencies
+**/node_modules/**/.pnp.js
+**/.pnp.js**/.yarn/install-state.gz
+!**/.yarn/patches!**/.yarn/plugins
+!**/.yarn/releases!**/.yarn/sdks
+!**/.yarn/versions**/.yarn/install-state.gz
+# Python
+**/__pycache__/**/*.py[cod]
+**/*$py.class**/*.so
+**/.Python**/build/
+**/develop-eggs/**/dist/
+**/downloads/**/eggs/
+**/.eggs/**/lib64/
+**/parts/**/sdist/
+**/var/**/wheels/
+**/*.egg-info/**/.installed.cfg
+**/*.egg**/.pytest_cache/
+**/.coverage**/htmlcov/
+**/coverage.xml**/.tox/
+# Next.js
+**/.next/**/out/
+**/build**/.vercel
+**/*.tsbuildinfo**/next-env.d.ts
+# Environment Variables
+**/.env**/.env.*
+!**/.env.example**/.env.local
+**/.env.development.local**/.env.test.local
+**/.env.production.local
+# Virtual Environments**/venv/
+**/env/**/ENV/
+**/.venv**/.env
+**/.python-version
+# IDE.idea/
+.vscode/**/*.swp
+**/*.swo**/*.sublime-workspace
+**/*.sublime-project**/.settings/
+**/.project**/.classpath
+**/.factorypath
+# Logs and Debugging**/npm-debug.log*
+**/yarn-debug.log***/yarn-error.log*
+**/.pnpm-debug.log***/logs
+**/*.log**/log/
+# Testing and Coverage
+**/coverage/**/.nyc_output
+**/junit.xml
+# Build outputs**/dist/
+**/build/**/*.pyc
+**/*.pyo**/*.pyd
+**/*.so**/*.dylib
+**/*.dll**/*.class
+# Docker
+.docker/docker-compose.override.yml
+docker-compose.*.yml!docker-compose.yml
+# Database
+**/*.sqlite3**/*.sqlite
+**/*.db**/data/db/
+**/mongod.log
+# System Files.DS_Store
+**/.DS_Store**/Thumbs.db
+**/*.swp**/*~
+**/*.bak**/*.tmp
+# Security and Keys
+**/*.pem**/*.key
+**/*.crt**/*.cert
+**/*.p12**/*.pfx
+# Media and Generated Content
+**/media/**/static/
+**/uploads/**/temp/
+**/tmp/
+# Documentation Build**/docs/_build/
+**/site/**/_site/
+**/build/**/dist/
+# Project Specific
+**/radius/uploads/**/backend/static/
+**/frontend/.turbo**/frontend/.swc
+# Package Lock Files (optional, depending on your team's preference)
+# package-lock.json# yarn.lock
+# pnpm-lock.yaml
+# Cache Directories**/.cache/
+**/.parcel-cache/**/.next/cache/
+**/.eslintcache**/.stylelintcache
+# Misc
+**/.history/**/.git/
+**/.svn/**/.hg/
+**/.netlify
+**/.vercel
+**/.now
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.venv
+.python-version
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# Logs
+*.log
+logs/
+log/
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+.coverage.*
+coverage.xml
+*.cover
+
+# Project specific
+uploads/
+media/
+static/
+temp/
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Backup files
+*~
+*.bak
+*.swp
+*.swo
+
+# Local development settings
+local_settings.py
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# MongoDB
+data/db/
+mongod.log
+
+# JWT
+*.pem
+*.key
+*.crt
+
+# Documentation
+docs/_build/
+site/
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Backend environment variables
+backend/.env
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

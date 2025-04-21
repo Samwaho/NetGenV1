@@ -132,7 +132,7 @@ export default function PackagesPage() {
     }
   );
 
-  const packages = data?.packages.packages || [];
+  const packages = useMemo(() => data?.packages.packages || [], [data?.packages.packages]);
   const totalCount = data?.packages.totalCount || 0;
 
   // Calculate statistics using useMemo to avoid recalculation on rerenders

@@ -38,12 +38,6 @@ export function StationActions({ station, organizationId: propOrgId }: StationAc
   // Use organizationId from props or fallback to params
   const organizationId = propOrgId || params?.id;
 
-  // Validate organizationId
-  if (!organizationId) {
-    console.error("Organization ID is missing");
-    return null;
-  }
-
   const [deleteStation, { loading: isDeleting }] = useMutation(DELETE_ISP_STATION, {
     refetchQueries: ["GetISPStations"],
     onCompleted: (data) => {
@@ -58,6 +52,12 @@ export function StationActions({ station, organizationId: propOrgId }: StationAc
       toast.error(error.message || "Failed to delete station");
     },
   });
+
+  // Validate organizationId
+  if (!organizationId) {
+    console.error("Organization ID is missing");
+    return null;
+  }
 
   const handleDelete = async () => {
     if (!station.id) {

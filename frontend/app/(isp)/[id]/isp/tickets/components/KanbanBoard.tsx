@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Ticket, TicketFilterOptions } from "@/graphql/isp_tickets";
 import { TicketCard } from "./TicketCard";
@@ -196,6 +196,7 @@ export function KanbanBoard({ tickets, filterOptions, onFilterChange }: KanbanBo
       });
       
       toast.success(`Ticket status updated to ${columns[newStatus as keyof typeof columns].title}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to update ticket status");
       // No need for manual state management here as Apollo will handle cache updates

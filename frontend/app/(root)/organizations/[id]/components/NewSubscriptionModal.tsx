@@ -20,7 +20,7 @@ export function NewSubscriptionModal({ isOpen, onClose, organizationId }: NewSub
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
-  const { data: plansData, loading: plansLoading } = useQuery<PlansResponse>(GET_PLANS);
+  const { data: plansData } = useQuery<PlansResponse>(GET_PLANS);
 
   const [createSubscription, { loading: creating }] = useMutation(CREATE_SUBSCRIPTION, {
     onCompleted: (data) => {

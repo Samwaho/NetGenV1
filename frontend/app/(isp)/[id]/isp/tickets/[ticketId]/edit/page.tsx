@@ -119,10 +119,18 @@ export default function EditTicketPage() {
   );
 
   const users = organization?.members
-    .map((member: any) => member.user)
+    .map((member: { user: { id: string; name: string } }) => member.user)
     .filter(Boolean) || [];
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: {
+    title: string;
+    description: string;
+    priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+    category: string;
+    customerId?: string;
+    assignedTo?: string;
+    dueDate?: Date;
+  }) => {
     const { ...updateData } = data;
     await updateTicket({
       variables: {

@@ -32,9 +32,7 @@ export const columns: ColumnDef<ISPTransaction>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Phone Number" />
     ),
-    cell: ({ row }) => (
-      <div>{row.original.phoneNumber}</div>
-    ),
+    cell: ({ row }) => <div>{row.original.phoneNumber}</div>,
   },
   {
     accessorKey: "customerName",
@@ -45,8 +43,10 @@ export const columns: ColumnDef<ISPTransaction>[] = [
       const fullName = [
         row.original.firstName,
         row.original.middleName,
-        row.original.lastName
-      ].filter(Boolean).join(" ");
+        row.original.lastName,
+      ]
+        .filter(Boolean)
+        .join(" ");
       return <div>{fullName}</div>;
     },
   },
@@ -55,18 +55,14 @@ export const columns: ColumnDef<ISPTransaction>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Bill Ref" />
     ),
-    cell: ({ row }) => (
-      <div>{row.original.billRefNumber}</div>
-    ),
+    cell: ({ row }) => <div>{row.original.billRefNumber}</div>,
   },
   {
     accessorKey: "businessShortCode",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Business Code" />
     ),
-    cell: ({ row }) => (
-      <div>{row.original.businessShortCode}</div>
-    ),
+    cell: ({ row }) => <div>{row.original.businessShortCode}</div>,
   },
   {
     accessorKey: "transactionType",
@@ -100,7 +96,7 @@ export const columns: ColumnDef<ISPTransaction>[] = [
     ),
     cell: ({ row }) => {
       const transTime = row.getValue("transTime") as string;
-      
+
       if (!transTime) {
         return <div className="text-muted-foreground">-</div>;
       }
@@ -126,12 +122,10 @@ export const columns: ColumnDef<ISPTransaction>[] = [
             {format(date, "MMM dd, yyyy HH:mm")}
           </div>
         );
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         return <div className="text-muted-foreground">Invalid format</div>;
       }
     },
-  }
+  },
 ];
-
-
-

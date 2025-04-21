@@ -20,7 +20,7 @@ import { Loader2 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { useSearchParams } from "next/navigation";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { setAuthToken } from "@/lib/auth-utils";
 
 const formSchema = z.object({
@@ -28,7 +28,7 @@ const formSchema = z.object({
     password: z.string().min(8),
 });
 
-const SignInForm = () => {
+const SignInFormContent = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
   const {
@@ -204,5 +204,13 @@ const SignInForm = () => {
     </Form>
   )
 }
+
+const SignInForm = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SignInFormContent />
+    </Suspense>
+  );
+};
 
 export default SignInForm

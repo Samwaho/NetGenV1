@@ -16,19 +16,19 @@ export const columns: ColumnDef<ISPCustomerAccounting>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
-      let color = "default";
+      let variant: "default" | "destructive" | "secondary" | "outline" = "default";
       switch (status) {
         case "Start":
-          color = "green";
+          variant = "default";
           break;
         case "Stop":
-          color = "red";
+          variant = "destructive";
           break;
         case "Interim-Update":
-          color = "blue";
+          variant = "secondary";
           break;
       }
-      return <Badge variant={color as any}>{status}</Badge>;
+      return <Badge variant={variant}>{status}</Badge>;
     },
   },
   {

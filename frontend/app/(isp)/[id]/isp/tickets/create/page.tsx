@@ -51,13 +51,21 @@ export default function CreateTicketPage() {
   );
 
   const users = organization?.members
-    .map((member: any) => member.user)
+    .map((member: { user: { id: string; name: string } }) => member.user)
     .filter(Boolean) || [];
 
   // Correctly extract customers from the nested response
   const customers = customersData?.customers?.customers || [];
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: {
+    title: string;
+    description: string;
+    priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+    category: string;
+    customerId?: string;
+    assignedTo?: string;
+    dueDate?: Date;
+  }) => {
     await createTicket({
       variables: {
         input: {

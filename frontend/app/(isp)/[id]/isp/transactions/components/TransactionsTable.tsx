@@ -11,7 +11,6 @@ import {
   ColumnFiltersState,
   SortingState,
   VisibilityState,
-  TableState
 } from "@tanstack/react-table";
 
 import {
@@ -53,7 +52,11 @@ const PaginationControls = memo(({
   pageCount,
   isLoading 
 }: { 
-  table: any; // Replace TableInstance with any since it's not exported
+  table: { 
+    setPageIndex: (index: number) => void;
+    previousPage: () => void;
+    nextPage: () => void;
+  };
   canPreviousPage: boolean;
   canNextPage: boolean;
   pageCount: number;
@@ -172,7 +175,7 @@ export function DataTable<TData, TValue>({
     },
   });
 
-  const { pageSize, pageIndex: currentPageIndex } = table.getState().pagination;
+  const { pageIndex: currentPageIndex } = table.getState().pagination;
   const rowCount = data.length;
   const canPreviousPage = currentPageIndex > 0;
   const canNextPage = currentPageIndex < pageCount - 1;

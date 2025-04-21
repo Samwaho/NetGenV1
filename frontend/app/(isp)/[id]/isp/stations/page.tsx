@@ -129,7 +129,7 @@ export default function StationsPage() {
   });
 
   // 4. Derived state calculations
-  const stations = data?.stations?.stations || [];
+  const stations = useMemo(() => data?.stations?.stations || [], [data?.stations?.stations]);
   const totalCount = data?.stations?.totalCount || 0;
 
   const stats = useMemo(() => {

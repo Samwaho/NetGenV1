@@ -18,7 +18,6 @@ import {
   Signal,
   Timer
 } from "lucide-react";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { formatBytes, formatDuration, formatDateToNowInTimezone } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -51,10 +50,10 @@ const StatsCard = ({ title, value, icon, description, className = "" }: StatsCar
 );
 
 const StatusBadge = ({ status }: { status: string }) => {
-  let variant = "default";
+  let variant: "default" | "destructive" | "secondary" | "outline" = "default";
   switch (status) {
     case "Start":
-      variant = "success";
+      variant = "default";
       break;
     case "Stop":
       variant = "destructive";
@@ -63,7 +62,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       variant = "secondary";
       break;
   }
-  return <Badge variant={variant as any}>{status}</Badge>;
+  return <Badge variant={variant}>{status}</Badge>;
 };
 
 export default function CustomerAccountingPage() {

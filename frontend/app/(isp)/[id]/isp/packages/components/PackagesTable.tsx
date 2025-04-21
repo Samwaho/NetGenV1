@@ -331,7 +331,7 @@ export function DataTable<TData, TValue>({
         </TableRow>
       ))}
     </TableHeader>
-  ), [table.getHeaderGroups()]);
+  ), [table]);
 
   const tableBody = useMemo(() => (
     <TableBody>
@@ -355,7 +355,7 @@ export function DataTable<TData, TValue>({
         <TableEmptyState colSpan={columns.length} isLoading={isLoading} />
       )}
     </TableBody>
-  ), [table.getRowModel().rows, columns.length, isLoading]);
+  ), [table, columns.length, isLoading]);
 
   return (
     <div className="space-y-4 ">

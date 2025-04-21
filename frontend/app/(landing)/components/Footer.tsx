@@ -80,6 +80,7 @@ export function Footer() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       toast.success("Successfully subscribed to newsletter!");
       setEmail("");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to subscribe. Please try again.");
     } finally {

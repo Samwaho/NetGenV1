@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FaUserPlus } from "react-icons/fa";
 import SignUpForm from "./SignUpForm";
+import { Suspense } from "react";
 
 const Page = () => {
   return (
@@ -20,7 +21,9 @@ const Page = () => {
           Sign in
         </Link>
       </p>
-      <SignUpForm />
+      <Suspense fallback={<div>Loading...</div>}>
+        <SignUpForm />
+      </Suspense>
     </div>
   );
 };

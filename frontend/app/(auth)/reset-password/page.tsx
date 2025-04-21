@@ -4,8 +4,9 @@ import { MdOutlineLockReset, MdErrorOutline } from "react-icons/md";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ResetPasswordForm from "./ResetPasswordForm";
+import { Suspense } from "react";
 
-const Page = () => {
+const ResetPasswordPage = () => {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const noToken = !token;
@@ -55,6 +56,14 @@ const Page = () => {
         <ResetPasswordForm token={token} />
       )}
     </div>
+  );
+};
+
+const Page = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ResetPasswordPage />
+    </Suspense>
   );
 };
 

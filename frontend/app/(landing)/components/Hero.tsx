@@ -15,6 +15,7 @@ import image9 from "@/public/9.png";
 import image10 from "@/public/10.png";
 import image11 from "@/public/11.png";
 import image12 from "@/public/12.png";
+import Link from "next/link";
 
 export function Hero() {
   const baseImages = [
@@ -84,12 +85,12 @@ export function Hero() {
               transition={{ delay: 0.6, duration: 0.8 }}
               className="flex flex-wrap items-center justify-center gap-4 mt-8"
             >
-              <button className="rounded-xl bg-gradient-custom px-8 py-4 text-base font-semibold text-white hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20 focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background focus:outline-none">
+              <Link href="/sign-up" className="rounded-xl bg-gradient-custom px-8 py-4 text-base font-semibold text-white hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20 focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background focus:outline-none">
                 Get Started
-              </button>
-              <button className="rounded-xl glass-effect px-8 py-4 text-base font-semibold text-foreground transition-all duration-300 hover:scale-105 hover:bg-accent hover:shadow-xl focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:outline-none">
-                Learn More
-              </button>
+              </Link>
+              <Link href="/pricing" className="rounded-xl glass-effect px-8 py-4 text-base font-semibold text-foreground transition-all duration-300 hover:scale-105 hover:bg-accent hover:shadow-xl focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:outline-none">
+                Pricing
+              </Link>
             </motion.div>
           </div>
         </motion.div>

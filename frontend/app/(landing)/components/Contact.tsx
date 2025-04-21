@@ -44,6 +44,7 @@ export function Contact() {
     },
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsSubmitting(true);
@@ -52,6 +53,7 @@ export function Contact() {
       
       toast.success("Message sent successfully! We'll get back to you soon.");
       form.reset();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to send message. Please try again later.");
     } finally {

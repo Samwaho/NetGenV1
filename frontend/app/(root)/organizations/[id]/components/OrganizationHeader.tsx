@@ -1,11 +1,5 @@
-import { Building2, MoreVertical, Settings, Shield, Network } from "lucide-react";
+import { Building2, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 
 type OrganizationHeaderProps = {

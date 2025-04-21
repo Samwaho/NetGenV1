@@ -167,7 +167,7 @@ export default function CustomersPage() {
     }
   );
 
-  const customers = data?.customers.customers || [];
+  const customers = useMemo(() => data?.customers.customers || [], [data?.customers.customers]);
   const totalCount = data?.customers.totalCount || 0;
 
   // Calculate statistics using useMemo to avoid recalculation on rerenders

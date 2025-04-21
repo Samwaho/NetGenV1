@@ -2,7 +2,6 @@ import {
   Users,
   Box,
   Package,
-  UserCog,
   Ticket,
   DollarSign,
   Warehouse,

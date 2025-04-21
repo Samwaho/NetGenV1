@@ -6,26 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Mail, Building2, Calendar } from "lucide-react";
+import { User, Mail, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
-// Helper function to format date
-const formatDate = (dateString: string) => {
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return "N/A";
-    }
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch (error) {
-    console.error("Date formatting error:", error);
-    return "N/A";
-  }
-};
 
 export default function ProfilePage() {
   const { data, loading, error } = useQuery(CURRENT_USER);

@@ -20,7 +20,7 @@ import { Loader2 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { useSearchParams } from "next/navigation";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { setAuthToken } from "@/lib/auth-utils";
 
 const formSchema = z
@@ -44,7 +44,7 @@ const formSchema = z
     path: ["confirmPassword"],
   });
 
-const SignUpForm = () => {
+const SignUpFormContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
@@ -315,6 +315,14 @@ const SignUpForm = () => {
         </Button>
       </form>
     </Form>
+  );
+};
+
+const SignUpForm = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SignUpFormContent />
+    </Suspense>
   );
 };
 

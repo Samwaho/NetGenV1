@@ -5,7 +5,6 @@ import { GET_ACTIVITIES } from "@/graphql/activity";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDateToNowInTimezone } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Clock, Activity as ActivityIcon, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";

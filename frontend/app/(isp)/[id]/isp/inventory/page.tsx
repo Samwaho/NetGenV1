@@ -171,7 +171,7 @@ export default function InventoryPage() {
     }
   );
 
-  const inventoryItems = data?.inventories.inventories || [];
+  const inventoryItems = useMemo(() => data?.inventories.inventories || [], [data?.inventories.inventories]);
   const totalCount = data?.inventories.total_count || 0;
 
   // Calculate statistics using useMemo to avoid recalculation on rerenders

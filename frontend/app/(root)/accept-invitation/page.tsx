@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@apollo/client";
 import { ACCEPT_INVITATION } from "@/graphql/organization";
@@ -9,7 +9,7 @@ import { MdOutlineCheckCircle, MdErrorOutline } from "react-icons/md";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const Page = () => {
+const AcceptInvitationPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [noToken, setNoToken] = useState(false);
@@ -102,6 +102,14 @@ const Page = () => {
         </Button>
       </div>
     </div>
+  );
+};
+
+const Page = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AcceptInvitationPage />
+    </Suspense>
   );
 };
 

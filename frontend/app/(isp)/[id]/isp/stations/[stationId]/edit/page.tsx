@@ -83,7 +83,7 @@ export default function EditStationPage() {
         status: station.status || "ACTIVE",
       });
     }
-  }, [data]);
+  }, [data, form]);
 
   useEffect(() => {
     if (!organizationId || !stationId || organizationId === 'undefined' || stationId === 'undefined') {
@@ -116,6 +116,7 @@ export default function EditStationPage() {
       });
       toast.success("Station updated successfully");
       router.push(`/${organizationId}/isp/stations`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // Error is handled by mutation onError
     } finally {

@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 
 interface PackageActionsProps {
   package: ISPPackage;
@@ -32,7 +32,6 @@ interface PackageActionsProps {
 
 export function PackageActions({ package: pkg }: PackageActionsProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const router = useRouter();
   const params = useParams();
   const organizationId = params.id as string;
 

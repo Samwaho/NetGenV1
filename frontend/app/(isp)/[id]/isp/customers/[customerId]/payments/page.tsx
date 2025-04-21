@@ -11,6 +11,7 @@ import { formatKESCurrency, formatDateToNowInTimezone } from "@/lib/utils";
 import { DataTable } from "./components/PaymentsTable";
 import { columns } from "./components/columns";
 import { memo } from "react";
+import { ISPCustomerPayment } from "@/types/isp";
 
 // Stats card component
 interface StatsCardProps {
@@ -135,13 +136,13 @@ export default function CustomerPaymentsPage() {
 
   const stats = {
     totalPaid: payments.reduce(
-      (sum: number, payment: any) => sum + payment.amount,
+      (sum: number, payment: ISPCustomerPayment) => sum + payment.amount,
       0
     ),
     totalPayments: payments.length,
     averagePayment: payments.length
       ? payments.reduce(
-          (sum: number, payment: any) => sum + payment.amount,
+          (sum: number, payment: ISPCustomerPayment) => sum + payment.amount,
           0
         ) / payments.length
       : 0,

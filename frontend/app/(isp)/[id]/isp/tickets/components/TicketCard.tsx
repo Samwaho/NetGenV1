@@ -1,9 +1,8 @@
 import { Ticket } from "@/graphql/isp_tickets";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, Pencil, Trash2, User2 } from "lucide-react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@apollo/client";
@@ -85,6 +84,7 @@ export function TicketCard({ ticket }: TicketCardProps) {
       await deleteTicket({
         variables: { id: ticket.id }
       });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // Error is handled by onError above
     }

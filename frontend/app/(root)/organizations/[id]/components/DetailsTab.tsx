@@ -64,7 +64,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
   });
 
   const [deleteOrganization] = useMutation(DELETE_ORGANIZATION, {
-    onCompleted: (data) => {
+    onCompleted: () => {
       toast.success("Organization deleted successfully");
       setIsDeleteDialogOpen(false);
       router.push("/organizations"); // Redirect to organizations list
