@@ -11,7 +11,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import {  LogIn, User, DollarSign, Building2 } from "lucide-react";
+import {  LogIn, User, DollarSign, Building2, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removeAuthToken } from "@/lib/auth-utils";
 import { useRouter } from "next/navigation";
@@ -66,6 +66,13 @@ const ProfileAction = () => {
         </div>
         <Separator className="my-2" />
         <div className="flex flex-col gap-2">
+          <Link
+            href="/"
+            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted"
+          >
+            <Home className="w-4 h-4" />
+            Home
+          </Link>
           <Link
             href="/profile"
             className="flex items-center gap-2 p-2 rounded-md hover:bg-muted"
