@@ -257,74 +257,39 @@ async def radius_accounting(request: Request):
     try:
         # Get request data
         body = await get_request_data(request)
-        logger.info(f"Received accounting data type: {type(body).__name__}")
         
-        # Get required fields - use empty strings as defaults
+        # Get required fields
         username = body.get("username", body.get("User-Name", ""))
         session_id = body.get("session_id", body.get("Acct-Session-Id", ""))
         status = body.get("status", body.get("Acct-Status-Type", ""))
-        nas_ip = body.get("nas_ip_address", body.get("NAS-IP-Address", ""))
         
-        # Get additional RADIUS fields
-        service_type = body.get("service_type", body.get("Service-Type", ""))
-        nas_port_type = body.get("nas_port_type", body.get("NAS-Port-Type", ""))
-        nas_port = body.get("nas_port", body.get("NAS-Port", ""))
-        nas_identifier = body.get("nas_identifier", body.get("NAS-Identifier", ""))
-        mikrotik_rate_limit = body.get("mikrotik_rate_limit", body.get("Mikrotik-Rate-Limit", ""))
-        called_station = body.get("called_station_id", body.get("Called-Station-Id", ""))
-        calling_station = body.get("calling_station_id", body.get("Calling-Station-Id", ""))
-        
-        logger.debug(f"RADIUS fields - Service-Type: {service_type}, NAS-Port-Type: {nas_port_type}, NAS-Port: {nas_port}, NAS-Identifier: {nas_identifier}, Mikrotik-Rate-Limit: {mikrotik_rate_limit}, Called-Station: {called_station}, Calling-Station: {calling_station}")
-        
-        # Log basic request info
-        logger.info(f"Accounting: user={username}, status={status}")
-        
-        # Handle NAS status changes (Accounting-On/Off)
-        if status == AccountingStatusType.ACCOUNTING_ON:
-            logger.info(f"Received Accounting-On from NAS {nas_ip}")
-            return Response(status_code=204)
-            
-        if status == AccountingStatusType.ACCOUNTING_OFF:
-            logger.info(f"Received Accounting-Off from NAS {nas_ip}")
-            return Response(status_code=204)
-        
-        # For user-specific packets, we need a username
-        if not username:
-            logger.error("Missing username in accounting request")
-            return Response(status_code=204)  # Return success to avoid FreeRADIUS retries
-            
-        if not session_id:
-            # Generate a dummy session ID if missing
-            logger.warning(f"Missing session ID for user {username}, using timestamp")
-            session_id = f"auto-{int(datetime.utcnow().timestamp())}"
-            
-        if not status:
-            # Default to Interim-Update if status is missing
-            logger.warning(f"Missing accounting status for user {username}, using Interim-Update")
-            status = AccountingStatusType.INTERIM_UPDATE
-        
-        # Get current time
-        current_time = datetime.utcnow()
-        
-        # Get customer details
+        # Get customer information
         customer = await get_customer(username)
         if not customer:
-            logger.error(f"Customer not found for accounting: {username}")
-            return Response(status_code=204)  # Return success to avoid FreeRADIUS retries
+            logger.warning(f"Customer not found for accounting: {username}")
+            return Response(status_code=204)
         
-        # Calculate usage metrics
-        session_time = safe_int(body.get("Acct-Session-Time", body.get("session_time", 0)))
-        input_octets = safe_int(body.get("Acct-Input-Octets", body.get("input_octets", 0)))
-        output_octets = safe_int(body.get("Acct-Output-Octets", body.get("output_octets", 0)))
-        input_gigawords = safe_int(body.get("Acct-Input-Gigawords", body.get("input_gigawords", 0)))
-        output_gigawords = safe_int(body.get("Acct-Output-Gigawords", body.get("output_gigawords", 0)))
+        current_time = datetime.utcnow()
+        session_time = safe_int(body.get("session_time", body.get("Acct-Session-Time", 0)))
+        total_input = safe_int(body.get("input_octets", body.get("Acct-Input-Octets", 0)))
+        total_output = safe_int(body.get("output_octets", body.get("Acct-Output-Octets", 0)))
         
-        # Calculate total bytes (including gigawords)
-        total_input = (input_gigawords * (2**32)) + input_octets
-        total_output = (output_gigawords * (2**32)) + output_octets
+        # Calculate total bytes
+        total_bytes = total_input + total_output
         
-        # Prepare essential accounting data
-        accounting_data = {
+        # Get previous record to calculate deltas
+        previous_record = await isp_customers_accounting.find_one(
+            {"username": username},
+            sort=[("timestamp", -1)]
+        )
+        
+        # Calculate deltas
+        delta_input = total_input - (previous_record.get("totalInputBytes", 0) if previous_record else 0)
+        delta_output = total_output - (previous_record.get("totalOutputBytes", 0) if previous_record else 0)
+        delta_session = session_time - (previous_record.get("sessionTime", 0) if previous_record else 0)
+        
+        # Prepare update data
+        update_data = {
             "username": username,
             "customerId": str(customer["_id"]),
             "sessionId": session_id,
@@ -334,110 +299,30 @@ async def radius_accounting(request: Request):
             "sessionTime": session_time,
             "totalInputBytes": total_input,
             "totalOutputBytes": total_output,
-            "totalBytes": total_input + total_output,
+            "totalBytes": total_bytes,
             "framedIpAddress": body.get("Framed-IP-Address", body.get("framed_ip_address", "")),
-            "nasIpAddress": nas_ip,
+            "nasIpAddress": body.get("nas_ip_address", body.get("NAS-IP-Address", "")),
             "terminateCause": body.get("Acct-Terminate-Cause", body.get("terminate_cause", "")),
-            "serviceType": service_type,
-            "nasPortType": nas_port_type,
-            "nasPort": nas_port,
-            "nasIdentifier": nas_identifier,
-            "mikrotikRateLimit": mikrotik_rate_limit,
-            "calledStationId": called_station,
-            "callingStationId": calling_station
+            "serviceType": body.get("service_type", body.get("Service-Type", "")),
+            "nasPortType": body.get("nas_port_type", body.get("NAS-Port-Type", "")),
+            "nasPort": body.get("nas_port", body.get("NAS-Port", "")),
+            "nasIdentifier": body.get("nas_identifier", body.get("NAS-Identifier", "")),
+            "mikrotikRateLimit": body.get("mikrotik_rate_limit", ""),
+            "calledStationId": body.get("called_station_id", body.get("Called-Station-Id", "")),
+            "callingStationId": body.get("calling_station_id", body.get("Calling-Station-Id", "")),
+            "deltaInputBytes": delta_input,
+            "deltaOutputBytes": delta_output,
+            "deltaSessionTime": delta_session,
+            "startTime": current_time - timedelta(seconds=session_time)
         }
-        
-        # Find existing accounting record for this user
-        existing_record = await isp_customers_accounting.find_one({
-            "username": username,
-            "type": {"$ne": "session_summary"}  # Exclude session summary records
-        })
-        
-        if existing_record:
-            # Calculate delta values for incremental updates
-            delta_input = total_input - existing_record.get("totalInputBytes", 0)
-            delta_output = total_output - existing_record.get("totalOutputBytes", 0)
-            delta_time = session_time - existing_record.get("sessionTime", 0)
-            
-            # Update existing record
-            result = await isp_customers_accounting.update_one(
-                {"username": username, "type": {"$ne": "session_summary"}},
-                {
-                    "$set": {
-                        **accounting_data,
-                        "lastUpdate": current_time
-                    },
-                    "$inc": {
-                        "deltaInputBytes": delta_input,
-                        "deltaOutputBytes": delta_output,
-                        "deltaSessionTime": delta_time
-                    }
-                }
-            )
-            logger.info(f"Updated existing accounting record for {username}")
-        else:
-            # Create new record with initial values
-            accounting_data.update({
-                "deltaInputBytes": total_input,
-                "deltaOutputBytes": total_output,
-                "deltaSessionTime": session_time,
-                "startTime": current_time - timedelta(seconds=session_time)
-            })
-            
-            result = await isp_customers_accounting.insert_one(accounting_data)
-            logger.info(f"Created new accounting record for {username}")
-        
-        # Handle session summary updates
-        if status == AccountingStatusType.STOP:
-            # Calculate session start time
-            session_start_time = current_time - timedelta(seconds=session_time)
-            
-            # Update session summary
-            await isp_customers_accounting.update_one(
-                {"username": username, "type": "session_summary"},
-                {
-                    "$set": {
-                        "username": username,
-                        "customerId": str(customer["_id"]),
-                        "lastSeen": current_time,
-                        "lastSessionId": session_id,
-                        "lastSession": {
-                            "startTime": session_start_time,
-                            "endTime": current_time,
-                            "duration": session_time,
-                            "inputBytes": total_input,
-                            "outputBytes": total_output,
-                            "framedIp": accounting_data["framedIpAddress"],
-                            "terminateCause": accounting_data["terminateCause"],
-                            "nasIpAddress": nas_ip,
-                            "serviceType": service_type,
-                            "nasPortType": nas_port_type,
-                            "nasPort": nas_port,
-                            "nasIdentifier": nas_identifier,
-                            "mikrotikRateLimit": mikrotik_rate_limit,
-                            "calledStationId": called_station,
-                            "callingStationId": calling_station
-                        }
-                    },
-                    "$inc": {
-                        "totalSessions": 1,
-                        "totalOnlineTime": session_time,
-                        "totalInputBytes": total_input,
-                        "totalOutputBytes": total_output
-                    }
-                },
-                upsert=True
-            )
-            
-            # Mark customer as offline (only update the online field)
-            await update_customer_online_status(customer["_id"], False)
-            logger.info(f"Set customer {username} status to offline (Stop packet)")
-        
-        else:  # START or INTERIM_UPDATE
-            # Mark customer as online (only update the online field)
-            await update_customer_online_status(customer["_id"], True)
-            logger.info(f"Updated customer {username} online status (packet type: {status})")
-        
+
+        # Update or create the accounting record
+        await isp_customers_accounting.update_one(
+            {"username": username},
+            {"$set": update_data},
+            upsert=True
+        )
+
         return Response(status_code=204)
         
     except Exception as e:
@@ -455,3 +340,6 @@ async def radius_post_auth(request: Request):
     except Exception as e:
         logger.error(f"Error processing post-auth request: {str(e)}")
         return Response(status_code=204)  # Return success to avoid FreeRADIUS retries 
+
+
+

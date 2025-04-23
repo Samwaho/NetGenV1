@@ -18,7 +18,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     environment:
-      - NEXT_PUBLIC_GRAPHQL_URL=http://localhost/graphql
+      - NEXT_PUBLIC_GRAPHQL_URL=https://w06z1rvh-80.inc1.devtunnels.ms/graphql
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -37,7 +37,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ALGORITHM=${ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
-      - FRONTEND_URL=http://localhost
+      - FRONTEND_URL=https://w06z1rvh-80.inc1.devtunnels.ms
     volumes:
       - ./backend:/app
     networks:
