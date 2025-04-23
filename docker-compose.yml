@@ -19,11 +19,12 @@ services:
       dockerfile: Dockerfile
     environment:
       - NEXT_PUBLIC_GRAPHQL_URL=https://w06z1rvh-80.inc1.devtunnels.ms/graphql
+      - NODE_ENV=production
     volumes:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
-    command: npm run dev
+    command: npm start
     networks:
       - app-network
 
@@ -46,6 +47,7 @@ services:
 networks:
   app-network:
     driver: bridge
+
 
 
 
