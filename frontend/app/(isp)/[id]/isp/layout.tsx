@@ -16,23 +16,25 @@ export default async function ISPLayout({
 
   return (
     <AuthCheck>
-      <div className="min-h-screen flex flex-col lg:flex-row lg:gap-4 lg:p-4">
+      <div className="min-h-screen flex flex-col lg:flex-row">
         {/* Desktop Sidebar - hidden on mobile */}
-        <aside className="w-full lg:w-[18%] xl:w-[14%] lg:fixed lg:top-4 lg:left-4 lg:h-[calc(100vh-2rem)]">
+        <aside className="hidden lg:block lg:w-[18%] xl:w-[14%] lg:fixed lg:top-4 lg:left-4 lg:h-screen lg:border-r lg:border-border">
           <Sidebar organizationId={organizationId} />
         </aside>
 
         {/* Main Content */}
-        <main className="w-full lg:w-[82%] xl:w-[86%] lg:ml-auto overflow-y-auto">
-          <div className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="md:hidden">
+        <main className="w-full lg:w-[82%] xl:w-[86%] lg:ml-[18%] xl:ml-[14%]">
+          <div className="p-2 sm:p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              <div className="lg:hidden">
                 <MobileSidebar organizationId={organizationId} />
               </div>
-              <IspHeader organizationId={organizationId} />
+              <div className="flex-1">
+                <IspHeader organizationId={organizationId} />
+              </div>
             </div>
             <Separator className="bg-slate-300 dark:bg-slate-800" />
-            <div className="mt-4">{children}</div>
+            <div className="mt-1 sm:mt-4">{children}</div>
           </div>
         </main>
       </div>

@@ -57,14 +57,16 @@ const OrganizationPage = () => {
         status={organization.status} 
       />
       <Tabs defaultValue="members" className="space-y-4">
-        <TabsList className="w-auto ">
-          <TabsTrigger value="members" className="text-xs sm:text-sm">Members</TabsTrigger>
-          <TabsTrigger value="roles" className="text-xs sm:text-sm">Roles</TabsTrigger>
-          <TabsTrigger value="subscriptions" className="text-xs sm:text-sm">Subscriptions</TabsTrigger>
-          <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
-          <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
-          <TabsTrigger value="mpesa" className="text-xs sm:text-sm">Mpesa</TabsTrigger>
-        </TabsList>
+        <div className="w-full rounded-md bg-muted p-1">
+          <TabsList className="w-full h-auto flex flex-wrap gap-1 bg-transparent p-0">
+            <TabsTrigger value="members" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Members</TabsTrigger>
+            <TabsTrigger value="roles" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Roles</TabsTrigger>
+            <TabsTrigger value="subscriptions" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Subscriptions</TabsTrigger>
+            <TabsTrigger value="activity" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Activity</TabsTrigger>
+            <TabsTrigger value="details" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Details</TabsTrigger>
+            <TabsTrigger value="mpesa" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Mpesa</TabsTrigger>
+          </TabsList>
+        </div>
         <TabsContent value="details" className="mt-4">
           <DetailsTab 
             organization={organization}
