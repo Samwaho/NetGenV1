@@ -1,7 +1,8 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { formatDistanceToNow } from "date-fns"
-import { TZDate, tz } from "@date-fns/tz"
+import { formatDistanceToNow } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import { enUS } from 'date-fns/locale';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -11,22 +12,44 @@ export function formatDateToNowInTimezone(date: string | Date | null | undefined
   if (!date) return 'No date available';
   
   try {
-    // Parse the input date as UTC first
+    // Parse the input date and explicitly handle it as UTC
     const utcDate = typeof date === 'string' 
-      ? new Date(date)  // Let the Date constructor handle the parsing
-      : date
+      ? new Date(date + 'Z')  // Append Z to ensure UTC parsing
+      : date;
       
-    // Check if the date is valid
     if (isNaN(utcDate.getTime())) {
       return 'Invalid date';
     }
     
-    // Create TZDate with the UTC date
-    const tzDate = new TZDate(utcDate, timezone)
+    // Convert to target timezone
+    const tzDate = toZonedTime(utcDate, timezone)
     
     return formatDistanceToNow(tzDate, { 
       addSuffix: true,
-      in: tz(timezone)
+      locale: enUS // ensure consistent locale
+    })
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+}
+
+export function formatDateToNow(date: string | Date | null | undefined): string {
+  if (!date) return 'No date available';
+  
+  try {
+    // Parse the input date and explicitly handle it as UTC
+    const utcDate = typeof date === 'string' 
+      ? new Date(date + 'Z')  // Append Z to ensure UTC parsing
+      : date;
+      
+    if (isNaN(utcDate.getTime())) {
+      return 'Invalid date';
+    }
+    
+    return formatDistanceToNow(utcDate, { 
+      addSuffix: true,
+      locale: enUS // ensure consistent locale
     })
   } catch (error) {
     console.error('Error formatting date:', error);
