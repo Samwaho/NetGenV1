@@ -14,6 +14,8 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 import { OrganizationPermissions } from "@/lib/permissions";
 import { useMemo, memo, ReactElement, useState, useCallback, Suspense } from "react";
+import { UnmatchedTransactions } from "./components/UnmatchedTransactions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Define filter options interface
 interface TransactionFilterOptions {
@@ -283,18 +285,35 @@ export default function TransactionsPage() {
         <StatsSection stats={stats} isLoading={dataLoading && !data} />
       </Suspense>
 
-      <div className="overflow-x-auto p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
-        <Suspense fallback={<TableSkeleton columns={6} rows={5} />}>
-          <DataTable 
-            columns={columns} 
-            data={transactions}
-            totalCount={totalCount}
-            filterOptions={filterOptions}
-            onFilterChange={handleFilterChange}
-            isLoading={dataLoading}
-          />
-        </Suspense>
-      </div>
+      <Tabs defaultValue="all" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="all">All Transactions</TabsTrigger>
+          <TabsTrigger value="unmatched">Unmatched Transactions</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="all" className="space-y-4">
+          <div className="overflow-x-auto p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
+            <Suspense fallback={<TableSkeleton columns={6} rows={5} />}>
+              <DataTable 
+                columns={columns} 
+                data={transactions}
+                totalCount={totalCount}
+                filterOptions={filterOptions}
+                onFilterChange={handleFilterChange}
+                isLoading={dataLoading}
+              />
+            </Suspense>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="unmatched" className="space-y-4">
+          <div className="overflow-x-auto p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
+            <Suspense fallback={<TableSkeleton columns={6} rows={5} />}>
+              <UnmatchedTransactions organizationId={params.id as string} />
+            </Suspense>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

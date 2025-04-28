@@ -110,10 +110,53 @@ export const CREATE_ISP_TRANSACTION = gql`
   ${COMPLETE_TRANSACTION_FIELDS}
 `;
 
+export const GET_UNMATCHED_TRANSACTIONS = gql`
+  query GetUnmatchedTransactions(
+    $organizationId: String!,
+    $page: Int = 1,
+    $pageSize: Int = 20,
+    $sortBy: String = "createdAt",
+    $sortDirection: String = "desc"
+  ) {
+    unmatchedTransactions(
+      organizationId: $organizationId,
+      page: $page,
+      pageSize: $pageSize,
+      sortBy: $sortBy,
+      sortDirection: $sortDirection
+    ) {
+      success
+      message
+      transactions {
+        ...CompleteTransactionFields
+      }
+      totalCount
+    }
+  }
+  ${COMPLETE_TRANSACTION_FIELDS}
+`;
+
+export const UPDATE_TRANSACTION_BILL_REF = gql`
+  mutation UpdateTransactionBillRef($transactionId: String!, $newBillRef: String!) {
+    updateTransactionBillRef(transactionId: $transactionId, newBillRef: $newBillRef) {
+      success
+      message
+      transaction {
+        id
+        billRefNumber
+      }
+    }
+  }
+`;
+
 export type {
   ISPTransaction,
   CreateISPTransactionInput,
   ISPTransactionResponse,
   ISPTransactionsResponse
 };
+
+
+
+
 

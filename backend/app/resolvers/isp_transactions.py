@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, cast
 import strawberry
 from fastapi import HTTPException
-from app.config.database import isp_mpesa_transactions, organizations
+from app.config.database import isp_mpesa_transactions, organizations, isp_customers
 from app.schemas.isp_transactions import (
     ISPTransaction,
     ISPTransactionResponse,
@@ -12,6 +12,7 @@ from app.schemas.isp_transactions import (
 from app.config.deps import Context
 from bson.objectid import ObjectId
 from app.config.utils import record_activity
+from app.api.mpesa import process_customer_payment
 import logging
 from pymongo import ASCENDING, DESCENDING
 
@@ -258,3 +259,147 @@ class ISPTransactionResolver:
             message="Transaction deleted successfully",
             transaction=transaction_data
         )
+
+    @strawberry.field
+    async def unmatched_transactions(
+        self,
+        info: strawberry.Info,
+        organization_id: str,
+        page: Optional[int] = 1,
+        page_size: Optional[int] = DEFAULT_PAGE_SIZE,
+        sort_by: Optional[str] = "createdAt",
+        sort_direction: Optional[str] = "desc"
+    ) -> ISPTransactionsResponse:
+        try:
+            context: Context = info.context
+            current_user = await context.authenticate()
+            
+            org_id = ObjectId(organization_id)
+            
+            # Get all customer usernames for the organization
+            customer_usernames = await isp_customers.distinct(
+                "username", 
+                {"organizationId": org_id}
+            )
+            
+            # Base query
+            query = {
+                "organizationId": org_id,
+                "billRefNumber": {"$nin": customer_usernames}
+            }
+            
+            # Get total count
+            total_count = await isp_mpesa_transactions.count_documents(query)
+            
+            # Apply sorting
+            sort_order = DESCENDING if sort_direction.lower() == "desc" else ASCENDING
+            cursor = isp_mpesa_transactions.find(query)
+            cursor = cursor.sort(sort_by, sort_order)
+            
+            # Apply pagination
+            cursor = cursor.skip((page - 1) * page_size).limit(page_size)
+            
+            # Get results
+            unmatched = await cursor.to_list(None)
+            
+            # Convert transactions
+            formatted_transactions = [
+                await ISPTransaction.from_db(t) for t in unmatched
+            ]
+
+            return ISPTransactionsResponse(
+                success=True,
+                message="Unmatched transactions retrieved successfully",
+                transactions=formatted_transactions,
+                total_count=total_count
+            )
+        
+        except Exception as e:
+            logger.error(f"Error retrieving unmatched transactions: {str(e)}")
+            return ISPTransactionsResponse(
+                success=False,
+                message=f"Failed to retrieve unmatched transactions: {str(e)}",
+                transactions=[],
+                total_count=0
+            )
+
+    @strawberry.mutation
+    async def update_transaction_bill_ref(
+        self,
+        info: strawberry.Info,
+        transaction_id: str,
+        new_bill_ref: str,
+    ) -> ISPTransactionResponse:
+        """Update transaction's bill reference number and update customer payment"""
+        context: Context = info.context
+        current_user = await context.authenticate()
+
+        try:
+            # Validate transaction exists
+            transaction = await isp_mpesa_transactions.find_one(
+                {"_id": ObjectId(transaction_id)}
+            )
+            if not transaction:
+                raise HTTPException(status_code=404, detail="Transaction not found")
+
+            # Validate new bill ref matches a customer
+            customer = await isp_customers.find_one({
+                "username": new_bill_ref,
+                "organizationId": transaction["organizationId"]
+            })
+            if not customer:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="No customer found with this username"
+                )
+
+            # Update transaction
+            await isp_mpesa_transactions.update_one(
+                {"_id": ObjectId(transaction_id)},
+                {"$set": {
+                    "billRefNumber": new_bill_ref,
+                    "updatedAt": datetime.now(timezone.utc)
+                }}
+            )
+
+            # Record activity for bill ref update
+            await record_activity(
+                current_user.id,
+                transaction["organizationId"],
+                f"updated transaction {transaction.get('transactionId')} bill reference to {new_bill_ref}"
+            )
+
+            # Process customer payment
+            try:
+                success = await process_customer_payment(
+                    organization_id=str(transaction["organizationId"]),
+                    username=new_bill_ref,
+                    amount=float(transaction.get("amount", 0)),
+                    phone=transaction.get("phoneNumber"),
+                    transaction_id=transaction.get("transactionId")
+                )
+
+                if success:
+                    logger.info(f"Successfully processed customer payment for {new_bill_ref}")
+                    return ISPTransactionResponse(
+                        success=True,
+                        message=f"Successfully updated bill reference and processed payment for {new_bill_ref}"
+                    )
+                else:
+                    logger.error(f"Failed to process customer payment for {new_bill_ref}")
+                    return ISPTransactionResponse(
+                        success=False,
+                        message=f"Updated bill reference but failed to process payment for {new_bill_ref}"
+                    )
+            except Exception as e:
+                logger.error(f"Error processing customer payment: {str(e)}")
+                return ISPTransactionResponse(
+                    success=False,
+                    message=f"Updated bill reference but failed to process payment: {str(e)}"
+                )
+
+        except HTTPException as e:
+            return ISPTransactionResponse(success=False, message=str(e.detail))
+        except Exception as e:
+            logger.error(f"Error updating transaction bill ref: {str(e)}")
+            return ISPTransactionResponse(success=False, message=str(e))
