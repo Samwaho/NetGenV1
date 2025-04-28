@@ -18,7 +18,7 @@ export default async function ISPLayout({
     <AuthCheck>
       <div className="min-h-screen flex flex-col lg:flex-row">
         {/* Desktop Sidebar - hidden on mobile */}
-        <aside className="hidden lg:block lg:w-[18%] xl:w-[14%] lg:fixed lg:top-4 lg:left-4 lg:h-screen lg:border-r lg:border-border">
+        <aside className="hidden lg:block lg:w-[18%] xl:w-[14%] lg:fixed lg:top-4 lg:left-4 lg:h-screen">
           <Sidebar organizationId={organizationId} />
         </aside>
 
