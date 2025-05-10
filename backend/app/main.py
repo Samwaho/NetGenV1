@@ -18,7 +18,8 @@ from app.resolvers.isp_ticket import ISPTicketResolver
 from app.resolvers.isp_customers_accounting import ISPCustomerAccountingResolver
 from app.resolvers.isp_customer_payments import ISPCustomerPaymentResolver
 from app.resolvers.isp_transactions import ISPTransactionResolver
-from app.api import mpesa
+from app.resolvers.sms import SMSResolver
+from app.api import mpesa, sms
 from app.tasks.scheduler import start_scheduler
 
 @strawberry.type
@@ -53,7 +54,8 @@ class Mutation(
     ISPTicketResolver,
     ISPCustomerAccountingResolver,
     ISPCustomerPaymentResolver,
-    ISPTransactionResolver
+    ISPTransactionResolver,
+    SMSResolver
 ):
     pass
 
@@ -80,6 +82,9 @@ app.include_router(graphql_app, prefix="/graphql")
 
 # Mpesa API routes
 app.include_router(mpesa.router, prefix="/api/isp-customer-payments", tags=["mpesa"])
+
+# SMS API routes
+app.include_router(sms.router, prefix="/api/sms", tags=["sms"])
 
 @app.on_event("startup")
 async def startup_db_client():

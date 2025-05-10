@@ -1,6 +1,69 @@
 import { Organization } from "@/types/organization";
 import { gql } from "@apollo/client";
 
+// Define the fragment first before using it
+export const ORGANIZATION_FRAGMENT = gql`
+  fragment OrganizationFields on Organization {
+    id
+    name
+    description
+    owner {
+      id
+      firstName
+      lastName
+    }
+    members {
+      user {
+        id
+        firstName
+        lastName
+        email
+      }
+      role {
+        name
+        permissions
+      }
+      status
+      email
+    }
+    roles {
+      name
+      description
+      permissions
+      isSystemRole
+    }
+    status
+    mpesaConfig {
+      shortCode
+      businessName
+      accountReference
+      isActive
+      environment
+      callbackUrl
+      transactionType
+      createdAt
+      updatedAt
+    }
+    smsConfig {
+      provider
+      isActive
+      apiKey
+      apiSecret
+      accountSid
+      authToken
+      username
+      partnerID
+      senderId
+      callbackUrl
+      environment
+      createdAt
+      updatedAt
+    }
+    createdAt
+    updatedAt
+  }
+`;
+
 export const GET_ORGANIZATIONS = gql`
   query GetOrganizations {
     organizations {
@@ -68,59 +131,10 @@ export const GET_ORGANIZATIONS = gql`
 export const GET_ORGANIZATION = gql`
   query GetOrganization($id: String!) {
     organization(id: $id) {
-      id
-      name
-      description
-      status
-      createdAt
-      updatedAt
-      owner {
-        id
-        firstName
-        lastName
-      }
-      members {
-        user {
-          id
-          firstName
-          lastName
-          email
-        }
-        role {
-          name
-          permissions
-        }
-        status
-        email
-      }
-      roles {
-        name
-        description
-        permissions
-        isSystemRole
-      }
-      mpesaConfig {
-        shortCode
-        businessName
-        accountReference
-        isActive
-        consumerKey
-        consumerSecret
-        passKey
-        environment
-        callbackUrl
-        stkPushCallbackUrl
-        c2bCallbackUrl
-        b2cResultUrl
-        b2cTimeoutUrl
-        transactionType
-        stkPushShortCode
-        stkPushPassKey
-        createdAt
-        updatedAt
-      }
+      ...OrganizationFields
     }
   }
+  ${ORGANIZATION_FRAGMENT}
 `;
 export const CREATE_ORGANIZATION = gql`
   mutation CreateOrganization($input: CreateOrganizationInput!) {
@@ -434,6 +448,39 @@ export const UPDATE_MPESA_CONFIGURATION = gql`
   }
 `;
 
+export const UPDATE_SMS_CONFIGURATION = gql`
+  mutation UpdateSmsConfiguration(
+    $organizationId: String!,
+    $input: SmsConfigurationInput!
+  ) {
+    updateSmsConfiguration(
+      organizationId: $organizationId,
+      input: $input
+    ) {
+      success
+      message
+      organization {
+        id
+        smsConfig {
+          provider
+          isActive
+          apiKey
+          apiSecret
+          accountSid
+          authToken
+          username
+          partnerID
+          senderId
+          callbackUrl
+          environment
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
 export interface UpdateMemberResponse {
   updateMember: {
     success: boolean;
@@ -469,6 +516,14 @@ export interface UpdateMpesaConfigurationVariables {
 
 export interface UpdateMpesaConfigurationResponse {
   updateMpesaConfiguration: {
+    success: boolean;
+    message: string;
+    organization: Organization;
+  };
+}
+
+export interface UpdateSmsConfigurationResponse {
+  updateSmsConfiguration: {
     success: boolean;
     message: string;
     organization: Organization;

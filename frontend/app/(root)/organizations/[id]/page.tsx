@@ -15,6 +15,7 @@ import { SubscriptionsTab } from "./components/SubscriptionsTab";
 import { ActivityTab } from "./components/ActivityTab";
 import { DetailsTab } from "./components/DetailsTab";
 import { MpesaTab } from "./components/MpesaTab";
+import { SmsTab } from "./components/SmsTab";
 
 const OrganizationPage = () => {
   const params = useParams();
@@ -65,6 +66,7 @@ const OrganizationPage = () => {
             <TabsTrigger value="activity" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Activity</TabsTrigger>
             <TabsTrigger value="details" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Details</TabsTrigger>
             <TabsTrigger value="mpesa" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">Mpesa</TabsTrigger>
+            <TabsTrigger value="sms" className="text-xs sm:text-sm flex-1 min-w-[80px] data-[state=active]:bg-background">SMS</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="details" className="mt-4">
@@ -103,6 +105,13 @@ const OrganizationPage = () => {
         </TabsContent>
         <TabsContent value="mpesa" className="mt-4">
           <MpesaTab 
+            organization={organization}
+            organizationId={organizationId}
+            currentUserId={currentUserId}
+          />
+        </TabsContent>
+        <TabsContent value="sms" className="mt-4">
+          <SmsTab 
             organization={organization}
             organizationId={organizationId}
             currentUserId={currentUserId}

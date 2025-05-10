@@ -55,6 +55,8 @@ const availablePermissions = [
   { value: "VIEW_MPESA_CONFIG", label: "View Mpesa Config" },
   { value: "MANAGE_MPESA_CONFIG", label: "Manage Mpesa Config" },
   { value: "VIEW_MPESA_TRANSACTIONS", label: "View Mpesa Transactions" },
+  { value: "VIEW_SMS_CONFIG", label: "View SMS Config" },
+  { value: "MANAGE_SMS_CONFIG", label: "Manage SMS Config" },
   { value: "VIEW_CUSTOMER_PAYMENTS", label: "View Customer Payments" },
   { value: "MANAGE_CUSTOMER_PAYMENTS", label: "Manage Customer Payments" },
 ];

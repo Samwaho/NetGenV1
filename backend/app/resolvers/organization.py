@@ -10,7 +10,8 @@ from app.schemas.organization import (
     OrganizationsResponse,
     CreateOrganizationInput,
     OrganizationMember,
-    MpesaConfigurationInput
+    MpesaConfigurationInput,
+    SmsConfigurationInput
 )
 from app.schemas.enums import OrganizationStatus, OrganizationMemberStatus, OrganizationPermission
 from app.schemas.user import User
@@ -101,10 +102,12 @@ class OrganizationResolver:
                     OrganizationPermission.VIEW_MPESA_CONFIG.value,
                     OrganizationPermission.MANAGE_MPESA_CONFIG.value,
                     OrganizationPermission.VIEW_MPESA_TRANSACTIONS.value,
+                    OrganizationPermission.VIEW_SMS_CONFIG.value,
+                    OrganizationPermission.MANAGE_SMS_CONFIG.value,
                     OrganizationPermission.VIEW_CUSTOMER_PAYMENTS.value,
                     OrganizationPermission.MANAGE_CUSTOMER_PAYMENTS.value
                 ],
-                "isSystemRole": False
+                "isSystemRole": True
             },
             {
                 "name": "Member",
@@ -143,6 +146,20 @@ class OrganizationResolver:
                 "transactionType": "CustomerPayBillOnline",
                 "stkPushShortCode": None,
                 "stkPushPassKey": None,
+                "createdAt": datetime.now(timezone.utc),
+                "updatedAt": datetime.now(timezone.utc)
+            },
+            "smsConfig": {
+                "provider": None,
+                "isActive": False,
+                "apiKey": None,
+                "apiSecret": None,
+                "accountSid": None,
+                "authToken": None,
+                "username": None,
+                "senderId": None,
+                "callbackUrl": None,
+                "environment": "sandbox",
                 "createdAt": datetime.now(timezone.utc),
                 "updatedAt": datetime.now(timezone.utc)
             },
@@ -866,6 +883,78 @@ class OrganizationResolver:
         return OrganizationResponse(
             success=True,
             message="Mpesa configuration updated successfully" + registration_message,
+            organization=await Organization.from_db(updated_org)
+        )
+
+    @strawberry.mutation
+    async def update_sms_configuration(self, organization_id: str, input: SmsConfigurationInput, info: strawberry.Info) -> OrganizationResponse:
+        """Update SMS configuration for an organization"""
+        context = info.context
+        current_user = await context.authenticate()
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        organization = await organizations.find_one({"_id": ObjectId(organization_id)})
+        if not organization:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        # Check if user has permission to update organization
+        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
+        if not user_member:
+            raise HTTPException(status_code=403, detail="Not a member of this organization")
+
+        user_role = next((role for role in organization["roles"] if role["name"] == user_member["roleName"]), None)
+        if not user_role or OrganizationPermission.MANAGE_SMS_CONFIG.value not in user_role["permissions"]:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        
+        # Create SMS configuration
+        sms_config = {
+            "provider": input.provider,
+            "isActive": input.isActive,
+            "apiKey": input.apiKey,
+            "apiSecret": input.apiSecret,
+            "accountSid": input.accountSid,
+            "authToken": input.authToken,
+            "username": input.username,
+            "partnerID": input.partnerID,  # Add partnerID here
+            "senderId": input.senderId,
+            "environment": input.environment,
+            "updatedAt": datetime.now(timezone.utc)
+        }
+        
+        # Generate callback URL if needed
+        base_url = settings.API_URL
+        callback_url = f"{base_url}/api/sms/callback/{organization_id}"
+        sms_config["callbackUrl"] = callback_url
+        
+        # Preserve creation date if it exists
+        if organization.get("smsConfig") and organization["smsConfig"].get("createdAt"):
+            sms_config["createdAt"] = organization["smsConfig"]["createdAt"]
+        else:
+            sms_config["createdAt"] = datetime.now(timezone.utc)
+
+        # Update organization with SMS configuration
+        await organizations.update_one(
+            {"_id": ObjectId(organization_id)},
+            {
+                "$set": {
+                    "smsConfig": sms_config,
+                    "updatedAt": datetime.now(timezone.utc)
+                }
+            }
+        )
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"updated SMS configuration for the organization"
+        )
+
+        updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
+        return OrganizationResponse(
+            success=True,
+            message=f"SMS configuration updated successfully for provider {input.provider}",
             organization=await Organization.from_db(updated_org)
         )
 

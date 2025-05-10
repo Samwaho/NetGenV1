@@ -26,6 +26,22 @@ export interface MpesaConfig {
   updatedAt?: string;
 }
 
+export interface SmsConfig {
+  provider?: string;
+  isActive: boolean;
+  apiKey?: string;
+  apiSecret?: string;
+  accountSid?: string;
+  authToken?: string;
+  username?: string;
+  partnerID?: string;
+  senderId?: string;
+  callbackUrl?: string;
+  environment?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -57,6 +73,7 @@ export interface Organization {
   }>;
   status: string;
   mpesaConfig?: MpesaConfig;
+  smsConfig?: SmsConfig;
   createdAt: string;
   updatedAt: string;
 }
