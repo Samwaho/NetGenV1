@@ -31,8 +31,6 @@ class TextSMSProvider(SMSProvider):
         self.send_bulk_url = f"{self.base_url}/sendbulk/"
         self.get_dlr_url = f"{self.base_url}/getdlr/"
         self.get_balance_url = f"{self.base_url}/getbalance/"
-        
-        logger.info("Initialized TextSMS Provider")
     
     async def send_sms(self, to: str, message: str, **kwargs) -> Dict[str, Any]:
         """Send an SMS message using TextSMS
@@ -88,7 +86,9 @@ class TextSMSProvider(SMSProvider):
                 }
             
             sms_response = responses[0]
-            success = sms_response.get('respose-code') == 200  # Note the typo in their API ('respose-code')
+            # Note the typo in their API ('respose-code') and check both possible spellings
+            response_code = sms_response.get('respose-code', sms_response.get('response-code'))
+            success = response_code == 200
             
             return {
                 "success": success,

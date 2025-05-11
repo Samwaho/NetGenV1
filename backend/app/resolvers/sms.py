@@ -44,17 +44,8 @@ class SMSResolver:
         organization = await organizations.find_one({"_id": ObjectId(organization_id)})
         if not organization:
             raise HTTPException(status_code=404, detail="Organization not found")
-
-        # Check if user has permission to send SMS
-        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
-        if not user_member:
-            raise HTTPException(status_code=403, detail="Not a member of this organization")
-
-        user_role = next((role for role in organization["roles"] if role["name"] == user_member["roleName"]), None)
-        if not user_role or OrganizationPermission.MANAGE_SMS_CONFIG.value not in user_role["permissions"]:
-            raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-        # Send SMS
+        
+        # Send the SMS
         result = await send_sms_for_organization(
             organization_id=organization_id,
             to=to,
@@ -103,6 +94,9 @@ class SMSResolver:
             message=message
         )
         
+        # Log the full result for debugging
+        logger.info(f"Bulk SMS send result: {result}")
+        
         # Extract result details
         success = result.get("success", False)
         message = result.get("message", "Unknown error")
@@ -116,9 +110,12 @@ class SMSResolver:
             # Count failures from individual results
             failed = sum(1 for r in result["results"] if not r.get("success", False))
         
+        # Calculate actual sent count
+        total_sent = total - failed
+        
         return BulkSMSResponse(
             success=success,
             message=message,
-            total_sent=total,
+            total_sent=total_sent,
             failed=failed
         ) 

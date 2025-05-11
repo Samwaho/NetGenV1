@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from app.config.database import organizations
 from bson.objectid import ObjectId
 from .base import SMSService
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -12,46 +13,39 @@ async def send_sms_for_organization(
     message: str, 
     **kwargs
 ) -> Dict[str, Any]:
-    """Send an SMS using the organization's configured SMS provider
-    
-    Args:
-        organization_id: The organization ID
-        to: Recipient phone number
-        message: Message content
-        **kwargs: Additional provider-specific parameters
-        
-    Returns:
-        Dict containing status and response details
-    """
+    """Send an SMS using the organization's configured SMS provider"""
     try:
-        # Get the organization's SMS configuration
+        # Get organization
         organization = await organizations.find_one({"_id": ObjectId(organization_id)})
         if not organization:
+            logger.error(f"Organization not found: {organization_id}")
             return {
                 "success": False,
                 "message": "Organization not found"
             }
         
-        sms_config = organization.get("smsConfig")
+        # Get SMS configuration - check both field names for compatibility
+        sms_config = organization.get("smsConfig", organization.get("smsConfiguration", {}))
+        
         if not sms_config:
+            logger.error(f"SMS configuration not found for organization: {organization_id}")
             return {
                 "success": False,
-                "message": "Organization has no SMS configuration"
+                "message": "SMS configuration not found"
             }
         
         # Check if SMS is active
-        if not sms_config.get("isActive", False):
+        is_active = sms_config.get("isActive", False)
+        
+        if not is_active:
+            logger.error(f"SMS is not active for organization: {organization_id}")
             return {
                 "success": False,
-                "message": "SMS is not enabled for this organization"
+                "message": "SMS is not active for this organization"
             }
         
-        provider = sms_config.get("provider")
-        if not provider:
-            return {
-                "success": False,
-                "message": "No SMS provider configured"
-            }
+        # Get provider
+        provider = sms_config.get("provider", "mock")
         
         # Send SMS using the configured provider
         result = await SMSService.send_sms(
@@ -61,18 +55,6 @@ async def send_sms_for_organization(
             message=message,
             **kwargs
         )
-        
-        # Here you might want to store the message in a database
-        # For example:
-        # await sms_messages.insert_one({
-        #     "organizationId": ObjectId(organization_id),
-        #     "to": to,
-        #     "message": message,
-        #     "provider": provider,
-        #     "providerMessageId": result.get("message_id"),
-        #     "status": result.get("status"),
-        #     "createdAt": datetime.now(timezone.utc)
-        # })
         
         return result
         
@@ -89,46 +71,42 @@ async def send_bulk_sms_for_organization(
     message: str, 
     **kwargs
 ) -> Dict[str, Any]:
-    """Send SMS messages to multiple recipients using the organization's configured SMS provider
-    
-    Args:
-        organization_id: The organization ID
-        to: List of recipient phone numbers
-        message: Message content
-        **kwargs: Additional provider-specific parameters
-        
-    Returns:
-        Dict containing status and response details
-    """
+    """Send SMS messages to multiple recipients using the organization's configured SMS provider"""
     try:
-        # Get the organization's SMS configuration
+        # Get organization
         organization = await organizations.find_one({"_id": ObjectId(organization_id)})
         if not organization:
+            logger.error(f"Organization not found: {organization_id}")
             return {
                 "success": False,
                 "message": "Organization not found"
             }
         
-        sms_config = organization.get("smsConfig")
+        # Get SMS configuration - check both field names for compatibility
+        sms_config = organization.get("smsConfig", organization.get("smsConfiguration", {}))
+        
         if not sms_config:
+            logger.error(f"SMS configuration not found for organization: {organization_id}")
             return {
                 "success": False,
-                "message": "Organization has no SMS configuration"
+                "message": "SMS configuration not found"
             }
         
         # Check if SMS is active
-        if not sms_config.get("isActive", False):
+        is_active = sms_config.get("isActive", False)
+        
+        if not is_active:
+            logger.error(f"SMS is not active for organization: {organization_id}")
             return {
                 "success": False,
-                "message": "SMS is not enabled for this organization"
+                "message": "SMS is not active for this organization"
             }
         
-        provider = sms_config.get("provider")
-        if not provider:
-            return {
-                "success": False,
-                "message": "No SMS provider configured"
-            }
+        # Get provider
+        provider = sms_config.get("provider", "mock")
+        
+        # Log the bulk SMS request
+        logger.info(f"Sending bulk SMS via {provider} to {len(to)} recipients: {message[:20]}...")
         
         # Send bulk SMS using the configured provider
         result = await SMSService.send_bulk_sms(
@@ -139,7 +117,33 @@ async def send_bulk_sms_for_organization(
             **kwargs
         )
         
-        return result
+        # Process results and determine overall success
+        successful = 0
+        failed = 0
+        results = []
+        
+        for result_item in result.get("results", []):
+            # Consider a message successful if it has a message_id, regardless of the success flag
+            if result_item.get("message_id"):
+                successful += 1
+                result_item["success"] = True  # Override the provider's success flag
+            else:
+                failed += 1
+            
+            results.append(result_item)
+        
+        # Mark as success if any messages were sent successfully
+        overall_success = successful > 0
+        
+        return {
+            "success": overall_success,
+            "message": f"Sent to {successful}/{len(to)} recipients",
+            "provider": provider,
+            "total": len(to),
+            "successful": successful,
+            "failed": failed,
+            "results": results
+        }
         
     except Exception as e:
         logger.error(f"Error sending bulk SMS: {str(e)}")

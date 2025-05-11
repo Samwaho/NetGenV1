@@ -1,4 +1,22 @@
-import { gql } from "@apollo/client";
+import { gql } from '@apollo/client';
+
+export interface SendSmsResponse {
+  sendSms: {
+    success: boolean;
+    message: string;
+    messageId: string | null;
+    status: string | null;
+  };
+}
+
+export interface SendBulkSmsResponse {
+  sendBulkSms: {
+    success: boolean;
+    message: string;
+    totalSent: number;
+    failed: number;
+  };
+}
 
 export const SEND_SMS = gql`
   mutation SendSMS($organizationId: String!, $to: String!, $message: String!) {
@@ -21,33 +39,3 @@ export const SEND_BULK_SMS = gql`
     }
   }
 `;
-
-export interface SendSmsResponse {
-  sendSms: {
-    success: boolean;
-    message: string;
-    messageId?: string;
-    status?: string;
-  };
-}
-
-export interface SendBulkSmsResponse {
-  sendBulkSms: {
-    success: boolean;
-    message: string;
-    totalSent: number;
-    failed: number;
-  };
-}
-
-export interface SendSmsVariables {
-  organizationId: string;
-  to: string;
-  message: string;
-}
-
-export interface SendBulkSmsVariables {
-  organizationId: string;
-  to: string[];
-  message: string;
-} 

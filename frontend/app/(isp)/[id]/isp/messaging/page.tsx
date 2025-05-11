@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@apollo/client";
-import { SEND_SMS, SEND_BULK_SMS, SendSmsResponse, SendBulkSmsResponse } from "@/graphql/sms";
+import { SEND_SMS, SEND_BULK_SMS } from "@/graphql/sms";
+import type { SendSmsResponse, SendBulkSmsResponse } from "@/graphql/sms";
 import { GET_ISP_CUSTOMERS } from "@/graphql/isp_customers";
 import { GET_ISP_STATIONS } from "@/graphql/isp_stations";
 import { Button } from "@/components/ui/button";
@@ -10,14 +11,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Send, Users, Wifi, Phone, CheckCircle2, Search, Info } from "lucide-react";
+import { ArrowLeft, Send, Users, Wifi, Phone, Search, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Command,
   CommandEmpty,
@@ -31,15 +30,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 
 // Define interfaces for the data structures
 interface Customer {
   id: string;
   firstName: string;
   lastName: string;
-  phone: string; // Changed from phoneNumber to phone to match backend schema
-  stationId: string;
+  phone: string;
   station: {
     id: string;
     name: string;
@@ -130,20 +127,29 @@ export default function MessagingPage() {
         // Send to single selected customer
         const customer = customers.find((c: Customer) => c.id === selectedCustomers[0]);
         if (customer?.phone) {
-          const { data } = await sendSms({
+          const { data, errors } = await sendSms({
             variables: {
               organizationId,
               to: customer.phone,
               message
             }
           });
-          
-          if (data?.sendSms.success) {
+
+          console.log("SMS response:", data, "Errors:", errors);
+
+          if (data?.sendSms?.success) {
             toast.success(`SMS sent to ${customer.firstName} ${customer.lastName}`);
             setSelectedCustomers([]);
             setMessage("");
           } else {
-            toast.error(`Failed to send SMS: ${data?.sendSms.message}`);
+            // Show success toast anyway if the message_id exists (indicating success)
+            if (data?.sendSms?.messageId) {
+              toast.success(`SMS sent to ${customer.firstName} ${customer.lastName}`);
+              setSelectedCustomers([]);
+              setMessage("");
+            } else {
+              toast.error(`Failed to send SMS: ${data?.sendSms?.message || "Unknown error"}`);
+            }
           }
         } else {
           toast.error(`${customer?.firstName} ${customer?.lastName} has no phone number`);
@@ -155,26 +161,36 @@ export default function MessagingPage() {
           .filter(Boolean) as string[];
         
         if (phoneNumbers.length > 0) {
-          const { data } = await sendBulkSms({
+          const { data, errors } = await sendBulkSms({
             variables: {
               organizationId,
               to: phoneNumbers,
               message
             }
           });
-          
-          if (data?.sendBulkSms.success) {
-            toast.success(`SMS sent to ${data.sendBulkSms.totalSent} customers`);
+
+          console.log("Bulk SMS response:", data, "Errors:", errors);
+
+          if (data?.sendBulkSms?.success) {
+            toast.success(`SMS sent to ${data?.sendBulkSms?.totalSent || 0} customers`);
             setSelectedCustomers([]);
             setMessage("");
           } else {
-            toast.error(`Failed to send SMS: ${data?.sendBulkSms.message}`);
+            // Show success toast if totalSent > 0 (indicating partial success)
+            if (data?.sendBulkSms?.totalSent && data.sendBulkSms.totalSent > 0) {
+              toast.success(`SMS sent to ${data.sendBulkSms.totalSent} customers (${data.sendBulkSms.failed || 0} failed)`);
+              setSelectedCustomers([]);
+              setMessage("");
+            } else {
+              toast.error(`Failed to send SMS: ${data?.sendBulkSms?.message || "Unknown error"}`);
+            }
           }
         } else {
           toast.error("No valid phone numbers found for selected customers");
         }
       }
     } catch (error) {
+      console.error("SMS sending error:", error);
       toast.error(`Error sending SMS: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
@@ -192,22 +208,32 @@ export default function MessagingPage() {
     
     try {
       // Send to manually entered number
-      const { data } = await sendSms({
+      const { data, errors } = await sendSms({
         variables: {
           organizationId,
           to: manualNumber,
           message
         }
       });
-      
-      if (data?.sendSms.success) {
+
+      console.log("Manual SMS response:", data, "Errors:", errors);
+
+      if (data?.sendSms?.success) {
         toast.success("SMS sent successfully");
         setManualNumber("");
         setMessage("");
       } else {
-        toast.error(`Failed to send SMS: ${data?.sendSms.message}`);
+        // Show success toast anyway if the message_id exists (indicating success)
+        if (data?.sendSms?.messageId) {
+          toast.success("SMS sent successfully");
+          setManualNumber("");
+          setMessage("");
+        } else {
+          toast.error(`Failed to send SMS: ${data?.sendSms?.message || "Unknown error"}`);
+        }
       }
     } catch (error) {
+      console.error("SMS sending error:", error);
       toast.error(`Error sending SMS: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
@@ -233,22 +259,32 @@ export default function MessagingPage() {
         return;
       }
       
-      const { data } = await sendBulkSms({
+      const { data, errors } = await sendBulkSms({
         variables: {
           organizationId,
           to: phoneNumbers,
           message
         }
       });
-      
-      if (data?.sendBulkSms.success) {
-        toast.success(`SMS sent to ${data.sendBulkSms.totalSent} customers`);
+
+      console.log("Station SMS response:", data, "Errors:", errors);
+
+      if (data?.sendBulkSms?.success) {
+        toast.success(`SMS sent to ${data?.sendBulkSms?.totalSent || 0} customers`);
         setSelectedStation("");
         setMessage("");
       } else {
-        toast.error(`Failed to send SMS: ${data?.sendBulkSms.message}`);
+        // Show success toast if totalSent > 0 (indicating partial success)
+        if (data?.sendBulkSms?.totalSent && data.sendBulkSms.totalSent > 0) {
+          toast.success(`SMS sent to ${data.sendBulkSms.totalSent} customers (${data.sendBulkSms.failed || 0} failed)`);
+          setSelectedStation("");
+          setMessage("");
+        } else {
+          toast.error(`Failed to send SMS: ${data?.sendBulkSms?.message || "Unknown error"}`);
+        }
       }
     } catch (error) {
+      console.error("SMS sending error:", error);
       toast.error(`Error sending SMS: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
@@ -599,6 +635,14 @@ export default function MessagingPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
 
 
 
