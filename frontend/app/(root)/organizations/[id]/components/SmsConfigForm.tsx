@@ -11,12 +11,49 @@ import { UPDATE_SMS_CONFIGURATION, GET_ORGANIZATION } from '@/graphql/organizati
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle, CheckCircle2, MessageSquare, Info, AlertTriangle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, MessageSquare, Info, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { motion } from 'framer-motion';
-import { useForm, Controller, SubmitHandler } from 'react-hook-form';
+import { useForm, Controller, SubmitHandler, ControllerRenderProps } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+
+// Add a PasswordInput component with proper TypeScript types
+interface PasswordInputProps {
+  field: ControllerRenderProps<FormValues, any>;
+  id: string;
+  placeholder: string;
+  required?: boolean;
+  className?: string;
+}
+
+const PasswordInput: React.FC<PasswordInputProps> = ({ field, id, placeholder, required, className }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        {...field}
+        placeholder={placeholder}
+        type={showPassword ? "text" : "password"}
+        className={className}
+        required={required}
+      />
+      <button
+        type="button"
+        className="absolute inset-y-0 right-0 flex items-center pr-3"
+        onClick={() => setShowPassword(!showPassword)}
+      >
+        {showPassword ? (
+          <EyeOff className="h-4 w-4 text-gray-500" />
+        ) : (
+          <Eye className="h-4 w-4 text-gray-500" />
+        )}
+      </button>
+    </div>
+  );
+};
 
 interface SmsConfigFormProps {
   config: SmsConfig | null;
@@ -36,6 +73,8 @@ const formSchema = z.object({
   senderId: z.string().optional(),
   partnerID: z.string().optional(),
   environment: z.string().default("sandbox"),
+  password: z.string().optional(),
+  msgType: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -46,7 +85,7 @@ const PROVIDERS = [
   { value: 'twilio', label: "Twilio", logo: "https://www.twilio.com/assets/icons/twilio-icon-512.png" },
   { value: 'vonage', label: "Vonage", logo: "https://developer.nexmo.com/favicon.ico" },
   { value: 'textsms', label: "TextSMS", logo: "https://textsms.co.ke/wp-content/uploads/textsms_logo.png" },
-  { value: 'zettatel', label: "Zettatel", logo: "/images/zettatel-logo.png" },
+  { value: 'zettatel', label: "Zettatel", logo: "https://www.zettatel.com/wp-content/uploads/2021/04/favicon-1.png" },
 ];
 
 const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
@@ -56,6 +95,7 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
 }) => {
   const [showProviderChangeWarning, setShowProviderChangeWarning] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>(config?.provider || 'africastalking');
+
 
   // Initialize form with react-hook-form
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
@@ -71,6 +111,8 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
       senderId: config?.senderId || '',
       partnerID: config?.partnerID || '',
       environment: config?.environment || 'sandbox',
+      password: config?.password || '', // Initialize from config if available
+      msgType: 'text', // Add default value as it's not in SmsConfig
     }
   });
 
@@ -135,7 +177,9 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
             authToken: data.authToken || undefined,
             senderId: data.senderId || undefined,
             partnerID: data.partnerID || undefined,
-            environment: data.environment
+            environment: data.environment,
+            password: data.password || undefined,
+            msgType: data.msgType || undefined,
           }
         }
       });
@@ -328,13 +372,12 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                       name="apiKey"
                       control={control}
                       render={({ field }) => (
-                        <Input
+                        <PasswordInput
                           id="apiKey"
-                          {...field}
+                          field={field}
                           placeholder="API Key"
-                          type="password"
                           className="w-full"
-                          required={provider === 'africastalking'}
+                          required={provider === 'africastalking' || provider === 'textsms' || provider === 'vonage'}
                         />
                       )}
                     />
@@ -393,11 +436,10 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                       name="authToken"
                       control={control}
                       render={({ field }) => (
-                        <Input
+                        <PasswordInput
                           id="authToken"
-                          {...field}
+                          field={field}
                           placeholder="Auth Token"
-                          type="password"
                           className="w-full"
                           required={provider === 'twilio'}
                         />
@@ -442,9 +484,9 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                       name="apiKey"
                       control={control}
                       render={({ field }) => (
-                        <Input
+                        <PasswordInput
                           id="apiKey"
-                          {...field}
+                          field={field}
                           placeholder="API Key"
                           className="w-full"
                           required={provider === 'vonage'}
@@ -458,11 +500,10 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                       name="apiSecret"
                       control={control}
                       render={({ field }) => (
-                        <Input
+                        <PasswordInput
                           id="apiSecret"
-                          {...field}
+                          field={field}
                           placeholder="API Secret"
-                          type="password"
                           className="w-full"
                           required={provider === 'vonage'}
                         />
@@ -523,11 +564,10 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                       name="apiKey"
                       control={control}
                       render={({ field }) => (
-                        <Input
+                        <PasswordInput
                           id="apiKey"
-                          {...field}
+                          field={field}
                           placeholder="API Key"
-                          type="password"
                           className="w-full"
                           required={provider === 'textsms'}
                         />
@@ -567,7 +607,7 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="username" className="text-sm font-medium">Username <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="username" className="text-sm font-medium">User ID <span className="text-red-500">*</span></Label>
                     <Controller
                       name="username"
                       control={control}
@@ -583,16 +623,15 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="apiKey" className="text-sm font-medium">API Key <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="password" className="text-sm font-medium">Password <span className="text-red-500">*</span></Label>
                     <Controller
-                      name="apiKey"
+                      name="password"
                       control={control}
                       render={({ field }) => (
-                        <Input
-                          id="apiKey"
-                          {...field}
-                          placeholder="API Key"
-                          type="password"
+                        <PasswordInput
+                          id="password"
+                          field={field}
+                          placeholder="Password"
                           className="w-full"
                           required={provider === 'zettatel'}
                         />
@@ -600,8 +639,46 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="apiKey" className="text-sm font-medium">API Key</Label>
+                    <Controller
+                      name="apiKey"
+                      control={control}
+                      render={({ field }) => (
+                        <PasswordInput
+                          id="apiKey"
+                          field={field}
+                          placeholder="API Key (Optional)"
+                          className="w-full"
+                        />
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="msgType" className="text-sm font-medium">Message Type <span className="text-red-500">*</span></Label>
+                    <Controller
+                      name="msgType"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger id="msgType">
+                            <SelectValue placeholder="Select message type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Text (English)</SelectItem>
+                            <SelectItem value="unicode">Unicode (Regional)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="senderId" className="text-sm font-medium">Sender ID</Label>
+                  <Label htmlFor="senderId" className="text-sm font-medium">Sender ID <span className="text-red-500">*</span></Label>
                   <Controller
                     name="senderId"
                     control={control}
@@ -609,14 +686,12 @@ const SmsConfigForm: React.FC<SmsConfigFormProps> = ({
                       <Input
                         id="senderId"
                         {...field}
-                        placeholder="Your registered sender ID or name"
+                        placeholder="Your registered and approved sender ID"
                         className="w-full"
+                        required={provider === 'zettatel'}
                       />
                     )}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    This is the sender ID that will appear on recipients' phones.
-                  </p>
                 </div>
               </TabsContent>
             </Tabs>

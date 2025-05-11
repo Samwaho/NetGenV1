@@ -916,9 +916,11 @@ class OrganizationResolver:
             "accountSid": input.accountSid,
             "authToken": input.authToken,
             "username": input.username,
-            "partnerID": input.partnerID,  # Add partnerID here
+            "partnerID": input.partnerID,
             "senderId": input.senderId,
             "environment": input.environment,
+            "password": input.password,
+            "msgType": input.msgType,
             "updatedAt": datetime.now(timezone.utc)
         }
         

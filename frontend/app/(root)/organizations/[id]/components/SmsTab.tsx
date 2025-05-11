@@ -25,12 +25,12 @@ const PROVIDERS = [
   { value: 'twilio', label: "Twilio", logo: "https://www.twilio.com/assets/icons/twilio-icon-512.png" },
   { value: 'vonage', label: "Vonage", logo: "https://developer.nexmo.com/favicon.ico" },
   { value: 'textsms', label: "TextSMS", logo: "https://textsms.co.ke/wp-content/uploads/textsms_logo.png" },
-  { value: 'zettatel', label: "Zettatel", logo: "/images/zettatel-logo.png" }
+  { value: 'zettatel', label: "Zettatel", logo: "https://www.zettatel.com/wp-content/uploads/2021/04/favicon-1.png" }
 ];
 
 export function SmsTab({ organization, organizationId, currentUserId }: SmsTabProps) {
   const [isEditing, setIsEditing] = useState(false);
-
+  
   // Check if user has permissions to manage SMS
   const userMember = organization.members.find(
     (member) => member?.user?.id === currentUserId && member.status === "ACTIVE"
@@ -41,6 +41,9 @@ export function SmsTab({ organization, organizationId, currentUserId }: SmsTabPr
     currentUserId,
     OrganizationPermissions.MANAGE_SMS_CONFIG
   );
+
+  // Make sure we have the complete SMS config
+  const smsConfig = organization.smsConfig || {};
 
   const handleConfigUpdated = () => {
     setIsEditing(false);
@@ -79,12 +82,11 @@ export function SmsTab({ organization, organizationId, currentUserId }: SmsTabPr
         break;
       case 'textsms':
         if (config.partnerID) details.push({ label: "Partner ID", value: config.partnerID });
-        if (config.senderId) details.push({ label: "Sender ID", value: config.senderId });
         break;
       case 'zettatel':
-        if (config.username) details.push({ label: "User ID", value: config.username });
+        if (config.username) details.push({ label: "Username", value: config.username });
+        if (config.password) details.push({ label: "Password", value: "••••••••" });
         if (config.senderId) details.push({ label: "Sender ID", value: config.senderId });
-        if (config.apiSecret) details.push({ label: "Message Type", value: config.apiSecret === "unicode" ? "Unicode (Regional)" : "Text (English)" });
         break;
     }
     

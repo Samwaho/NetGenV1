@@ -52,10 +52,12 @@ export const ORGANIZATION_FRAGMENT = gql`
       accountSid
       authToken
       username
+      password
       partnerID
       senderId
       callbackUrl
       environment
+      msgType
       createdAt
       updatedAt
     }
@@ -469,10 +471,12 @@ export const UPDATE_SMS_CONFIGURATION = gql`
           accountSid
           authToken
           username
+          password
           partnerID
           senderId
           callbackUrl
           environment
+          msgType
           createdAt
           updatedAt
         }
@@ -519,6 +523,24 @@ export interface UpdateMpesaConfigurationResponse {
     success: boolean;
     message: string;
     organization: Organization;
+  };
+}
+
+export interface UpdateSmsConfigurationVariables {
+  organizationId: string;
+  input: {
+    provider: string;
+    isActive: boolean;
+    apiKey?: string;
+    apiSecret?: string;
+    accountSid?: string;
+    authToken?: string;
+    username?: string;
+    partnerID?: string;
+    senderId?: string;
+    environment?: string;
+    password?: string;
+    msgType?: string;
   };
 }
 

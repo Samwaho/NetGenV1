@@ -38,6 +38,8 @@ export interface SmsConfig {
   senderId?: string;
   callbackUrl?: string;
   environment?: string;
+  password?: string;
+  msgType?: string;
   createdAt?: string;
   updatedAt?: string;
 }

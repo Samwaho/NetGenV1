@@ -44,6 +44,8 @@ async def sms_callback(
             return await handle_africas_talking_callback(request, organization_id)
         elif provider == "textsms":
             return await handle_textsms_callback(request, organization_id)
+        elif provider == "zettatel":
+            return await handle_zettatel_callback(request, organization_id)
         else:
             # For unknown providers, just log the payload
             try:
@@ -146,4 +148,40 @@ async def handle_textsms_callback(request: Request, organization_id: str):
         }
     except Exception as e:
         logger.error(f"Error processing TextSMS callback: {str(e)}")
-        return {"success": False, "error": str(e)} 
+        return {"success": False, "error": str(e)}  # Add Zettatel callback handler
+async def handle_zettatel_callback(request: Request, organization_id: str):
+    """Handle Zettatel delivery report callback"""
+    try:
+        # Try to get JSON data first
+        try:
+            json_data = await request.json()
+            message_id = json_data.get("transactionId")
+            status = json_data.get("status")
+            to = json_data.get("mobile")
+        except:
+            # If not JSON, try to get form data
+            form_data = await request.form()
+            message_id = form_data.get("transactionId")
+            status = form_data.get("status")
+            to = form_data.get("mobile")
+        
+        logger.info(f"Zettatel message {message_id} to {to} status: {status}")
+        
+        # Here you would update your database with the message status
+        # For example, if you have a SMS messages collection:
+        # await sms_messages.update_one(
+        #     {"provider_id": message_id},
+        #     {"$set": {"status": status}}
+        # )
+        
+        return {
+            "success": True,
+            "message": "Zettatel callback processed",
+            "status": status
+        }
+    except Exception as e:
+        logger.error(f"Error processing Zettatel callback: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error processing callback: {str(e)}"
+        }
