@@ -329,17 +329,17 @@ export default function MessagingPage() {
         <CardContent className="p-6">
           <Tabs defaultValue="customers" className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="customers" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Customers
+              <TabsTrigger value="customers" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3 py-2">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm">Customers</span>
               </TabsTrigger>
-              <TabsTrigger value="manual" className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                Manual Entry
+              <TabsTrigger value="manual" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3 py-2">
+                <Phone className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm">Manual Entry</span>
               </TabsTrigger>
-              <TabsTrigger value="station" className="flex items-center gap-2">
-                <Wifi className="h-4 w-4" />
-                By Station
+              <TabsTrigger value="station" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3 py-2">
+                <Wifi className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm">By Station</span>
               </TabsTrigger>
             </TabsList>
             
@@ -635,6 +635,7 @@ export default function MessagingPage() {
     </div>
   );
 }
+
 
 
 
