@@ -110,16 +110,7 @@ class TextSMSProvider(SMSProvider):
             }
     
     async def send_bulk_sms(self, to: List[str], message: str, **kwargs) -> Dict[str, Any]:
-        """Send SMS messages to multiple recipients using TextSMS
-        
-        Args:
-            to: List of recipient phone numbers
-            message: Message content
-            **kwargs: Additional parameters including schedule time
-            
-        Returns:
-            Dict containing status and response details
-        """
+        """Send SMS messages to multiple recipients using TextSMS"""
         try:
             # TextSMS supports native bulk sending through their API
             sms_list = []
@@ -166,6 +157,7 @@ class TextSMSProvider(SMSProvider):
             
             # Process the response
             responses = response_data.get('responses', [])
+            
             if not responses:
                 return {
                     "success": False,
@@ -180,13 +172,17 @@ class TextSMSProvider(SMSProvider):
             results = []
             
             for response in responses:
-                if response.get('respose-code') == 200:  # Note the typo in their API
+                # Note the typo in their API ('respose-code')
+                response_code = response.get('respose-code', response.get('response-code'))
+                is_success = response_code == 200
+                
+                if is_success:
                     successful += 1
                 else:
                     failed += 1
                 
                 results.append({
-                    "success": response.get('respose-code') == 200,
+                    "success": is_success,
                     "message": response.get('response-description', 'Unknown status'),
                     "message_id": response.get('messageid'),
                     "to": response.get('mobile'),
@@ -194,14 +190,18 @@ class TextSMSProvider(SMSProvider):
                     "client_sms_id": response.get('clientsmsid')
                 })
             
+            # Consider it a success if at least one message was sent successfully
+            overall_success = successful > 0
+            
             return {
-                "success": failed == 0,
-                "message": f"Sent to {successful}/{len(to)} recipients",
+                "success": overall_success,
+                "message": f"Sent {successful}/{len(to)} messages successfully",
                 "provider": "textsms",
                 "total": len(to),
                 "successful": successful,
                 "failed": failed,
-                "results": results
+                "results": results,
+                "responses": responses  # Include original responses for debugging
             }
             
         except Exception as e:
@@ -209,7 +209,10 @@ class TextSMSProvider(SMSProvider):
             return {
                 "success": False,
                 "message": f"Error sending bulk SMS: {str(e)}",
-                "provider": "textsms"
+                "provider": "textsms",
+                "failed": len(to),
+                "successful": 0,
+                "total": len(to)
             }
     
     async def get_delivery_status(self, message_id: str) -> Dict[str, Any]:

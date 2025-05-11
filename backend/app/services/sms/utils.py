@@ -105,9 +105,6 @@ async def send_bulk_sms_for_organization(
         # Get provider
         provider = sms_config.get("provider", "mock")
         
-        # Log the bulk SMS request
-        logger.info(f"Sending bulk SMS via {provider} to {len(to)} recipients: {message[:20]}...")
-        
         # Send bulk SMS using the configured provider
         result = await SMSService.send_bulk_sms(
             provider_name=provider,
@@ -117,37 +114,54 @@ async def send_bulk_sms_for_organization(
             **kwargs
         )
         
-        # Process results and determine overall success
-        successful = 0
-        failed = 0
-        results = []
+        # Standardize response format across all providers
+        successful = result.get("successful", 0)
+        failed = result.get("failed", 0)
+        total = len(to)
         
-        for result_item in result.get("results", []):
-            # Consider a message successful if it has a message_id, regardless of the success flag
-            if result_item.get("message_id"):
-                successful += 1
-                result_item["success"] = True  # Override the provider's success flag
-            else:
-                failed += 1
-            
-            results.append(result_item)
+        # If provider doesn't return successful/failed counts, try to calculate them
+        if successful == 0 and failed == 0:
+            # Check if we have results array
+            results = result.get("results", [])
+            if results:
+                successful = sum(1 for r in results if r.get("success", False))
+                failed = len(results) - successful
+            elif "total" in result and "successful" in result:
+                successful = result.get("successful", 0)
+                failed = result.get("failed", total - successful)
         
-        # Mark as success if any messages were sent successfully
-        overall_success = successful > 0
+        # Consider it a success if at least one message was sent
+        standardized_success = successful > 0
         
-        return {
-            "success": overall_success,
-            "message": f"Sent to {successful}/{len(to)} recipients",
-            "provider": provider,
-            "total": len(to),
+        # For TextSMS provider, check specific response format
+        if provider == "textsms":
+            responses = result.get("responses", [])
+            if responses:
+                textsms_successful = sum(1 for r in responses if r.get("respose-code") == 200 or r.get("response-code") == 200)
+                if textsms_successful > 0:
+                    standardized_success = True
+                    successful = textsms_successful
+                    failed = total - successful
+        
+        # Update the result with standardized values
+        result.update({
+            "success": standardized_success,
+            "message": f"Sent {successful}/{total} messages successfully",
+            "total": total,
             "successful": successful,
-            "failed": failed,
-            "results": results
-        }
+            "failed": failed or (total - successful),
+            "provider": provider
+        })
+        
+        return result
         
     except Exception as e:
         logger.error(f"Error sending bulk SMS: {str(e)}")
         return {
             "success": False,
-            "message": f"Error sending bulk SMS: {str(e)}"
+            "message": f"Error sending bulk SMS: {str(e)}",
+            "provider": provider if 'provider' in locals() else "unknown",
+            "failed": len(to),
+            "successful": 0,
+            "total": len(to)
         } 

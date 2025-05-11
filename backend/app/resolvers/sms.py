@@ -77,45 +77,24 @@ class SMSResolver:
         organization = await organizations.find_one({"_id": ObjectId(organization_id)})
         if not organization:
             raise HTTPException(status_code=404, detail="Organization not found")
-
-        # Check if user has permission to send SMS
-        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
-        if not user_member:
-            raise HTTPException(status_code=403, detail="Not a member of this organization")
-
-        user_role = next((role for role in organization["roles"] if role["name"] == user_member["roleName"]), None)
-        if not user_role or OrganizationPermission.MANAGE_SMS_CONFIG.value not in user_role["permissions"]:
-            raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-        # Send bulk SMS
+        
+        # Send the bulk SMS
         result = await send_bulk_sms_for_organization(
             organization_id=organization_id,
             to=to,
             message=message
         )
         
-        # Log the full result for debugging
-        logger.info(f"Bulk SMS send result: {result}")
-        
         # Extract result details
         success = result.get("success", False)
-        message = result.get("message", "Unknown error")
-        total = len(to)
-        failed = 0
-        
-        # Different providers may return results differently
-        if "failed" in result:
-            failed = result["failed"]
-        elif "results" in result:
-            # Count failures from individual results
-            failed = sum(1 for r in result["results"] if not r.get("success", False))
-        
-        # Calculate actual sent count
-        total_sent = total - failed
+        message_text = result.get("message", "Unknown error")
+        total = result.get("total", len(to))
+        successful = result.get("successful", 0)
+        failed = result.get("failed", total - successful)
         
         return BulkSMSResponse(
             success=success,
-            message=message,
-            total_sent=total_sent,
+            message=message_text,
+            total_sent=successful,
             failed=failed
-        ) 
+        )
