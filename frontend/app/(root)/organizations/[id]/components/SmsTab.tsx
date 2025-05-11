@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { motion } from "framer-motion";
+import { formatDateToNowInTimezone } from "@/lib/utils";
 
 interface SmsTabProps {
   organization: Organization;
@@ -103,14 +104,7 @@ export function SmsTab({ organization, organizationId, currentUserId }: SmsTabPr
   };
 
   // Helper function to format date
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "N/A";
-    try {
-      return format(new Date(dateString), "MMM d, yyyy 'at' h:mm a");
-    } catch (e) {
-      return dateString;
-    }
-  };
+
 
   if (!canManageSms) {
     return (
@@ -214,7 +208,7 @@ export function SmsTab({ organization, organizationId, currentUserId }: SmsTabPr
                 <div className="space-y-4">
                   <div className="border-b pb-2 last:border-0">
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">Last Updated</h3>
-                    <p className="text-base font-medium">{formatDate(organization.smsConfig.updatedAt)}</p>
+                    <p className="text-base font-medium">{formatDateToNowInTimezone(organization.smsConfig.updatedAt)}</p>
                   </div>
 
                   {organization.smsConfig.callbackUrl && (
