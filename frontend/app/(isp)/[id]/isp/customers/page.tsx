@@ -4,7 +4,7 @@ import { GET_ISP_CUSTOMERS, CustomerFilterOptions } from "@/graphql/isp_customer
 import { DataTable } from "./components/CustomersTable";
 import { columns } from "./components/columns";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wifi, UserCheck, UserX, ShieldAlert } from "lucide-react";
+import { Plus, Users, Wifi, UserCheck, UserX, ShieldAlert, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { ISPCustomer } from "@/types/isp_customer";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -245,11 +245,18 @@ export default function CustomersPage() {
         </div>
         <div className="flex gap-2">
           {canManageCustomers && (
-            <Link href={`/${organizationId}/isp/customers/create`} prefetch={true}>
-              <Button className="w-full sm:w-auto bg-gradient-custom text-white hover:text-white">
-                <Plus className="mr-2 h-4 w-4" /> Add Customer
-              </Button>
-            </Link>
+            <>
+              <Link href={`/${organizationId}/isp/customers/create`} prefetch={true}>
+                <Button className="w-full sm:w-auto bg-gradient-custom text-white hover:text-white">
+                  <Plus className="mr-2 h-4 w-4" /> Add Customer
+                </Button>
+              </Link>
+              <Link href={`/${organizationId}/isp/messaging`} prefetch={true}>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <MessageSquare className="mr-2 h-4 w-4" /> Send Messages
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>

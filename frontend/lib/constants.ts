@@ -58,5 +58,10 @@ export const sidebarData: SidebarItem[] = [
     title: "Transactions",
     path: (id) => `/${id}/isp/transactions`,
     icon: DollarSign,
-  }
+  },
+  {
+    title: "Messaging",
+    path: (id) => `/${id}/isp/messaging`,
+    icon: Warehouse,
+  },
 ];
