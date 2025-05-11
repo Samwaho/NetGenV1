@@ -6,6 +6,7 @@ import { ModeToggle } from "./ModeToggle";
 import { useQuery } from "@apollo/client";
 import { GET_ORGANIZATION } from "@/graphql/organization";
 import { Skeleton } from "./ui/skeleton";
+import Link from "next/link";
 
 interface IspHeaderProps {
   organizationId: string;
@@ -20,14 +21,16 @@ const IspHeader = ({ organizationId }: IspHeaderProps) => {
   const organizationName = data?.organization?.name || "NetGen";
 
   return (
-    <div className="flex w-full max-w-7xl items-center justify-between p-4">   
+    <div className="flex w-full max-w-7xl items-center justify-between p-4">
+      <Link href={`/organizations/${organizationId}`}>
         <h1 className="text-2xl font-bold text-gradient-custom">
           {loading ? (
             <Skeleton className="w-32 h-8" />
           ) : (
             organizationName
           )}
-        </h1>
+        </h1></Link>
+       
         <div className="flex items-center gap-2">
             <ModeToggle/>
            <ProfileAction/> 
