@@ -52,3 +52,4 @@ watchfiles==1.0.4
 websockets==15.0
 requests==2.31.0
 celery[redis]==5.3.1
+aiohttp==3.8.5

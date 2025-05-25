@@ -58,8 +58,7 @@ class SMSService:
         Returns:
             An instance of the specified SMS provider
         """
-        from .providers.twilio import TwilioProvider
-        from .providers.africas_talking import AfricasTalkingProvider
+
         from .providers.textsms import TextSMSProvider
         from .providers.zettatel import ZettatelProvider
         from .providers.mock import MockSMSProvider
@@ -67,11 +66,7 @@ class SMSService:
         # Convert provider name to lowercase for case-insensitive match
         provider_name = provider_name.lower()
         
-        if provider_name == 'twilio':
-            return TwilioProvider(config)
-        elif provider_name == 'africas_talking':
-            return AfricasTalkingProvider(config)
-        elif provider_name == 'textsms':
+        if provider_name == 'textsms':
             return TextSMSProvider(config)
         elif provider_name == 'zettatel':
             return ZettatelProvider(config)

@@ -23,7 +23,7 @@ celery_app = Celery(
 celery_app.conf.beat_schedule = {
     'send-payment-reminder-sms': {
         'task': 'app.tasks.scheduler.send_payment_reminder_sms',
-        'schedule': 120,  # every hour (in seconds)
+        'schedule': 86400,  # once a day (in seconds)
     },
 }
 
