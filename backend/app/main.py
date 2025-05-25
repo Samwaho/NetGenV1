@@ -21,7 +21,6 @@ from app.resolvers.isp_transactions import ISPTransactionResolver
 from app.resolvers.sms import SMSResolver
 from app.resolvers.sms_template import SmsTemplateResolver
 from app.api import mpesa, sms
-from app.tasks.scheduler import start_scheduler
 
 @strawberry.type
 class Query(
@@ -93,8 +92,6 @@ app.include_router(sms.router, prefix="/api/sms", tags=["sms"])
 async def startup_db_client():
     """Connect to MongoDB on startup"""
     await connect_to_database()
-    # Start the scheduler
-    start_scheduler()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

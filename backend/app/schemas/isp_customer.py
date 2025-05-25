@@ -33,6 +33,7 @@ class ISPCustomer:
     updatedAt: datetime
     initialAmount: float = 0.0
     isNew: bool = True
+    reminderDaysSent: Optional[List[int]] = None
     
     # Class variable to cache related data fetching
     _related_cache: ClassVar[Dict[str, Dict[str, Any]]] = {
@@ -78,6 +79,7 @@ class ISPCustomer:
                 "updatedAt": customer["updatedAt"],
                 "initialAmount": customer.get("initialAmount", 0.0),
                 "isNew": customer.get("isNew", True),
+                "reminderDaysSent": customer.get("reminderDaysSent", []),
             }
         else:
             org_id = customer.organizationId
@@ -99,6 +101,7 @@ class ISPCustomer:
                 "updatedAt": customer.updatedAt,
                 "initialAmount": getattr(customer, 'initialAmount', 0.0),
                 "isNew": getattr(customer, 'isNew', True),
+                "reminderDaysSent": getattr(customer, 'reminderDaysSent', []),
             }
 
         # Convert ObjectIds to strings for cache keys

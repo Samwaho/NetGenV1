@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from app.schemas.enums import IspManagerCustomerStatus
 import strawberry
 
@@ -20,3 +20,4 @@ class DBISPCustomer:
     online: bool
     createdAt: datetime
     updatedAt: datetime
+    reminderDaysSent: Optional[List[int]] = None

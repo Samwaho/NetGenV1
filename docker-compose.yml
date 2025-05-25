@@ -43,6 +43,55 @@ services:
       - ./backend:/app
     networks:
       - app-network
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.tasks.scheduler worker --loglevel=info
+    depends_on:
+      - backend
+      - redis
+    environment:
+      - MONGODB_URL=${MONGODB_URL}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - FRONTEND_URL=https://w06z1rvh-80.inc1.devtunnels.ms
+    volumes:
+      - ./backend:/app
+    networks:
+      - app-network
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.tasks.scheduler beat --loglevel=info
+    depends_on:
+      - backend
+      - redis
+    environment:
+      - MONGODB_URL=${MONGODB_URL}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - FRONTEND_URL=https://w06z1rvh-80.inc1.devtunnels.ms
+    volumes:
+      - ./backend:/app
+    networks:
+      - app-network
 
 networks:
   app-network:

@@ -1,104 +1,99 @@
-import asyncio
+from celery import Celery
 import logging
 from datetime import datetime, timezone, timedelta
 from app.config.database import isp_customers
 from app.schemas.enums import IspManagerCustomerStatus
 from app.config.utils import record_activity
 from bson.objectid import ObjectId
+from pymongo import MongoClient
+import asyncio
+from app.services.sms.template import SmsTemplateService
+from app.services.sms.utils import send_sms_for_organization
+from app.schemas.sms_template import TemplateCategory
 
 logger = logging.getLogger(__name__)
 
-async def check_expired_subscriptions():
-    """Check for expired subscriptions and update customer status"""
-    try:
-        now = datetime.now(timezone.utc)
-        
-        # Find customers with expired subscriptions that are still active
-        expired_customers = await isp_customers.find({
-            "expirationDate": {"$lt": now},
-            "status": IspManagerCustomerStatus.ACTIVE.value
-        }).to_list(None)
-        
-        count = 0
-        for customer in expired_customers:
-            # Update customer status to inactive
-            await isp_customers.update_one(
-                {"_id": customer["_id"]},
-                {
-                    "$set": {
-                        "status": IspManagerCustomerStatus.INACTIVE.value,
-                        "updatedAt": now
-                    }
-                }
-            )
-            
-            # Record activity
-            await record_activity(
-                None,  # System-generated activity
-                customer["organizationId"],
-                f"Customer {customer['username']} subscription expired and marked as inactive"
-            )
-            
-            count += 1
-            
-        if count > 0:
-            logger.info(f"Updated {count} expired customer subscriptions to inactive")
-            
-    except Exception as e:
-        logger.error(f"Error checking expired subscriptions: {str(e)}")
+# If you have a celery app elsewhere, import it. Otherwise, define here:
+celery_app = Celery(
+    'scheduler',
+    broker='redis://redis:6379/0',  # Use service name 'redis'
+    backend='redis://redis:6379/0'
+)
 
-async def send_expiration_reminders():
-    """Send reminders to customers whose subscriptions are about to expire"""
-    try:
-        now = datetime.now(timezone.utc)
-        reminder_threshold = now + timedelta(days=3)  # Remind if expiring within 3 days
-        
-        # Find customers with subscriptions expiring soon
-        expiring_customers = await isp_customers.find({
-            "expirationDate": {"$gt": now, "$lt": reminder_threshold},
-            "status": IspManagerCustomerStatus.ACTIVE.value,
-            "$or": [
-                {"lastReminderSent": {"$exists": False}},
-                {"lastReminderSent": {"$lt": now - timedelta(days=1)}}  # Don't send more than one reminder per day
-            ]
-        }).to_list(None)
-        
-        count = 0
-        for customer in expiring_customers:
-            # Send reminder (in a real implementation, this would send SMS or email)
-            days_remaining = (customer["expirationDate"] - now).days
-            
-            # Record that reminder was sent
-            await isp_customers.update_one(
-                {"_id": customer["_id"]},
-                {
-                    "$set": {
-                        "lastReminderSent": now,
-                        "updatedAt": now
-                    }
-                }
-            )
-            
-            # In production, you would integrate with SMS or email service here
-            logger.info(f"Sending reminder to {customer['username']}: Subscription expires in {days_remaining} days")
-            
-            count += 1
-            
-        if count > 0:
-            logger.info(f"Sent {count} subscription expiration reminders")
-            
-    except Exception as e:
-        logger.error(f"Error sending expiration reminders: {str(e)}")
+celery_app.conf.beat_schedule = {
+    'send-payment-reminder-sms': {
+        'task': 'app.tasks.scheduler.send_payment_reminder_sms',
+        'schedule': 120,  # every hour (in seconds)
+    },
+}
 
-async def run_scheduled_tasks():
-    """Run all scheduled tasks"""
-    while True:
-        await check_expired_subscriptions()
-        await send_expiration_reminders()
-        
-        # Sleep for an hour before next check
-        await asyncio.sleep(3600)  # 1 hour
-        
-def start_scheduler():
-    """Start the scheduler in the background"""
-    asyncio.create_task(run_scheduled_tasks()) 
+@celery_app.task
+def send_payment_reminder_sms():
+    """Send payment reminder SMS to customers whose expiry is in 5, 3, or 1 days."""
+    async def main():
+        now = datetime.now(timezone.utc)
+        for days in [5, 3, 1]:
+            target_date = now + timedelta(days=days)
+            customers = await isp_customers.find({
+                "expirationDate": {
+                    "$gte": datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc),
+                    "$lt": datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, tzinfo=timezone.utc)
+                },
+                "status": IspManagerCustomerStatus.ACTIVE.value
+            }).to_list(None)
+            logger.info(f"[SMS Scheduler] Days to expire: {days} | Customers found: {len(customers)}")
+            for customer in customers:
+                sms_vars = {
+                    "firstName": customer.get("firstName", ""),
+                    "lastName": customer.get("lastName", ""),
+                    "daysToExpire": days,
+                    "expirationDate": customer["expirationDate"].strftime("%Y-%m-%d")
+                }
+                try:
+                    template_result = await SmsTemplateService.list_templates(
+                        organization_id=str(customer["organizationId"]),
+                        category=TemplateCategory.PAYMENT_REMINDER,
+                        is_active=True
+                    )
+                    template_doc = None
+                    if template_result.get("success") and template_result.get("templates"):
+                        template_doc = template_result["templates"][0]
+                    if template_doc:
+                        message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
+                        logger.info(f"[SMS Scheduler] Sending SMS to {customer['phone']} for org {customer['organizationId']} with message: {message}")
+                        await send_sms_for_organization(
+                            organization_id=str(customer["organizationId"]),
+                            to=customer["phone"],
+                            message=message
+                        )
+                    else:
+                        logger.warning(f"[SMS Scheduler] No active payment reminder template found for org {customer['organizationId']}")
+                except Exception as e:
+                    logger.error(f"[SMS Scheduler] Failed to process customer {customer.get('phone', 'N/A')}: {e}")
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    if loop.is_running():
+        asyncio.ensure_future(main())
+    else:
+        loop.run_until_complete(main())
+
+# To schedule these tasks periodically, use Celery Beat.
+# Example celery beat schedule (add to your celery config):
+# CELERY_BEAT_SCHEDULE = {
+#     'check-expired-subscriptions': {
+#         'task': 'app.tasks.scheduler.check_expired_subscriptions',
+#         'schedule': 3600,  # every hour
+#     },
+#     'send-expiration-reminders': {
+#         'task': 'app.tasks.scheduler.send_expiration_reminders',
+#         'schedule': 3600,  # every hour
+#     },
+# }
+
+# Remove asyncio and start_scheduler logic. Run celery worker and beat instead.
+# celery -A app.tasks.scheduler worker --loglevel=info
+# celery -A app.tasks.scheduler beat --loglevel=info 
