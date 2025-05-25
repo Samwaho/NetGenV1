@@ -1,0 +1,44 @@
+{
+   "captive": $(if logged-in == 'yes')false$(else)true$(endif),
+   "user-portal-url": "$(link-login-only)",
+$(if session-timeout-secs != 0)
+   "seconds-remaining": $(session-timeout-secs),
+$(endif)
+$(if remain-bytes-total)
+   "bytes-remaining": $(remain-bytes-total),
+$(endif)
+   "can-extend-session": true,
+   "packages": [
+      {
+         "id": "package1",
+         "name": "Basic",
+         "description": "Basic internet access",
+         "price": 5.00,
+         "duration": 1,
+         "durationUnit": "days",
+         "downloadSpeed": 2,
+         "uploadSpeed": 1
+      },
+      {
+         "id": "package2",
+         "name": "Standard",
+         "description": "Standard internet access",
+         "price": 10.00,
+         "duration": 7,
+         "durationUnit": "days",
+         "downloadSpeed": 5,
+         "uploadSpeed": 2
+      },
+      {
+         "id": "package3",
+         "name": "Premium",
+         "description": "Premium internet access",
+         "price": 20.00,
+         "duration": 30,
+         "durationUnit": "days",
+         "downloadSpeed": 10,
+         "uploadSpeed": 5
+      }
+   ]
+}
+

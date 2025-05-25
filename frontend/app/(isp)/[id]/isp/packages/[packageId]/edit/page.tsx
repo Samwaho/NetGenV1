@@ -21,6 +21,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { OrganizationPermissions } from "@/lib/permissions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Memoize form schema
 const formSchema = z.object({
@@ -40,8 +41,14 @@ const formSchema = z.object({
   sessionTimeout: z.number().optional(),
   idleTimeout: z.number().optional(),
   // QoS and VLAN
-  priority: z.number().min(1).max(8).optional(),
+  priority: z.number().optional(),
   vlanId: z.number().optional(),
+  // Hotspot specific fields
+  showInHotspot: z.boolean().optional(),
+  duration: z.number().optional(),
+  durationUnit: z.string().optional(),
+  dataLimit: z.number().optional(),
+  dataLimitUnit: z.string().optional(),
 });
 
 export default function EditPackagePage() {
@@ -105,6 +112,12 @@ export default function EditPackagePage() {
     // QoS and VLAN
     priority: undefined,
     vlanId: undefined,
+    // Hotspot specific fields
+    showInHotspot: false,
+    duration: undefined,
+    durationUnit: "days",
+    dataLimit: undefined,
+    dataLimitUnit: "MB",
   }), []);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -135,6 +148,12 @@ export default function EditPackagePage() {
         // QoS and VLAN
         priority: pkg.priority ?? undefined,
         vlanId: pkg.vlanId ?? undefined,
+        // Hotspot specific fields
+        showInHotspot: pkg.showInHotspot ?? false,
+        duration: pkg.duration ?? undefined,
+        durationUnit: pkg.durationUnit || "days",
+        dataLimit: pkg.dataLimit ?? undefined,
+        dataLimitUnit: pkg.dataLimitUnit || "MB",
       });
     }
   }, [data, form]);
@@ -367,9 +386,8 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -386,9 +404,8 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -405,9 +422,8 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -424,9 +440,8 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -443,9 +458,8 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -489,8 +503,8 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -507,8 +521,8 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -527,8 +541,8 @@ export default function EditPackagePage() {
                             type="number" 
                             min={1}
                             max={8}
-                            {...field} 
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -545,14 +559,133 @@ export default function EditPackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={e => e.target.value ? field.onChange(Number(e.target.value)) : field.onChange(undefined)} 
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                </div>
+              </div>
+
+              {/* Hotspot Configuration Section */}
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">Hotspot Configuration</h2>
+                  <p className="text-sm text-muted-foreground">Configure hotspot-specific settings</p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="showInHotspot"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Show in Hotspot</FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Make this package available in the hotspot portal
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="duration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duration</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              value={field.value ?? ''}
+                              onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="durationUnit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duration Unit</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select duration unit" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="minutes">Minutes</SelectItem>
+                              <SelectItem value="hours">Hours</SelectItem>
+                              <SelectItem value="days">Days</SelectItem>
+                              <SelectItem value="weeks">Weeks</SelectItem>
+                              <SelectItem value="months">Months</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="dataLimit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data Limit</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              value={field.value ?? ''}
+                              onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="dataLimitUnit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data Limit Unit</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select data limit unit" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="MB">MB</SelectItem>
+                              <SelectItem value="GB">GB</SelectItem>
+                              <SelectItem value="TB">TB</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -592,5 +725,11 @@ export default function EditPackagePage() {
     </div>
   );
 }
+
+
+
+
+
+
 
 

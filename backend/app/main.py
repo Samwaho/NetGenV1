@@ -20,7 +20,7 @@ from app.resolvers.isp_customer_payments import ISPCustomerPaymentResolver
 from app.resolvers.isp_transactions import ISPTransactionResolver
 from app.resolvers.sms import SMSResolver
 from app.resolvers.sms_template import SmsTemplateResolver
-from app.api import mpesa, sms
+from app.api import mpesa, sms, hotspot
 
 @strawberry.type
 class Query(
@@ -73,7 +73,7 @@ app = FastAPI(title="Your API", version="1.0.0")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost", "http://localhost:3000", "https://w06z1rvh-80.inc1.devtunnels.ms"],
+    allow_origins=["*"],  # Allow all origins for hotspot access
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,6 +87,14 @@ app.include_router(mpesa.router, prefix="/api/isp-customer-payments", tags=["mpe
 
 # SMS API routes
 app.include_router(sms.router, prefix="/api/sms", tags=["sms"])
+
+# Hotspot API routes
+app.include_router(hotspot.router, prefix="/api/hotspot", tags=["hotspot"])
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "ok"}
 
 @app.on_event("startup")
 async def startup_db_client():

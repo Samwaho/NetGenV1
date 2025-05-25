@@ -26,6 +26,7 @@ isp_inventories = db.isp_inventories
 isp_tickets = db.isp_tickets
 isp_mpesa_transactions = db.isp_mpesa_transactions
 sms_templates = db.sms_templates
+hotspot_vouchers = db.hotspot_vouchers
 
 
 async def connect_to_database():

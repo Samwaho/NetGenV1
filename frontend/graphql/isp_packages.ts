@@ -26,6 +26,12 @@ const ISP_PACKAGE_FRAGMENT = gql`
     # QoS and VLAN
     priority
     vlanId
+    # Hotspot specific fields
+    showInHotspot
+    duration
+    durationUnit
+    dataLimit
+    dataLimitUnit
     createdAt
     updatedAt
   }

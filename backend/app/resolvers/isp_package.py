@@ -277,6 +277,12 @@ class ISPPackageResolver:
                 "idleTimeout": input.idleTimeout,
                 "priority": input.priority,
                 "vlanId": input.vlanId,
+                # Add hotspot specific fields
+                "showInHotspot": input.showInHotspot,
+                "duration": input.duration,
+                "durationUnit": input.durationUnit,
+                "dataLimit": input.dataLimit,
+                "dataLimitUnit": input.dataLimitUnit,
                 "createdAt": datetime.now(timezone.utc),
                 "updatedAt": datetime.now(timezone.utc)
             }
@@ -288,12 +294,11 @@ class ISPPackageResolver:
                     result = await isp_packages.insert_one(package_data, session=cast(AsyncIOMotorClientSession, session))
                     package_data["_id"] = result.inserted_id
 
-                    # Record activity
+                    # Record activity - remove the session parameter
                     await record_activity(
                         current_user.id,
                         ObjectId(input.organizationId),
-                        f"created ISP package {input.name}",
-                        session=cast(AsyncIOMotorClientSession, session)
+                        f"created ISP package {input.name}"
                     )
 
             # Clear cache for this organization
@@ -370,6 +375,12 @@ class ISPPackageResolver:
                     "idleTimeout": input.idleTimeout,
                     "priority": input.priority,
                     "vlanId": input.vlanId,
+                    # Hotspot specific fields
+                    "showInHotspot": input.showInHotspot,
+                    "duration": input.duration,
+                    "durationUnit": input.durationUnit,
+                    "dataLimit": input.dataLimit,
+                    "dataLimitUnit": input.dataLimitUnit,
                     "updatedAt": datetime.now(timezone.utc)
                 }.items() if value is not None
             }
@@ -392,12 +403,11 @@ class ISPPackageResolver:
                         session=cast(AsyncIOMotorClientSession, session)
                     )
 
-                    # Record activity
+                    # Record activity - remove the session parameter
                     await record_activity(
                         current_user.id,
                         package["organizationId"],
-                        f"updated ISP package {package['name']}",
-                        session=cast(AsyncIOMotorClientSession, session)
+                        f"updated ISP package {package['name']}"
                     )
 
             # Clear cache for this organization
@@ -465,12 +475,11 @@ class ISPPackageResolver:
             client = isp_packages.database.client
             async with await client.start_session() as session:
                 async with session.start_transaction():
-                    # Record activity before deletion
+                    # Record activity before deletion - remove the session parameter
                     await record_activity(
                         current_user.id,
                         package["organizationId"],
-                        f"deleted ISP package {package['name']}",
-                        session=cast(AsyncIOMotorClientSession, session)
+                        f"deleted ISP package {package['name']}"
                     )
                     
                     await isp_packages.delete_one(
@@ -494,4 +503,10 @@ class ISPPackageResolver:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error deleting package: {str(e)}"
             )
+
+
+
+
+
+
 

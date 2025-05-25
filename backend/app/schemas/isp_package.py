@@ -37,6 +37,12 @@ class ISPPackage:
     # QoS and VLAN
     priority: Optional[int] = None  # 1-8 for MikroTik queue priority
     vlanId: Optional[int] = None    # VLAN ID if using VLANs
+    # Hotspot specific fields
+    showInHotspot: Optional[bool] = None
+    duration: Optional[int] = None
+    durationUnit: Optional[str] = None
+    dataLimit: Optional[int] = None
+    dataLimitUnit: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
     
@@ -60,6 +66,11 @@ class ISPPackage:
         "idleTimeout": "idleTimeout",
         "priority": "priority",
         "vlanId": "vlanId",
+        "showInHotspot": "showInHotspot",
+        "duration": "duration",
+        "durationUnit": "durationUnit",
+        "dataLimit": "dataLimit",
+        "dataLimitUnit": "dataLimitUnit",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     }
@@ -126,6 +137,12 @@ class BaseISPPackageInput:
     # QoS and VLAN
     priority: Optional[int] = None
     vlanId: Optional[int] = None
+    # Hotspot specific fields
+    showInHotspot: Optional[bool] = None
+    duration: Optional[int] = None
+    durationUnit: Optional[str] = None
+    dataLimit: Optional[int] = None
+    dataLimitUnit: Optional[str] = None
 
 
 @strawberry.input
@@ -159,5 +176,44 @@ class ISPPackagesResponse:
     message: str
     packages: List[ISPPackage] = field(default_factory=list)
     totalCount: Optional[int] = None
+
+
+@strawberry.type
+class HotspotPackage:
+    """Simplified package type for hotspot portal display"""
+    id: str
+    name: str
+    description: str
+    price: float
+    duration: Optional[int] = None
+    durationUnit: str = "days"
+    dataLimit: Optional[int] = None
+    dataLimitUnit: str = "MB"
+    downloadSpeed: float
+    uploadSpeed: float
+    
+    @classmethod
+    async def from_isp_package(cls, package: ISPPackage) -> "HotspotPackage":
+        """Convert an ISPPackage to a HotspotPackage"""
+        return cls(
+            id=package.id,
+            name=package.name,
+            description=package.description,
+            price=package.price,
+            duration=package.duration,
+            durationUnit=package.durationUnit,
+            dataLimit=package.dataLimit,
+            dataLimitUnit=package.dataLimitUnit,
+            downloadSpeed=package.downloadSpeed,
+            uploadSpeed=package.uploadSpeed
+        )
+
+
+@strawberry.type
+class HotspotPackagesResponse:
+    """Response type for hotspot packages API"""
+    success: bool
+    message: str
+    packages: List[HotspotPackage] = field(default_factory=list)
 
 
