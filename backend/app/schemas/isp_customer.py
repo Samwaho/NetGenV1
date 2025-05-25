@@ -12,7 +12,9 @@ import functools
 
 @strawberry.type
 class ISPCustomer:
-    """ISP Customer model representing a customer of an internet service provider."""
+    """ISP Customer model representing a customer of an internet service provider.
+    After creation, an onboarding SMS is sent to the customer using the organization's CUSTOMER_ONBOARDING SMS template if available.
+    """
     
     id: str
     firstName: str
@@ -29,6 +31,8 @@ class ISPCustomer:
     online: bool = False
     createdAt: datetime
     updatedAt: datetime
+    initialAmount: float = 0.0
+    isNew: bool = True
     
     # Class variable to cache related data fetching
     _related_cache: ClassVar[Dict[str, Dict[str, Any]]] = {
@@ -71,7 +75,9 @@ class ISPCustomer:
                 "status": customer.get("status", IspManagerCustomerStatus.INACTIVE),
                 "online": customer.get("online", False),
                 "createdAt": customer["createdAt"],
-                "updatedAt": customer["updatedAt"]
+                "updatedAt": customer["updatedAt"],
+                "initialAmount": customer.get("initialAmount", 0.0),
+                "isNew": customer.get("isNew", True),
             }
         else:
             org_id = customer.organizationId
@@ -90,7 +96,9 @@ class ISPCustomer:
                 "status": getattr(customer, 'status', IspManagerCustomerStatus.INACTIVE),
                 "online": getattr(customer, 'online', False),
                 "createdAt": customer.createdAt,
-                "updatedAt": customer.updatedAt
+                "updatedAt": customer.updatedAt,
+                "initialAmount": getattr(customer, 'initialAmount', 0.0),
+                "isNew": getattr(customer, 'isNew', True),
             }
 
         # Convert ObjectIds to strings for cache keys
@@ -152,7 +160,7 @@ class ISPCustomer:
 
 @strawberry.input
 class CreateISPCustomerInput:
-    """Input type for creating a new ISP customer."""
+    """Input type for creating a new ISP customer. Added initialAmount and isNew."""
     firstName: str
     lastName: str
     email: str
@@ -163,11 +171,13 @@ class CreateISPCustomerInput:
     packageId: str
     stationId: str
     expirationDate: datetime
+    initialAmount: float = 0.0
+    isNew: bool = True
 
 
 @strawberry.input
 class UpdateISPCustomerInput:
-    """Input type for updating an existing ISP customer."""
+    """Input type for updating an existing ISP customer. Added initialAmount and isNew."""
     firstName: Optional[str] = None
     lastName: Optional[str] = None
     email: Optional[str] = None
@@ -178,6 +188,8 @@ class UpdateISPCustomerInput:
     stationId: Optional[str] = None
     expirationDate: Optional[datetime] = None
     status: Optional[IspManagerCustomerStatus] = None
+    initialAmount: Optional[float] = None
+    isNew: Optional[bool] = None
 
 
 @strawberry.type

@@ -6,7 +6,9 @@ from enum import Enum
 @strawberry.enum
 class TemplateCategory(Enum):
     CUSTOMER_ONBOARDING = "customer_onboarding"
+    INVOICE_PAYMENT = "invoice_payment"
     PAYMENT_REMINDER = "payment_reminder"
+    PAYMENT_CONFIRMATION = "payment_confirmation"
     SERVICE_OUTAGE = "service_outage"
     PLAN_UPGRADE = "plan_upgrade"
     TECHNICAL_SUPPORT = "technical_support"

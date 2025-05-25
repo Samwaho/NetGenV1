@@ -11,6 +11,8 @@ const CUSTOMER_CORE_FIELDS = gql`
     username
     status
     online
+    initialAmount
+    isNew
   }
 `;
 
@@ -146,6 +148,8 @@ export interface ISPCustomerInput {
   packageId: string;
   stationId: string;
   expirationDate: string;
+  initialAmount?: number;
+  isNew?: boolean;
 }
 
 export interface ISPCustomerUpdateInput {
@@ -159,6 +163,8 @@ export interface ISPCustomerUpdateInput {
   stationId?: string;
   expirationDate?: string;
   status?: string;
+  initialAmount?: number;
+  isNew?: boolean;
 }
 
 export interface CustomerFilterOptions {

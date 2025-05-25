@@ -32,12 +32,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, Loader2, UserPlus, Mail, Phone, User, Lock, Package2, Radio, Calendar } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { memo, useState } from "react";
+import { memo, useState, useEffect } from "react";
 
 // Type definitions
 interface Package {
   id: string;
   name: string;
+  price?: number;
 }
 
 interface Station {
@@ -69,6 +70,9 @@ const formSchema = z.object({
   expirationDate: z.date({
     required_error: "Expiration date is required",
   }),
+  initialAmount: z
+    .number({ invalid_type_error: "Initial amount must be a number" })
+    .min(0, "Initial amount cannot be negative"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -101,6 +105,7 @@ export default function CreateCustomerPage() {
   const router = useRouter();
   const organizationId = params.id as string;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [packagePriceMap, setPackagePriceMap] = useState<Record<string, number>>({});
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -114,6 +119,7 @@ export default function CreateCustomerPage() {
       packageId: "",
       stationId: "",
       expirationDate: undefined,
+      initialAmount: 0,
     },
   });
 
@@ -147,6 +153,27 @@ export default function CreateCustomerPage() {
       setIsSubmitting(false);
     }
   });
+
+  // Update package price map when packagesData changes
+  useEffect(() => {
+    if (packagesData?.packages?.packages) {
+      const map: Record<string, number> = {};
+      for (const pkg of packagesData.packages.packages) {
+        map[pkg.id] = pkg.price != null ? Number(pkg.price) : 0;
+      }
+      setPackagePriceMap(map);
+    }
+  }, [packagesData]);
+
+  // When packageId changes, set initialAmount to package price
+  useEffect(() => {
+    const subscription = form.watch((values, { name, type }) => {
+      if (name === 'packageId' && values.packageId && packagePriceMap[values.packageId] !== undefined) {
+        form.setValue('initialAmount', packagePriceMap[values.packageId]);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form, packagePriceMap]);
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -391,6 +418,32 @@ export default function CreateCustomerPage() {
                   />
                   <FormField
                     control={form.control}
+                    name="initialAmount"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Initial Amount</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              className="pl-4"
+                              {...field}
+                              value={field.value ?? ''}
+                              onChange={e => field.onChange(Number(e.target.value))}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          This amount is prefilled with the package price. You can add to this amount if needed.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="expirationDate"
                     render={({ field }) => (
                       <FormItem className="col-span-2">
@@ -400,7 +453,7 @@ export default function CreateCustomerPage() {
                             <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <div className="pl-9">
                               <DateTimePicker
-                                date={field.value}
+                                date={field.value ?? null}
                                 setDate={field.onChange}
                               />
                             </div>

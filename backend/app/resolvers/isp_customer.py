@@ -17,6 +17,9 @@ import logging
 import re
 from pymongo import ASCENDING, DESCENDING
 from functools import lru_cache
+from app.services.sms.template import SmsTemplateService
+from app.services.sms.utils import send_sms_for_organization
+from app.schemas.sms_template import TemplateCategory
 
 logger = logging.getLogger(__name__)
 
@@ -251,10 +254,12 @@ class ISPCustomerResolver:
             "packageId": package_id,
             "stationId": station_id,
             "expirationDate": input.expirationDate,
-            "status": "INACTIVE",
+            "status": "ACTIVE",
             "online": False,
             "createdAt": current_time,
-            "updatedAt": current_time
+            "updatedAt": current_time,
+            "initialAmount": input.initialAmount,
+            "isNew": True
         }
 
         # Insert the new customer
@@ -264,6 +269,68 @@ class ISPCustomerResolver:
         except Exception as e:
             logger.error(f"Database error when creating customer: {str(e)}")
             raise HTTPException(status_code=500, detail="Database error occurred")
+
+        # Send onboarding SMS (do not block on error)
+        try:
+            # Fetch onboarding template for the organization
+            template_result = await SmsTemplateService.list_templates(
+                organization_id=input.organizationId,
+                category=TemplateCategory.CUSTOMER_ONBOARDING,
+                is_active=True
+            )
+            template_doc = None
+            if template_result.get("success") and template_result.get("templates"):
+                template_doc = template_result["templates"][0]
+            if template_doc:
+                # Prepare variables for template rendering
+                org_name = organization.get("name", "Provider")
+                sms_vars = {
+                    "firstName": input.firstName,
+                    "lastName": input.lastName,
+                    "username": input.username,
+                    "organizationName": org_name
+                }
+                message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
+                await send_sms_for_organization(
+                    organization_id=input.organizationId,
+                    to=input.phone,
+                    message=message
+                )
+        except Exception as sms_exc:
+            logger.error(f"Failed to send onboarding SMS: {sms_exc}")
+
+        # Send invoice payment SMS (do not block on error)
+        try:
+            invoice_template_result = await SmsTemplateService.list_templates(
+                organization_id=input.organizationId,
+                category=TemplateCategory.INVOICE_PAYMENT,
+                is_active=True
+            )
+            invoice_template_doc = None
+            if invoice_template_result.get("success") and invoice_template_result.get("templates"):
+                invoice_template_doc = invoice_template_result["templates"][0]
+            if invoice_template_doc:
+                org_name = organization.get("name", "Provider")
+                paybill_number = None
+                if organization.get("mpesaConfig"):
+                    paybill_number = organization["mpesaConfig"].get("shortCode")
+                amount_due = input.initialAmount
+                invoice_vars = {
+                    "firstName": input.firstName,
+                    "lastName": input.lastName,
+                    "username": input.username,
+                    "organizationName": org_name,
+                    "amountDue": amount_due,
+                    "paybillNumber": paybill_number or ""
+                }
+                invoice_message = SmsTemplateService.render_template(invoice_template_doc["content"], invoice_vars)
+                await send_sms_for_organization(
+                    organization_id=input.organizationId,
+                    to=input.phone,
+                    message=invoice_message
+                )
+        except Exception as invoice_sms_exc:
+            logger.error(f"Failed to send invoice payment SMS: {invoice_sms_exc}")
 
         # Record activity
         activity_message = f"created ISP customer {input.username}"

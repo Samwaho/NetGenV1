@@ -35,6 +35,8 @@ const COMMON_VARIABLES = [
   "supportEmail",
   "amountDue",
   "dueDate",
+  "paybillNumber",
+  "username",
 ];
 
 function extractVariables(content: string): string[] {
