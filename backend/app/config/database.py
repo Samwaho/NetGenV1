@@ -25,6 +25,7 @@ isp_customer_payments = db.isp_customer_payments
 isp_inventories = db.isp_inventories
 isp_tickets = db.isp_tickets
 isp_mpesa_transactions = db.isp_mpesa_transactions
+sms_templates = db.sms_templates
 
 
 async def connect_to_database():

@@ -19,6 +19,7 @@ from app.resolvers.isp_customers_accounting import ISPCustomerAccountingResolver
 from app.resolvers.isp_customer_payments import ISPCustomerPaymentResolver
 from app.resolvers.isp_transactions import ISPTransactionResolver
 from app.resolvers.sms import SMSResolver
+from app.resolvers.sms_template import SmsTemplateResolver
 from app.api import mpesa, sms
 from app.tasks.scheduler import start_scheduler
 
@@ -36,7 +37,8 @@ class Query(
     ISPTicketResolver,
     ISPCustomerAccountingResolver,
     ISPCustomerPaymentResolver,
-    ISPTransactionResolver
+    ISPTransactionResolver,
+    SmsTemplateResolver
 ):
     pass
 
@@ -55,7 +57,8 @@ class Mutation(
     ISPCustomerAccountingResolver,
     ISPCustomerPaymentResolver,
     ISPTransactionResolver,
-    SMSResolver
+    SMSResolver,
+    SmsTemplateResolver
 ):
     pass
 
