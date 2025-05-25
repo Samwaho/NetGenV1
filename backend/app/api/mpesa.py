@@ -4,6 +4,10 @@ from bson.objectid import ObjectId
 import logging
 from datetime import datetime, timezone, timedelta
 from app.config.deps import get_current_user
+from app.services.sms.template import SmsTemplateService
+from app.services.sms.utils import send_sms_for_organization
+from app.schemas.sms_template import TemplateCategory
+from app.config.database import organizations
 from typing import Dict, Any, Optional, Tuple
 import json
 import requests
@@ -406,11 +410,37 @@ async def process_customer_payment(organization_id: str, username: str, amount: 
             logger.error(f"Invalid package price {package_price} for customer {username}")
             return False
         
-        # Calculate how many package durations they've paid for
-        duration_paid = amount / package_price
+        # --- Custom logic for isNew and initialAmount ---
+        is_new = customer.get("isNew", True)
+        initial_amount = customer.get("initialAmount", 0.0)
+        days_to_add = 0
+        used_amount = amount
         
-        # Standard package duration is 30 days, but this could be customized
-        days_to_add = int(30 * duration_paid)
+        if is_new:
+            if amount == initial_amount:
+                # Standard calculation
+                duration_paid = amount / package_price
+                days_to_add = int(30 * duration_paid)
+            else:
+                # Subtract package price from initial amount to get remainder
+                remainder = initial_amount - package_price
+                if remainder < 0:
+                    remainder = 0
+                # Subtract remainder from paid amount
+                used_amount = amount - remainder
+                if used_amount < 0:
+                    used_amount = 0
+                duration_paid = used_amount / package_price
+                days_to_add = int(30 * duration_paid)
+            # After first payment, set isNew to False
+            await isp_customers.update_one(
+                {"_id": customer["_id"]},
+                {"$set": {"isNew": False}}
+            )
+        else:
+            # Standard calculation for existing customers
+            duration_paid = amount / package_price
+            days_to_add = int(30 * duration_paid)
         
         # Calculate new expiration date
         new_expiry = base_date + timedelta(days=days_to_add)
@@ -451,6 +481,46 @@ async def process_customer_payment(organization_id: str, username: str, amount: 
         )
         
         logger.info(f"Updated subscription for customer {username}: active until {new_expiry}")
+
+        # --- Send payment confirmation SMS ---
+        try:
+           
+
+            # Fetch organization for SMS context
+            org = await organizations.find_one({"_id": ObjectId(organization_id)})
+            org_name = org.get("name", "Provider") if org else "Provider"
+            paybill_number = None
+            if org and org.get("mpesaConfig"):
+                paybill_number = org["mpesaConfig"].get("shortCode")
+
+            # Fetch payment confirmation template
+            template_result = await SmsTemplateService.list_templates(
+                organization_id=organization_id,
+                category=TemplateCategory.PAYMENT_CONFIRMATION,
+                is_active=True
+            )
+            template_doc = None
+            if template_result.get("success") and template_result.get("templates"):
+                template_doc = template_result["templates"][0]
+            if template_doc:
+                sms_vars = {
+                    "firstName": customer.get("firstName", ""),
+                    "lastName": customer.get("lastName", ""),
+                    "username": customer.get("username", ""),
+                    "organizationName": org_name,
+                    "amountPaid": amount,
+                    "paybillNumber": paybill_number or "",
+                    "expirationDate": new_expiry.strftime("%Y-%m-%d")
+                }
+                message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
+                await send_sms_for_organization(
+                    organization_id=organization_id,
+                    to=customer.get("phone"),
+                    message=message
+                )
+        except Exception as sms_exc:
+            logger.error(f"Failed to send payment confirmation SMS: {sms_exc}")
+
         return True
         
     except Exception as e:
