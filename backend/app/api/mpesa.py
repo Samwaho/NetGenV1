@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException, Depends
-from app.config.database import organizations, isp_mpesa_transactions, isp_customers, isp_packages, isp_customer_payments
+from app.config.database import organizations, isp_mpesa_transactions, isp_customers, isp_packages, isp_customer_payments, hotspot_vouchers
 from bson.objectid import ObjectId
 import logging
 from datetime import datetime, timezone, timedelta
@@ -358,6 +358,65 @@ async def mpesa_callback(organization_id: str, callback_type: str, request: Requ
                 logger.error(f"Error processing customer payment: {str(e)}")
                 # Don't fail the callback, still return success to M-Pesa
         
+        # Process STK Push callback for hotspot vouchers
+        elif callback_type == "stk_push":
+            try:
+                body = payload.get("Body", {})
+                stk_callback = body.get("stkCallback", {})
+                
+                if stk_callback.get("ResultCode") == 0:  # Success
+                    # Extract transaction details
+                    items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
+                    amount = None
+                    mpesa_receipt = None
+                    phone = None
+                    
+                    for item in items:
+                        name, value = item.get("Name"), item.get("Value")
+                        if name == "Amount":
+                            amount = float(value)
+                        elif name == "MpesaReceiptNumber":
+                            mpesa_receipt = value
+                        elif name == "PhoneNumber":
+                            phone = value
+                    
+                    # Get the merchant request ID and checkout request ID
+                    merchant_request_id = stk_callback.get("MerchantRequestID")
+                    checkout_request_id = stk_callback.get("CheckoutRequestID")
+                    
+                    # Find the transaction to get the account reference
+                    transaction = await isp_mpesa_transactions.find_one({
+                        "organizationId": ObjectId(organization_id),
+                        "merchantRequestId": merchant_request_id,
+                        "checkoutRequestId": checkout_request_id
+                    })
+                    
+                    if transaction and transaction.get("accountReference"):
+                        account_ref = transaction.get("accountReference")
+                        
+                        # Check if this is a hotspot voucher payment
+                        voucher = await hotspot_vouchers.find_one({
+                            "organizationId": ObjectId(organization_id),
+                            "code": account_ref,
+                            "status": "pending"
+                        })
+                        
+                        if voucher:
+                            # Process as hotspot voucher payment
+                            success = await process_hotspot_voucher_payment(
+                                organization_id=organization_id,
+                                voucher_code=account_ref,
+                                amount=amount,
+                                transaction_id=mpesa_receipt
+                            )
+                            
+                            if success:
+                                logger.info(f"Successfully processed STK Push payment for voucher {account_ref}")
+                            else:
+                                logger.error(f"Failed to process STK Push payment for voucher {account_ref}")
+            except Exception as e:
+                logger.error(f"Error processing STK Push callback: {str(e)}")
+        
         # Return success response
         return {"ResultCode": 0, "ResultDesc": "Accepted"}
     except Exception as e:
@@ -525,6 +584,53 @@ async def process_customer_payment(organization_id: str, username: str, amount: 
         
     except Exception as e:
         logger.error(f"Error processing customer payment: {str(e)}")
+        return False
+
+async def process_hotspot_voucher_payment(organization_id: str, voucher_code: str, amount: float, transaction_id: str = None) -> bool:
+    """Process a payment for a hotspot voucher
+    
+    Args:
+        organization_id: The organization ID
+        voucher_code: The voucher code used as account reference
+        amount: The payment amount
+        transaction_id: M-Pesa transaction ID (optional)
+        
+    Returns:
+        bool: True if payment was processed successfully
+    """
+    try:
+        # Find the voucher by code
+        voucher = await hotspot_vouchers.find_one({
+            "organizationId": ObjectId(organization_id),
+            "code": voucher_code,
+            "status": "pending"
+        })
+        
+        if not voucher:
+            logger.error(f"Pending voucher with code {voucher_code} not found in organization {organization_id}")
+            return False
+        
+        # Update the voucher status to active
+        update_result = await hotspot_vouchers.update_one(
+            {"_id": voucher["_id"]},
+            {
+                "$set": {
+                    "status": "active",
+                    "paymentReference": transaction_id,
+                    "updatedAt": datetime.now(timezone.utc)
+                }
+            }
+        )
+        
+        if update_result.modified_count > 0:
+            logger.info(f"Activated voucher {voucher_code} after payment confirmation")
+            return True
+        else:
+            logger.error(f"Failed to update voucher {voucher_code}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error processing hotspot voucher payment: {str(e)}")
         return False
 
 @router.get("/callback-status/{organization_id}")

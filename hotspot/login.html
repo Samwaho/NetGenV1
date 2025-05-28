@@ -62,26 +62,50 @@
                 
                 let duration = '';
                 if (pkg.duration) {
-                    duration = `${pkg.duration} ${pkg.durationUnit}`;
+                    // Format duration properly
+                    duration = `${pkg.duration} ${formatDurationUnit(pkg.durationUnit, pkg.duration)}`;
                 }
                 
                 let dataLimit = '';
                 if (pkg.dataLimit) {
-                    dataLimit = `${pkg.dataLimit} ${pkg.dataLimitUnit}`;
+                    // Format data limit properly
+                    dataLimit = `${formatDataSize(pkg.dataLimit, pkg.dataLimitUnit)}`;
                 }
                 
                 card.innerHTML = `
                     <h3>${pkg.name}</h3>
-                    <p>${pkg.description || ''}</p>
-                    <p>Speed: ${pkg.downloadSpeed} Mbps</p>
-                    ${duration ? `<p>Duration: ${duration}</p>` : ''}
-                    ${dataLimit ? `<p>Data: ${dataLimit}</p>` : ''}
-                    <p class="price">Price: $${pkg.price}</p>
-                    <button>Select</button>
+                    ${pkg.description ? `<p class="description">${pkg.description}</p>` : ''}
+                    <div class="package-details">
+                        <p><strong>Speed:</strong> ${pkg.downloadSpeed} Mbps</p>
+                        ${duration ? `<p><strong>Duration:</strong> ${duration}</p>` : ''}
+                        ${dataLimit ? `<p><strong>Data:</strong> ${dataLimit}</p>` : ''}
+                        <p class="price">KES ${pkg.price}</p>
+                    </div>
+                    <button class="select-btn">Select</button>
                 `;
                 
                 container.appendChild(card);
             });
+        }
+
+        // Format duration unit (singular/plural)
+        function formatDurationUnit(unit, value) {
+            if (value === 1) {
+                // Convert plural to singular for value of 1
+                if (unit === 'hours') return 'hour';
+                if (unit === 'days') return 'day';
+                if (unit === 'weeks') return 'week';
+                if (unit === 'months') return 'month';
+            }
+            return unit;
+        }
+
+        // Format data size with appropriate units
+        function formatDataSize(value, unit) {
+            if (unit === 'MB' && value >= 1000) {
+                return `${(value/1000).toFixed(1)} GB`;
+            }
+            return `${value} ${unit}`;
         }
 
         // Handle package selection
@@ -151,33 +175,35 @@
             const localPackages = [
                 {
                     id: 'local1',
-                    name: 'Basic Package',
+                    name: '1Hr 10Mbps',
                     description: 'Basic internet access',
-                    downloadSpeed: 5,
-                    uploadSpeed: 2,
+                    downloadSpeed: 10,
+                    uploadSpeed: 10,
                     duration: 1,
-                    durationUnit: 'day',
-                    price: 5.00
+                    durationUnit: 'hours',
+                    price: 30
                 },
                 {
                     id: 'local2',
-                    name: 'Premium Package',
+                    name: 'Daily Package',
                     description: 'High-speed internet access',
                     downloadSpeed: 10,
                     uploadSpeed: 5,
-                    duration: 7,
+                    duration: 1,
                     durationUnit: 'days',
-                    price: 20.00
+                    price: 100
                 },
                 {
                     id: 'local3',
-                    name: 'Family Package',
+                    name: 'Weekly Package',
                     description: 'Multiple device support',
                     downloadSpeed: 15,
                     uploadSpeed: 8,
-                    duration: 30,
+                    duration: 7,
                     durationUnit: 'days',
-                    price: 50.00
+                    dataLimit: 5000,
+                    dataLimitUnit: 'MB',
+                    price: 500
                 }
             ];
             
