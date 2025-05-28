@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 import strawberry
 from fastapi import HTTPException
@@ -62,7 +62,6 @@ class ActivityResolver:
             })
             if not org:
                 raise HTTPException(status_code=403, detail="Not authorized to access this organization")
-            
             query = {"organizationId": ObjectId(organization_id)}
         else:
             # Get all organizations where user is a member
@@ -80,14 +79,31 @@ class ActivityResolver:
             .limit(limit) \
             .to_list(None)
 
+        # Get total count for pagination
+        total_count = await activities.count_documents(query)
+
+        # Batch fetch all organizations needed
+        org_id_set = set()
+        for activity in all_activities:
+            if "organizationId" in activity:
+                org_id_set.add(activity["organizationId"])
+        org_map = {}
+        if org_id_set:
+            org_docs = await organizations.find({"_id": {"$in": list(org_id_set)}}).to_list(None)
+            for org_doc in org_docs:
+                from app.schemas.organization import Organization
+                org_map[org_doc["_id"]] = await Organization.from_db(org_doc)
+
         activity_list = []
         for activity in all_activities:
-            activity_list.append(await Activity.from_db(activity))
+            org_obj = org_map.get(activity.get("organizationId"))
+            activity_list.append(await Activity.from_db(activity, organization=org_obj))
 
         return ActivitiesResponse(
             success=True,
             message="Activities retrieved successfully",
-            activities=activity_list
+            activities=activity_list,
+            totalCount=total_count
         )
 
     @strawberry.mutation
@@ -157,6 +173,24 @@ class ActivityResolver:
             success=True,
             message="Activity deleted successfully",
             activity=await Activity.from_db(activity)
+        )
+
+    @strawberry.mutation
+    async def clear_old_activities(self, info: strawberry.Info, days: int = 90) -> ActivityResponse:
+        """Delete activities older than a certain number of days (admin only)"""
+        context: Context = info.context
+        current_user = await context.authenticate()
+
+        # Only allow superusers to clear old activities
+        if current_user.role != "SUPERUSER":
+            raise HTTPException(status_code=403, detail="Only administrators can clear old activities")
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        result = await activities.delete_many({"createdAt": {"$lt": cutoff}})
+        return ActivityResponse(
+            success=True,
+            message=f"Deleted {result.deleted_count} activities older than {days} days.",
+            activity=None
         )
 
 

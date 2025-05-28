@@ -23,7 +23,7 @@ class Activity:
     updatedAt: datetime
 
     @classmethod
-    async def from_db(cls, activity_data: dict) -> "Activity":
+    async def from_db(cls, activity_data: dict, organization: Optional[Organization] = None) -> "Activity":
         """Convert DB activity to Activity type"""
         # Create UserDetails from embedded data
         user_details = None
@@ -35,18 +35,18 @@ class Activity:
                 role=activity_data["userDetails"]["role"]
             )
 
-        # Fetch organization data using organizationId
-        organization = None
-        if "organizationId" in activity_data:
+        # Use provided organization if available, otherwise fetch
+        org_obj = organization
+        if not org_obj and "organizationId" in activity_data:
             org_data = await organizations.find_one({"_id": activity_data["organizationId"]})
             if org_data:
-                organization = await Organization.from_db(org_data)
+                org_obj = await Organization.from_db(org_data)
 
         return cls(
             id=str(activity_data["_id"]),
             action=activity_data["action"],
             userDetails=user_details,
-            organization=organization,
+            organization=org_obj,
             createdAt=activity_data["createdAt"],
             updatedAt=activity_data["updatedAt"]
         )
@@ -62,4 +62,5 @@ class ActivitiesResponse:
     success: bool
     message: str
     activities: List[Activity] = field(default_factory=list)
+    totalCount: int = 0
 

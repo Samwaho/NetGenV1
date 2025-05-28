@@ -21,6 +21,7 @@ export const GET_ACTIVITIES = gql`
         createdAt
         updatedAt
       }
+      totalCount
     }
   }
 `;
@@ -92,6 +93,17 @@ export const DELETE_ACTIVITY = gql`
         }
         createdAt
         updatedAt
+      }
+    }
+  }
+`;
+export const CLEAR_OLD_ACTIVITIES = gql`
+  mutation ClearOldActivities($days: Int) {
+    clearOldActivities(days: $days) {
+      success
+      message
+      activity {
+        id
       }
     }
   }

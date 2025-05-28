@@ -45,6 +45,10 @@ class OrganizationPermission(str, Enum):
     VIEW_CUSTOMER_PAYMENTS = "VIEW_CUSTOMER_PAYMENTS"
     MANAGE_CUSTOMER_PAYMENTS = "MANAGE_CUSTOMER_PAYMENTS"
 
+    # Activity permissions
+    VIEW_ACTIVITY = "VIEW_ACTIVITY"
+    CLEAR_ACTIVITY = "CLEAR_ACTIVITY"
+
 @strawberry.enum
 class OrganizationStatus(str, Enum):
     ACTIVE = "ACTIVE"

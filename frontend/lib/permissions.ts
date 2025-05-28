@@ -28,4 +28,7 @@ export enum OrganizationPermissions {
   // Customer Payments Permissions
   VIEW_CUSTOMER_PAYMENTS = "VIEW_CUSTOMER_PAYMENTS",
   MANAGE_CUSTOMER_PAYMENTS = "MANAGE_CUSTOMER_PAYMENTS",
+  // Activity Permissions
+  VIEW_ACTIVITY = "VIEW_ACTIVITY",
+  CLEAR_ACTIVITY = "CLEAR_ACTIVITY",
 }

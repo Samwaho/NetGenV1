@@ -105,7 +105,9 @@ class OrganizationResolver:
                     OrganizationPermission.VIEW_SMS_CONFIG.value,
                     OrganizationPermission.MANAGE_SMS_CONFIG.value,
                     OrganizationPermission.VIEW_CUSTOMER_PAYMENTS.value,
-                    OrganizationPermission.MANAGE_CUSTOMER_PAYMENTS.value
+                    OrganizationPermission.MANAGE_CUSTOMER_PAYMENTS.value,
+                    OrganizationPermission.VIEW_ACTIVITY.value,
+                    OrganizationPermission.CLEAR_ACTIVITY.value
                 ],
                 "isSystemRole": True
             },

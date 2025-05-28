@@ -1,12 +1,13 @@
 "use client";
 
-import { useQuery } from "@apollo/client";
+import { useQuery, useMutation } from "@apollo/client";
 import { GET_ACTIVITIES } from "@/graphql/activity";
+import { CLEAR_OLD_ACTIVITIES } from "@/graphql/activity";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDateToNowInTimezone } from "@/lib/utils";
-import { Clock, Activity as ActivityIcon, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { Clock, Activity as ActivityIcon, AlertCircle, Loader2 } from "lucide-react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -35,6 +36,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { OrganizationPermissions } from "@/lib/permissions";
+import { Organization } from "@/types/organization";
+import { isToday, isThisMonth, parseISO, differenceInDays } from "date-fns";
 
 type Activity = {
   id: string;
@@ -54,24 +60,44 @@ type Activity = {
 
 type ActivityTabProps = {
   organizationId: string;
+  organization: Organization;
+  currentUserId: string;
 };
 
-export const ActivityTab = ({ organizationId }: ActivityTabProps) => {
+export const ActivityTab = ({ organizationId, organization, currentUserId }: ActivityTabProps) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
 
-  const { data, loading, error } = useQuery(GET_ACTIVITIES, {
+  const { data, loading, error, refetch } = useQuery(GET_ACTIVITIES, {
     variables: { 
       organizationId,
-      limit: 100, // Adjust as needed
-      skip: 0
+      limit: pageSize,
+      skip: page * pageSize
     },
     skip: !organizationId
   });
 
-  const columns: ColumnDef<Activity>[] = [
+  const [clearOldActivities, { loading: clearing }] = useMutation(CLEAR_OLD_ACTIVITIES, {
+    onCompleted: (data) => {
+      if (data.clearOldActivities.success) {
+        toast.success(data.clearOldActivities.message);
+      } else {
+        toast.error(data.clearOldActivities.message);
+      }
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+    refetchQueries: [
+      { query: GET_ACTIVITIES, variables: { organizationId, limit: 100, skip: 0 } },
+    ],
+  });
+
+  const columns: ColumnDef<Activity>[] = useMemo(() => [
     {
       accessorFn: (row) => row.userDetails ? `${row.userDetails.firstName} ${row.userDetails.lastName}` : 'Deleted User',
       id: "user",
@@ -134,10 +160,24 @@ export const ActivityTab = ({ organizationId }: ActivityTabProps) => {
         </div>
       ),
     },
-  ];
+  ], []);
+
+  const allActivities = data?.activities?.activities || [];
+  const totalCount = data?.activities?.total_count || 0;
+  const filteredActivities = useMemo(() =>
+    allActivities.filter((activity: Activity) => {
+      if (timeFilter === "all") return true;
+      const createdAt = typeof activity.createdAt === "string" ? parseISO(activity.createdAt) : new Date(activity.createdAt);
+      if (timeFilter === "today") return isToday(createdAt);
+      if (timeFilter === "week") return differenceInDays(new Date(), createdAt) < 7;
+      if (timeFilter === "month") return isThisMonth(createdAt);
+      return true;
+    })
+  , [allActivities, timeFilter]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const table = useReactTable({
-    data: data?.activities?.activities || [],
+    data: filteredActivities,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -153,30 +193,24 @@ export const ActivityTab = ({ organizationId }: ActivityTabProps) => {
     },
   });
 
-  if (!organizationId) {
+  const canViewActivity =  hasOrganizationPermissions(
+    organization,
+    currentUserId,
+    OrganizationPermissions.VIEW_ACTIVITY
+  );
+  const canClearActivity =  hasOrganizationPermissions(
+    organization,
+    currentUserId,
+    OrganizationPermissions.CLEAR_ACTIVITY
+  );
+
+  if (!canViewActivity) {
     return (
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-center text-muted-foreground py-8">
             <AlertCircle className="h-5 w-5 mr-2" />
-            <p>Organization ID is required</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (loading) {
-    return <ActivityLoadingSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center text-destructive py-8">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            <p>Error loading activities</p>
+            <p>You do not have permission to view activities.</p>
           </div>
         </CardContent>
       </Card>
@@ -185,77 +219,93 @@ export const ActivityTab = ({ organizationId }: ActivityTabProps) => {
 
   return (
     <div className="space-y-4 bg-card rounded-2xl shadow-md dark:border p-2 sm:p-4">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Input
-          placeholder="Search activities..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-sm"
-        />
-        <Select value={timeFilter} onValueChange={setTimeFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by time" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All time</SelectItem>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">Past week</SelectItem>
-            <SelectItem value="month">Past month</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Input
+            placeholder="Search activities..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="max-w-sm"
+          />
+          <Select value={timeFilter} onValueChange={setTimeFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">Past week</SelectItem>
+              <SelectItem value="month">Past month</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {canClearActivity && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => clearOldActivities({ variables: { days: 90 } })}
+            className="ml-auto flex items-center"
+            disabled={clearing}
+          >
+            {clearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {clearing ? "Clearing..." : "Clear Old Activities"}
+          </Button>
+        )}
       </div>
 
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-xs sm:text-sm">
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
+      <div className="rounded-md border">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} className="text-xs sm:text-sm">
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  <div className="flex flex-col items-center justify-center text-muted-foreground">
-                    <ActivityIcon className="h-12 w-12 mb-4" />
-                    <p className="text-lg font-medium">No activities found</p>
-                    <p className="text-sm">Activities will appear here as they happen</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    <div className="flex flex-col items-center justify-center text-muted-foreground">
+                      <ActivityIcon className="h-12 w-12 mb-4" />
+                      <p className="text-lg font-medium">No activities found</p>
+                      <p className="text-sm">Activities will appear here as they happen</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <div className="flex items-center justify-end space-x-2 py-4">
@@ -263,8 +313,8 @@ export const ActivityTab = ({ organizationId }: ActivityTabProps) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => setPage(0)}
+            disabled={page === 0}
             className="h-8 w-8 p-0"
           >
             {"<<"}
@@ -272,17 +322,20 @@ export const ActivityTab = ({ organizationId }: ActivityTabProps) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
             className="h-8 px-2"
           >
             Previous
           </Button>
+          <span className="px-2 text-xs">
+            Page {page + 1} of {totalPages}
+          </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
             className="h-8 px-2"
           >
             Next
@@ -290,12 +343,15 @@ export const ActivityTab = ({ organizationId }: ActivityTabProps) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-            disabled={!table.getCanNextPage()}
+            onClick={() => setPage(totalPages - 1)}
+            disabled={page >= totalPages - 1}
             className="h-8 w-8 p-0"
           >
             {">>"}
           </Button>
+        </div>
+        <div className="text-xs text-muted-foreground ml-4">
+          {totalCount} activities total
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { UPDATE_ROLE } from "@/graphql/organization";
+import { OrganizationPermissions } from "@/lib/permissions";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -37,32 +38,41 @@ const formSchema = z.object({
   permissions: z.array(z.string()),
 });
 
-const availablePermissions = [
-  { value: "MANAGE_MEMBERS", label: "Manage Members" },
-  { value: "MANAGE_ROLES", label: "Manage Roles" },
-  { value: "VIEW_ORGANIZATION", label: "View Organization" },
-  { value: "MANAGE_ORGANIZATION", label: "Manage Organization" },
-  { value: "VIEW_ANALYTICS", label: "View Analytics" },
-  { value: "MANAGE_BILLING", label: "Manage Billing" },
-  { value: "MANAGE_SUBSCRIPTIONS", label: "Manage Subscriptions" },
-  { value: "ACCESS_ISP_MANAGER", label: "Access ISP Manager" },
-  { value: "VIEW_ISP_MANAGER_DASHBOARD", label: "View ISP Manager Dashboard" },
-  { value: "VIEW_ISP_MANAGER_PACKAGES", label: "View ISP Manager Packages" },
-  { value: "MANAGE_ISP_MANAGER_PACKAGES", label: "Manage ISP Manager Packages" },
-  { value: "VIEW_ISP_MANAGER_CUSTOMERS", label: "View ISP Manager Customers" },
-  { value: "MANAGE_ISP_MANAGER_CUSTOMERS", label: "Manage ISP Manager Customers" },
-  { value: "VIEW_ISP_MANAGER_STATIONS", label: "View ISP Manager Stations" },
-  { value: "MANAGE_ISP_MANAGER_STATIONS", label: "Manage ISP Manager Stations" },
-  { value: "VIEW_ISP_MANAGER_INVENTORY", label: "View ISP Manager Inventory" },
-  { value: "MANAGE_ISP_MANAGER_INVENTORY", label: "Manage ISP Manager Inventory" },
-  { value: "VIEW_ISP_MANAGER_TICKETS", label: "View ISP Manager Tickets" },
-  { value: "MANAGE_ISP_MANAGER_TICKETS", label: "Manage ISP Manager Tickets" },
-  { value: "VIEW_MPESA_CONFIG", label: "View Mpesa Config" },
-  { value: "MANAGE_MPESA_CONFIG", label: "Manage Mpesa Config" },
-  { value: "VIEW_MPESA_TRANSACTIONS", label: "View Mpesa Transactions" },
-  { value: "VIEW_CUSTOMER_PAYMENTS", label: "View Customer Payments" },
-  { value: "MANAGE_CUSTOMER_PAYMENTS", label: "Manage Customer Payments" },
-];
+const permissionLabels: Record<string, string> = {
+  MANAGE_MEMBERS: "Manage Members",
+  MANAGE_ROLES: "Manage Roles",
+  VIEW_ORGANIZATION: "View Organization",
+  MANAGE_ORGANIZATION: "Manage Organization",
+  VIEW_ANALYTICS: "View Analytics",
+  MANAGE_BILLING: "Manage Billing",
+  MANAGE_SUBSCRIPTIONS: "Manage Subscriptions",
+  ACCESS_ISP_MANAGER: "Access ISP Manager",
+  VIEW_ISP_MANAGER_DASHBOARD: "View ISP Manager Dashboard",
+  VIEW_ISP_MANAGER_PACKAGES: "View ISP Manager Packages",
+  MANAGE_ISP_MANAGER_PACKAGES: "Manage ISP Manager Packages",
+  VIEW_ISP_MANAGER_CUSTOMERS: "View ISP Manager Customers",
+  MANAGE_ISP_MANAGER_CUSTOMERS: "Manage ISP Manager Customers",
+  VIEW_ISP_MANAGER_STATIONS: "View ISP Manager Stations",
+  MANAGE_ISP_MANAGER_STATIONS: "Manage ISP Manager Stations",
+  VIEW_ISP_MANAGER_INVENTORY: "View ISP Manager Inventory",
+  MANAGE_ISP_MANAGER_INVENTORY: "Manage ISP Manager Inventory",
+  VIEW_ISP_MANAGER_TICKETS: "View ISP Manager Tickets",
+  MANAGE_ISP_MANAGER_TICKETS: "Manage ISP Manager Tickets",
+  VIEW_MPESA_CONFIG: "View Mpesa Config",
+  MANAGE_MPESA_CONFIG: "Manage Mpesa Config",
+  VIEW_MPESA_TRANSACTIONS: "View Mpesa Transactions",
+  VIEW_SMS_CONFIG: "View SMS Config",
+  MANAGE_SMS_CONFIG: "Manage SMS Config",
+  VIEW_CUSTOMER_PAYMENTS: "View Customer Payments",
+  MANAGE_CUSTOMER_PAYMENTS: "Manage Customer Payments",
+  VIEW_ACTIVITY: "View Activity",
+  CLEAR_ACTIVITY: "Clear Activity",
+};
+
+const availablePermissions = Object.values(OrganizationPermissions).map((perm) => ({
+  value: perm,
+  label: permissionLabels[perm] || perm,
+}));
 
 interface EditRoleModalProps {
   isOpen: boolean;

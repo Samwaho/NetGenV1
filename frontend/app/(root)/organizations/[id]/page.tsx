@@ -101,7 +101,7 @@ const OrganizationPage = () => {
           />
         </TabsContent>
         <TabsContent value="activity" className="mt-4">
-          <ActivityTab organizationId={organizationId} />
+          <ActivityTab organizationId={organizationId} organization={organization} currentUserId={currentUserId} />
         </TabsContent>
         <TabsContent value="mpesa" className="mt-4">
           <MpesaTab 
