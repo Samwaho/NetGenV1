@@ -26,14 +26,43 @@ const authLink = setContext((operation, { headers }) => {
 
 export const client = new ApolloClient({
   link: authLink.concat(httpLink),
-  cache: new InMemoryCache(),
+  cache: new InMemoryCache({
+    typePolicies: {
+      Query: {
+        fields: {
+          dashboardStats: {
+            keyArgs: ["organizationId"],
+            merge(existing, incoming) {
+              // If there's no incoming data, return existing
+              if (!incoming) return existing;
+              // If there's no existing data, return incoming
+              if (!existing) return incoming;
+              
+              // Merge the data, preferring incoming for updated fields
+              return {
+                ...existing,
+                ...incoming,
+                // For arrays, always use the incoming data (complete replacement)
+                customers: incoming.customers,
+                tickets: incoming.tickets,
+                inventories: incoming.inventories,
+                packages: incoming.packages,
+                transactions: incoming.transactions,
+              };
+            },
+          },
+          // Other field policies remain the same
+        },
+      },
+    },
+  }),
   defaultOptions: {
     query: {
-      fetchPolicy: "network-only",
+      fetchPolicy: "cache-first",
     },
     watchQuery: {
-      fetchPolicy: "network-only",
-      nextFetchPolicy: "cache-and-network",
+      fetchPolicy: "cache-and-network",
+      nextFetchPolicy: "cache-first",
     },
   },
 });

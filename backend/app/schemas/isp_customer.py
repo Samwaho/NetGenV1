@@ -12,9 +12,7 @@ import functools
 
 @strawberry.type
 class ISPCustomer:
-    """ISP Customer model representing a customer of an internet service provider.
-    After creation, an onboarding SMS is sent to the customer using the organization's CUSTOMER_ONBOARDING SMS template if available.
-    """
+    """ISP Customer model representing a customer of an internet service provider."""
     
     id: str
     firstName: str
@@ -23,14 +21,14 @@ class ISPCustomer:
     phone: str
     username: str
     password: str
-    organization: Organization
-    package: ISPPackage
-    station: ISPStation
-    expirationDate: datetime
+    organization: Optional[Organization] = None
+    package: Optional[ISPPackage] = None
+    station: Optional[ISPStation] = None
+    expirationDate: Optional[datetime] = None
     status: IspManagerCustomerStatus = IspManagerCustomerStatus.INACTIVE
     online: bool = False
-    createdAt: datetime
-    updatedAt: datetime
+    createdAt: Optional[datetime] = None
+    updatedAt: Optional[datetime] = None
     initialAmount: float = 0.0
     isNew: bool = True
     reminderDaysSent: Optional[List[int]] = None

@@ -47,6 +47,10 @@ interface CustomBarProps {
   fill?: string;
 }
 
+interface RevenueChartProps {
+  transactions: ISPTransaction[];
+}
+
 const LoadingState = () => (
   <div className="flex flex-col items-center justify-center h-[280px]">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -133,24 +137,11 @@ const TimePeriodSelector = ({
   );
 };
 
-export function RevenueChart() {
+export function RevenueChart({ transactions }: RevenueChartProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("monthly");
   
-  const { data, loading } = useQuery(GET_ISP_TRANSACTIONS, {
-    variables: {
-      organizationId: typeof window !== 'undefined' ? 
-        window.location.pathname.split('/')[1] : '',
-      page: 1,
-      pageSize: 100, // Get enough transactions for meaningful chart
-    },
-    fetchPolicy: "cache-and-network",
-  });
-
-  if (loading) return <LoadingState />;
-
-  const transactions: ISPTransaction[] = data?.transactions?.transactions || [];
   if (transactions.length === 0) return <EmptyState />;
 
   // Calculate date ranges based on selected time period

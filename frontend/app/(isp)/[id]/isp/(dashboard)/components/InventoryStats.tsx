@@ -1,7 +1,5 @@
 "use client";
 
-import { useQuery } from "@apollo/client";
-import { GET_ISP_INVENTORIES } from "@/graphql/isp_inventory";
 import { Loader2, Package, AlertTriangle, Boxes, CircleDollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,10 +10,14 @@ interface Inventory {
   category: string;
   status: string;
   quantity: number;
-  quantityThreshold: number;
+  quantityThreshold?: number;
   unitPrice: number;
   createdAt: string;
   updatedAt: string;
+}
+
+interface InventoryStatsProps {
+  inventories: Inventory[];
 }
 
 const LoadingState = () => (
@@ -34,20 +36,7 @@ const EmptyState = () => (
   </div>
 );
 
-export function InventoryStats() {
-  const { data, loading } = useQuery(GET_ISP_INVENTORIES, {
-    variables: {
-      organizationId: typeof window !== 'undefined' ? 
-        window.location.pathname.split('/')[1] : '',
-      page: 1,
-      pageSize: 100, // Get enough inventory items for meaningful stats
-    },
-    fetchPolicy: "cache-and-network",
-  });
-
-  if (loading) return <LoadingState />;
-
-  const inventories: Inventory[] = data?.inventories?.inventories || [];
+export function InventoryStats({ inventories }: InventoryStatsProps) {
   if (inventories.length === 0) return <EmptyState />;
 
   const totalItems = inventories.length;
@@ -57,7 +46,7 @@ export function InventoryStats() {
   
   // Find items with low stock (below threshold)
   const lowStockItems = inventories.filter(
-    item => item.quantity <= item.quantityThreshold
+    item => item.quantity <= (item.quantityThreshold || 0)
   ).length;
   
   // Calculate total inventory value

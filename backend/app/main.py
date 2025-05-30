@@ -21,6 +21,7 @@ from app.resolvers.isp_transactions import ISPTransactionResolver
 from app.resolvers.sms import SMSResolver
 from app.resolvers.sms_template import SmsTemplateResolver
 from app.api import mpesa, sms, hotspot
+from app.resolvers.dashboard import DashboardResolver
 
 @strawberry.type
 class Query(
@@ -37,7 +38,8 @@ class Query(
     ISPCustomerAccountingResolver,
     ISPCustomerPaymentResolver,
     ISPTransactionResolver,
-    SmsTemplateResolver
+    SmsTemplateResolver,
+    DashboardResolver
 ):
     pass
 

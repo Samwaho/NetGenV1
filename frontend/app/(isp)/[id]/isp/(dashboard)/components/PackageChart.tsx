@@ -25,6 +25,11 @@ interface ISPCustomer {
   };
 }
 
+interface ISPPackage {
+  id: string;
+  name: string;
+}
+
 interface PackageData {
   name: string;
   value: number;
@@ -105,23 +110,15 @@ const CustomLegend = ({ payload }: { payload?: Array<{ value: string; color: str
   );
 };
 
-export function PackageChart() {
+interface PackageChartProps {
+  packages: ISPPackage[];
+  customers: ISPCustomer[];
+}
+
+export function PackageChart({ packages, customers }: PackageChartProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   
-  const { data, loading } = useQuery(GET_ISP_CUSTOMERS, {
-    variables: {
-      organizationId: typeof window !== 'undefined' ? 
-        window.location.pathname.split('/')[1] : '',
-      page: 1,
-      pageSize: 100, // Get enough customers for a meaningful chart
-    },
-    fetchPolicy: "cache-and-network",
-  });
-
-  if (loading) return <LoadingState />;
-
-  const customers: ISPCustomer[] = data?.customers?.customers || [];
   if (customers.length === 0) return <EmptyState />;
 
   // Count customers by package

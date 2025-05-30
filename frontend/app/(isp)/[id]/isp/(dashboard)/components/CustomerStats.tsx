@@ -1,7 +1,5 @@
 "use client";
 
-import { useQuery } from "@apollo/client";
-import { GET_ISP_CUSTOMERS } from "@/graphql/isp_customers";
 import { Loader2, Users, TrendingUp, Signal, Wifi, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +20,10 @@ interface ISPCustomer {
   };
 }
 
+interface CustomerStatsProps {
+  customers: ISPCustomer[];
+}
+
 const LoadingState = () => (
   <div className="flex flex-col items-center justify-center h-[120px]">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -38,20 +40,7 @@ const EmptyState = () => (
   </div>
 );
 
-export function CustomerStats() {
-  const { data, loading } = useQuery(GET_ISP_CUSTOMERS, {
-    variables: {
-      organizationId: typeof window !== 'undefined' ? 
-        window.location.pathname.split('/')[1] : '',
-      page: 1,
-      pageSize: 100, // Get enough customers for meaningful stats
-    },
-    fetchPolicy: "cache-and-network",
-  });
-
-  if (loading) return <LoadingState />;
-
-  const customers: ISPCustomer[] = data?.customers?.customers || [];
+export function CustomerStats({ customers }: CustomerStatsProps) {
   if (customers.length === 0) return <EmptyState />;
 
   const totalCustomers = customers.length;

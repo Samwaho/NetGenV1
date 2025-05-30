@@ -1,10 +1,22 @@
 "use client";
 
-import { useQuery } from "@apollo/client";
-import { GET_ISP_TICKETS } from "@/graphql/isp_tickets";
 import { Loader2, TicketIcon, AlertCircle, Clock, CheckCircle2, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Ticket } from "@/graphql/isp_tickets";
+
+interface Ticket {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  category: string;
+  customer?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
 
 const LoadingState = () => (
   <div className="flex flex-col items-center justify-center h-[120px]">
@@ -22,20 +34,11 @@ const EmptyState = () => (
   </div>
 );
 
-export function TicketStats() {
-  const { data, loading } = useQuery(GET_ISP_TICKETS, {
-    variables: {
-      organizationId: typeof window !== 'undefined' ? 
-        window.location.pathname.split('/')[1] : '',
-      page: 1,
-      pageSize: 100, // Get enough tickets for meaningful stats
-    },
-    fetchPolicy: "cache-and-network",
-  });
+interface TicketStatsProps {
+  tickets: Ticket[];
+}
 
-  if (loading) return <LoadingState />;
-
-  const tickets: Ticket[] = data?.tickets?.tickets || [];
+export function TicketStats({ tickets }: TicketStatsProps) {
   if (tickets.length === 0) return <EmptyState />;
 
   const totalTickets = tickets.length;
