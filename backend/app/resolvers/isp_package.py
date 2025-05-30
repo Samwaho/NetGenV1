@@ -17,6 +17,8 @@ import logging
 from functools import lru_cache
 from pymongo import ASCENDING, DESCENDING
 from motor.motor_asyncio import AsyncIOMotorClientSession
+from app.config.redis import redis
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,28 @@ NOT_AUTHORIZED = "Not authorized to access this resource"
 # Cache for organization permissions check - 5 minute TTL
 permission_cache: Dict[str, Dict[str, Any]] = {}
 
+CACHE_TTL = 300  # 5 minutes
+
+def package_cache_key(package_id: str) -> str:
+    return f"isp_package:{package_id}"
+
+def packages_cache_key(user_id: str, org_id: str, page: int, page_size: int, sort_by: str, sort_direction: str, search: str) -> str:
+    return f"isp_packages:{user_id}:{org_id}:{page}:{page_size}:{sort_by}:{sort_direction}:{search or 'none'}"
+
+def serialize(obj):
+    return json.dumps(obj, default=str)
+
+def deserialize(s):
+    return json.loads(s)
+
+def parse_package_datetimes(package_dict):
+    for field in ["createdAt", "updatedAt"]:
+        if field in package_dict and isinstance(package_dict[field], str):
+            try:
+                package_dict[field] = datetime.fromisoformat(package_dict[field])
+            except Exception:
+                pass
+    return package_dict
 
 async def clear_package_cache(org_id: Optional[str] = None):
     """Clear relevant caches when packages are modified"""
@@ -115,7 +139,21 @@ class ISPPackageResolver:
         """
         context: Context = info.context
         current_user = await context.authenticate()
-        
+
+        cache_key = package_cache_key(id)
+        cached = await redis.get(cache_key)
+        if cached:
+            data = deserialize(cached)
+            data = parse_package_datetimes(data)
+            pkg_obj = await ISPPackage.from_db(data)
+            if pkg_obj.organization is None:
+                raise HTTPException(status_code=404, detail="Organization not found for this package")
+            return ISPPackageResponse(
+                success=True,
+                message="Package retrieved successfully (cache)",
+                package=pkg_obj
+            )
+
         try:
             # Validate ID format
             package_id = ObjectId(id)
@@ -138,6 +176,7 @@ class ISPPackageResolver:
             # Verify user has access to the organization this package belongs to
             await validate_organization_access(package["organizationId"], current_user.id)
 
+            await redis.set(cache_key, serialize(package), ex=CACHE_TTL)
             return ISPPackageResponse(
                 success=True,
                 message="Package retrieved successfully",
@@ -180,7 +219,29 @@ class ISPPackageResolver:
         """
         context: Context = info.context
         current_user = await context.authenticate()
+        logger = logging.getLogger(__name__)
 
+        cache_key = packages_cache_key(current_user.id, organizationId, page, pageSize, sortBy, sortDirection, search)
+        cached = await redis.get(cache_key)
+        if cached:
+            logger.debug(f"[CACHE] Hit for key: {cache_key}")
+            data = deserialize(cached)
+            package_list = []
+            for p in data["packages"]:
+                pkg_obj = await ISPPackage.from_db(parse_package_datetimes(p))
+                if pkg_obj.organization is None:
+                    logger.warning(f"[CACHE] Skipping package with missing organization: {p}")
+                    continue
+                package_list.append(pkg_obj)
+            logger.debug(f"[CACHE] Returning {len(package_list)} packages from cache for key: {cache_key}")
+            return ISPPackagesResponse(
+                success=True,
+                message="Packages retrieved successfully (cache)",
+                packages=package_list,
+                totalCount=data["totalCount"]
+            )
+
+        logger.debug(f"[CACHE] Miss for key: {cache_key}")
         try:
             # Validate ID format
             org_id = ObjectId(organizationId)
@@ -222,8 +283,14 @@ class ISPPackageResolver:
             # Convert to ISPPackage objects
             package_list = []
             for package in all_packages:
-                package_list.append(await ISPPackage.from_db(package))
+                pkg_obj = await ISPPackage.from_db(package)
+                if pkg_obj.organization is None:
+                    continue
+                package_list.append(pkg_obj)
 
+            # Cache the raw DB documents, not ISPPackage dicts
+            await redis.set(cache_key, serialize({"packages": all_packages, "totalCount": total_count}), ex=CACHE_TTL)
+            logger.debug(f"[CACHE] Wrote {len(all_packages)} packages to cache for key: {cache_key}")
             return ISPPackagesResponse(
                 success=True,
                 message="Packages retrieved successfully",
@@ -303,6 +370,12 @@ class ISPPackageResolver:
 
             # Clear cache for this organization
             await clear_package_cache(org_id=input.organizationId)
+
+            # Invalidate all isp_packages:* cache keys for this org (wildcard delete)
+            deleted = [key async for key in redis.scan_iter(f"isp_packages:*{input.organizationId}*")]
+            if deleted:
+                await redis.delete(*deleted)
+                logger.debug(f"[CACHE] Invalidated {len(deleted)} package cache keys after create for org {input.organizationId}")
 
             return ISPPackageResponse(
                 success=True,
@@ -413,6 +486,13 @@ class ISPPackageResolver:
             # Clear cache for this organization
             await clear_package_cache(org_id=str(package["organizationId"]))
 
+            # Invalidate cache for this package and all packages lists for this org
+            deleted = [key async for key in redis.scan_iter(f"isp_packages:*{package['organizationId']}*")]
+            if deleted:
+                await redis.delete(*deleted)
+                logger.debug(f"[CACHE] Invalidated {len(deleted)} package cache keys after update for org {package['organizationId']}")
+            await redis.delete(package_cache_key(id))
+
             updated_package = await isp_packages.find_one({"_id": package_id})
             return ISPPackageResponse(
                 success=True,
@@ -489,6 +569,13 @@ class ISPPackageResolver:
 
             # Clear cache for this organization
             await clear_package_cache(org_id=str(package["organizationId"]))
+
+            # Invalidate cache for this package and all packages lists for this org
+            deleted = [key async for key in redis.scan_iter(f"isp_packages:*{package['organizationId']}*")]
+            if deleted:
+                await redis.delete(*deleted)
+                logger.debug(f"[CACHE] Invalidated {len(deleted)} package cache keys after delete for org {package['organizationId']}")
+            await redis.delete(package_cache_key(id))
 
             return ISPPackageResponse(
                 success=True,

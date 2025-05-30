@@ -15,6 +15,8 @@ from app.config.utils import record_activity
 from app.api.mpesa import process_customer_payment
 import logging
 from pymongo import ASCENDING, DESCENDING
+from app.config.redis import redis
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,28 @@ logger = logging.getLogger(__name__)
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
 
+CACHE_TTL = 300  # 5 minutes
+
+def transaction_cache_key(transaction_id: str) -> str:
+    return f"isp_transaction:{transaction_id}"
+
+def transactions_cache_key(user_id: str, org_id: str, page: int, page_size: int, sort_by: str, sort_direction: str, search: str) -> str:
+    return f"isp_transactions:{user_id}:{org_id}:{page}:{page_size}:{sort_by}:{sort_direction}:{search or 'none'}"
+
+def serialize(obj):
+    return json.dumps(obj, default=str)
+
+def deserialize(s):
+    return json.loads(s)
+
+def parse_transaction_datetimes(transaction_dict):
+    for field in ["createdAt", "updatedAt", "transTime"]:
+        if field in transaction_dict and isinstance(transaction_dict[field], str):
+            try:
+                transaction_dict[field] = datetime.fromisoformat(transaction_dict[field])
+            except Exception:
+                pass
+    return transaction_dict
 
 @strawberry.type
 class ISPTransactionResolver:
@@ -45,6 +69,13 @@ class ISPTransactionResolver:
         context: Context = info.context
         current_user = await context.authenticate()
 
+        cache_key = transaction_cache_key(id)
+        cached = await redis.get(cache_key)
+        if cached:
+            data = deserialize(cached)
+            data = parse_transaction_datetimes(data)
+            return await ISPTransaction.from_db(data)
+
         try:
             object_id = ObjectId(id)
         except:
@@ -63,6 +94,7 @@ class ISPTransactionResolver:
         if not org:
             raise HTTPException(status_code=403, detail="Not authorized to access this transaction")
             
+        await redis.set(cache_key, serialize(transaction), ex=CACHE_TTL)
         return await ISPTransaction.from_db(transaction)
 
     @strawberry.field
@@ -79,6 +111,18 @@ class ISPTransactionResolver:
         try:
             context: Context = info.context
             current_user = await context.authenticate()
+
+            cache_key = transactions_cache_key(current_user.id, organization_id, page, page_size, sort_by, sort_direction, search)
+            cached = await redis.get(cache_key)
+            if cached:
+                data = deserialize(cached)
+                transaction_list = [await ISPTransaction.from_db(parse_transaction_datetimes(t)) for t in data["transactions"]]
+                return ISPTransactionsResponse(
+                    success=True,
+                    message="Transactions retrieved successfully (cache)",
+                    transactions=transaction_list,
+                    total_count=data["total_count"]
+                )
 
             org_object_id = ObjectId(organization_id)
             query_filter = {"organizationId": org_object_id}
@@ -102,6 +146,7 @@ class ISPTransactionResolver:
             cursor = cursor.skip((page - 1) * page_size).limit(page_size)
         
             transactions = await cursor.to_list(None)
+            await redis.set(cache_key, serialize({"transactions": transactions, "total_count": total_count}), ex=CACHE_TTL)
             transformed_transactions = []
             for t in transactions:
                 t['id'] = str(t['_id'])
@@ -193,6 +238,9 @@ class ISPTransactionResolver:
             activity_message
         )
 
+        # Invalidate all isp_transactions:* cache keys for this org
+        await redis.delete(*[key async for key in redis.scan_iter(f"isp_transactions:*{input.organizationId}*")])
+
         return ISPTransactionResponse(
             success=True,
             message="Transaction created successfully",
@@ -253,6 +301,10 @@ class ISPTransactionResolver:
         except Exception as e:
             logger.error(f"Database error when deleting transaction: {str(e)}")
             raise HTTPException(status_code=500, detail="Database error occurred")
+
+        # Invalidate cache for this transaction and all transactions lists for this org
+        await redis.delete(transaction_cache_key(id))
+        await redis.delete(*[key async for key in redis.scan_iter(f"isp_transactions:*{transaction['organizationId']}*")])
 
         return ISPTransactionResponse(
             success=True,

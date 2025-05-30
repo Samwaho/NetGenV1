@@ -18,6 +18,8 @@ from app.config.deps import Context
 from app.config.utils import record_activity
 import logging
 import re
+from app.config.redis import redis
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,29 @@ NOT_AUTHORIZED = "Not authorized to access this organization"
 
 # Cache for organization permissions
 permission_cache: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+CACHE_TTL = 300  # 5 minutes
+
+def station_cache_key(station_id: str) -> str:
+    return f"isp_station:{station_id}"
+
+def stations_cache_key(user_id: str, org_id: str, page: int, page_size: int, sort_by: str, sort_direction: str, filter_status: str, search: str) -> str:
+    return f"isp_stations:{user_id}:{org_id}:{page}:{page_size}:{sort_by}:{sort_direction}:{filter_status or 'all'}:{search or 'none'}"
+
+def serialize(obj):
+    return json.dumps(obj, default=str)
+
+def deserialize(s):
+    return json.loads(s)
+
+def parse_station_datetimes(station_dict):
+    for field in ["createdAt", "updatedAt"]:
+        if field in station_dict and isinstance(station_dict[field], str):
+            try:
+                station_dict[field] = datetime.fromisoformat(station_dict[field])
+            except Exception:
+                pass
+    return station_dict
 
 async def clear_station_cache(org_id: Optional[str] = None):
     """Clear relevant caches when stations are modified"""
@@ -98,6 +123,17 @@ class ISPStationResolver:
         context: Context = info.context
         current_user = await context.authenticate()
 
+        cache_key = station_cache_key(id)
+        cached = await redis.get(cache_key)
+        if cached:
+            data = deserialize(cached)
+            data = parse_station_datetimes(data)
+            return ISPStationResponse(
+                success=True,
+                message="Station retrieved successfully (cache)",
+                station=await ISPStation.from_db(data)
+            )
+
         station = await isp_stations.find_one({"_id": ObjectId(id)})
         if not station:
             raise HTTPException(status_code=404, detail="Station not found")
@@ -119,6 +155,7 @@ class ISPStationResolver:
         if not org:
             raise HTTPException(status_code=403, detail="Not authorized to access this station")
 
+        await redis.set(cache_key, serialize(station), ex=CACHE_TTL)
         return ISPStationResponse(
             success=True,
             message="Station retrieved successfully",
@@ -140,6 +177,18 @@ class ISPStationResolver:
         """Get all ISP stations for a specific organization with pagination and filtering"""
         context: Context = info.context
         current_user = await context.authenticate()
+
+        cache_key = stations_cache_key(current_user.id, organization_id, page, page_size, sort_by, sort_direction, filter_status, search)
+        cached = await redis.get(cache_key)
+        if cached:
+            data = deserialize(cached)
+            station_list = [await ISPStation.from_db(parse_station_datetimes(s)) for s in data["stations"]]
+            return ISPStationsResponse(
+                success=True,
+                message="Stations retrieved successfully (cache)",
+                stations=station_list,
+                totalCount=data["totalCount"]
+            )
 
         try:
             # Verify organization access first
@@ -184,14 +233,16 @@ class ISPStationResolver:
             stations = []
             async for station in cursor:
                 logger.debug(f"Found station: {station['name']}")
-                stations.append(await ISPStation.from_db(station))
+                stations.append(station)
 
             logger.debug(f"Returning {len(stations)} stations")
 
+            await redis.set(cache_key, serialize({"stations": stations, "totalCount": total_count}), ex=CACHE_TTL)
+            station_objs = [await ISPStation.from_db(s) for s in stations]
             return ISPStationsResponse(
                 success=True,
                 message="Stations retrieved successfully",
-                stations=stations,
+                stations=station_objs,
                 totalCount=total_count
             )
 
@@ -242,6 +293,9 @@ class ISPStationResolver:
             ObjectId(input.organizationId),
             f"created ISP station {input.name}"
         )
+
+        # Invalidate all isp_stations:* cache keys for this org
+        await redis.delete(*[key async for key in redis.scan_iter(f"isp_stations:*{input.organizationId}*")])
 
         return ISPStationResponse(
             success=True,
@@ -294,6 +348,11 @@ class ISPStationResolver:
         )
 
         updated_station = await isp_stations.find_one({"_id": ObjectId(id)})
+
+        # Invalidate cache for this station and all stations lists for this org
+        await redis.delete(station_cache_key(id))
+        await redis.delete(*[key async for key in redis.scan_iter(f"isp_stations:*{station['organizationId']}*")])
+
         return ISPStationResponse(
             success=True,
             message="Station updated successfully",
@@ -327,6 +386,10 @@ class ISPStationResolver:
         )
 
         await isp_stations.delete_one({"_id": ObjectId(id)})
+
+        # Invalidate cache for this station and all stations lists for this org
+        await redis.delete(station_cache_key(id))
+        await redis.delete(*[key async for key in redis.scan_iter(f"isp_stations:*{station['organizationId']}*")])
 
         return ISPStationResponse(
             success=True,

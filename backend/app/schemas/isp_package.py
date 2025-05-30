@@ -5,6 +5,7 @@ from dataclasses import field
 from app.schemas.organization import Organization
 from enum import Enum
 from functools import lru_cache
+from bson import ObjectId
 
 
 @strawberry.enum
@@ -88,14 +89,19 @@ class ISPPackage:
         """
         from app.config.database import organizations
 
-        # Determine if input is a dict or object
         is_dict = isinstance(package, dict)
-        
-        # Get organization ID based on input type
         org_id = package["organizationId"] if is_dict else package.organizationId
-        
-        # Fetch organization data - this could be optimized with DataLoader in a real app
-        org_data = await organizations.find_one({"_id": org_id})
+
+        # Ensure org_id is an ObjectId
+        if not isinstance(org_id, ObjectId):
+            try:
+                org_id = ObjectId(org_id)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning(f"Invalid organizationId for package: {package}")
+                org_id = None
+
+        org_data = await organizations.find_one({"_id": org_id}) if org_id else None
         organization = await Organization.from_db(org_data) if org_data else None
 
         # Create kwargs for constructor

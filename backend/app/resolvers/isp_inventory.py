@@ -18,12 +18,37 @@ import logging
 import re
 from pymongo import ASCENDING, DESCENDING
 from functools import lru_cache
+from app.config.redis import redis
+import json
 
 logger = logging.getLogger(__name__)
 
 # Constants for pagination
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
+
+CACHE_TTL = 300  # 5 minutes
+
+def inventory_cache_key(inventory_id: str) -> str:
+    return f"isp_inventory:{inventory_id}"
+
+def inventories_cache_key(user_id: str, org_id: str, page: int, page_size: int, sort_by: str, sort_direction: str, filter_category: str, filter_status: str, search: str) -> str:
+    return f"isp_inventories:{user_id}:{org_id}:{page}:{page_size}:{sort_by}:{sort_direction}:{filter_category or 'all'}:{filter_status or 'all'}:{search or 'none'}"
+
+def serialize(obj):
+    return json.dumps(obj, default=str)
+
+def deserialize(s):
+    return json.loads(s)
+
+def parse_inventory_datetimes(inv_dict):
+    for field in ["createdAt", "updatedAt", "warrantyExpirationDate", "purchaseDate"]:
+        if field in inv_dict and isinstance(inv_dict[field], str):
+            try:
+                inv_dict[field] = datetime.fromisoformat(inv_dict[field])
+            except Exception:
+                pass
+    return inv_dict
 
 @strawberry.type
 class ISPInventoryResolver:
@@ -33,6 +58,17 @@ class ISPInventoryResolver:
         """Get a specific inventory item"""
         context: Context = info.context
         current_user = await context.authenticate()
+
+        cache_key = inventory_cache_key(id)
+        cached = await redis.get(cache_key)
+        if cached:
+            data = deserialize(cached)
+            data = parse_inventory_datetimes(data)
+            return ISPInventoryResponse(
+                success=True,
+                message="Inventory item retrieved successfully (cache)",
+                inventory=await ISPInventory.from_db(data)
+            )
 
         try:
             object_id = ObjectId(id)
@@ -52,6 +88,7 @@ class ISPInventoryResolver:
         if not org:
             raise HTTPException(status_code=403, detail="Not authorized to access this inventory item")
 
+        await redis.set(cache_key, serialize(inventory), ex=CACHE_TTL)
         return ISPInventoryResponse(
             success=True,
             message="Inventory item retrieved successfully",
@@ -90,6 +127,23 @@ class ISPInventoryResolver:
         """
         context: Context = info.context
         current_user = await context.authenticate()
+
+        cache_key = inventories_cache_key(
+            current_user.id, organization_id, page, page_size, sort_by, sort_direction,
+            str(filter_category) if filter_category else None,
+            str(filter_status) if filter_status else None,
+            search
+        )
+        cached = await redis.get(cache_key)
+        if cached:
+            data = deserialize(cached)
+            inventory_list = [await ISPInventory.from_db(parse_inventory_datetimes(i)) for i in data["inventories"]]
+            return ISPInventoriesResponse(
+                success=True,
+                message="Inventory items retrieved successfully (cache)",
+                inventories=inventory_list,
+                total_count=data["total_count"]
+            )
 
         # Validate parameters
         try:
@@ -152,6 +206,7 @@ class ISPInventoryResolver:
         for item in all_items:
             inventory_list.append(await ISPInventory.from_db(item))
 
+        await redis.set(cache_key, serialize({"inventories": all_items, "total_count": total_count}), ex=CACHE_TTL)
         return ISPInventoriesResponse(
             success=True,
             message="Inventory items retrieved successfully",
@@ -225,6 +280,8 @@ class ISPInventoryResolver:
             f"created inventory item {input.name}"
         )
 
+        # Invalidate all isp_inventories:* cache keys for this org (wildcard delete)
+        await redis.delete(*[key async for key in redis.scan_iter(f"isp_inventories:*{input.organizationId}*")])
         return ISPInventoryResponse(
             success=True,
             message="Inventory item created successfully",
@@ -307,6 +364,10 @@ class ISPInventoryResolver:
         )
 
         updated_inventory = await isp_inventories.find_one({"_id": object_id})
+
+        # Invalidate cache for this inventory and all inventories lists for this org
+        await redis.delete(inventory_cache_key(id))
+        await redis.delete(*[key async for key in redis.scan_iter(f"isp_inventories:*{inventory['organizationId']}*")])
         return ISPInventoryResponse(
             success=True,
             message="Inventory item updated successfully",
@@ -355,6 +416,9 @@ class ISPInventoryResolver:
             logger.error(f"Database error when deleting inventory item: {str(e)}")
             raise HTTPException(status_code=500, detail="Database error occurred")
 
+        # Invalidate cache for this inventory and all inventories lists for this org
+        await redis.delete(inventory_cache_key(id))
+        await redis.delete(*[key async for key in redis.scan_iter(f"isp_inventories:*{inventory['organizationId']}*")])
         return ISPInventoryResponse(
             success=True,
             message="Inventory item deleted successfully",

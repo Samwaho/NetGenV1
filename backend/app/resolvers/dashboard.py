@@ -14,6 +14,48 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+CACHE_TTL = 300  # 5 minutes
+
+def serialize(obj):
+    import json
+    return json.dumps(obj, default=str)
+
+def deserialize(s):
+    import json
+    return json.loads(s)
+
+def parse_dashboard_datetimes(data):
+    # Parse datetimes for customers, tickets, inventories, packages, transactions
+    def parse_dt(val):
+        from datetime import datetime
+        if isinstance(val, str):
+            try:
+                return datetime.fromisoformat(val)
+            except Exception:
+                return val
+        return val
+    for c in data.get("customers", []):
+        for field in ["expirationDate", "createdAt", "updatedAt"]:
+            if field in c:
+                c[field] = parse_dt(c[field])
+    for t in data.get("tickets", []):
+        for field in ["createdAt", "updatedAt"]:
+            if field in t:
+                t[field] = parse_dt(t[field])
+    for i in data.get("inventories", []):
+        for field in ["createdAt", "updatedAt"]:
+            if field in i:
+                i[field] = parse_dt(i[field])
+    for p in data.get("packages", []):
+        for field in ["createdAt", "updatedAt"]:
+            if field in p:
+                p[field] = parse_dt(p[field])
+    for tr in data.get("transactions", []):
+        for field in ["createdAt", "updatedAt"]:
+            if field in tr:
+                tr[field] = parse_dt(tr[field])
+    return data
+
 @strawberry.type
 class DashboardStats:
     customers: List[ISPCustomer]
@@ -35,7 +77,8 @@ class DashboardResolver:
         cached = await redis.get(cache_key)
         if cached:
             try:
-                data = json.loads(cached)
+                data = deserialize(cached)
+                data = parse_dashboard_datetimes(data)
                 # Create partial objects with only the fields needed for display
                 return DashboardStats(
                     customers=[
@@ -48,9 +91,9 @@ class DashboardResolver:
                             username=c["username"],
                             status=c["status"],
                             online=c["online"],
-                            expirationDate=datetime.fromisoformat(c["expirationDate"]) if c["expirationDate"] else None,
-                            createdAt=datetime.fromisoformat(c["createdAt"]) if c["createdAt"] else None,
-                            updatedAt=datetime.fromisoformat(c["updatedAt"]) if c["updatedAt"] else None,
+                            expirationDate=c["expirationDate"] if c["expirationDate"] else None,
+                            createdAt=c["createdAt"] if c["createdAt"] else None,
+                            updatedAt=c["updatedAt"] if c["updatedAt"] else None,
                             # Add default values for required fields
                             password="",  # Empty password for display purposes
                             organization=None,  # Will be populated if needed
@@ -164,7 +207,7 @@ class DashboardResolver:
         }
         
         try:
-            await redis.set(cache_key, json.dumps(serializable_data), ex=60)
+            await redis.set(cache_key, serialize(serializable_data), ex=CACHE_TTL)
         except Exception as e:
             logger.error(f"Error caching dashboard data: {str(e)}")
             # Continue even if caching fails
