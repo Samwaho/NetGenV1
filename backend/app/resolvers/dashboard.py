@@ -9,7 +9,7 @@ from app.config.database import isp_customers, isp_tickets, isp_inventories, isp
 from app.config.redis import redis
 from bson.objectid import ObjectId
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -98,17 +98,114 @@ class DashboardResolver:
                             password="",  # Empty password for display purposes
                             organization=None,  # Will be populated if needed
                             station=None,  # Will be populated if needed
-                            package=ISPPackage(**c["package"]) if c["package"] else None,
+                            package=ISPPackage(
+                                id=c["package"]["id"],
+                                name=c["package"]["name"],
+                                description=c["package"].get("description", ""),
+                                price=c["package"].get("price", 0.0),
+                                organization=None,  # Will be populated if needed
+                                downloadSpeed=c["package"].get("downloadSpeed", 0.0),
+                                uploadSpeed=c["package"].get("uploadSpeed", 0.0),
+                                createdAt=c["package"].get("createdAt", datetime.now(timezone.utc)),
+                                updatedAt=c["package"].get("updatedAt", datetime.now(timezone.utc))
+                            ) if c.get("package") else None,
                             initialAmount=c.get("initialAmount", 0.0),
                             isNew=c.get("isNew", False),
                             reminderDaysSent=c.get("reminderDaysSent", [])
                         )
                         for c in data["customers"]
                     ],
-                    tickets=[ISPTicket(**t) for t in data["tickets"]],
-                    inventories=[ISPInventory(**i) for i in data["inventories"]],
-                    packages=[ISPPackage(**p) for p in data["packages"]],
-                    transactions=[ISPTransaction(**tr) for tr in data["transactions"]],
+                    tickets=[
+                        ISPTicket(
+                            id=t["id"],
+                            title=t["title"],
+                            description=t.get("description", ""),
+                            status=t["status"],
+                            priority=t["priority"],
+                            category=t["category"],
+                            organization=None,  # Will be populated if needed
+                            createdAt=t["createdAt"] if t["createdAt"] else None,
+                            updatedAt=t["updatedAt"] if t["updatedAt"] else None
+                        )
+                        for t in data["tickets"]
+                    ],
+                    inventories=[
+                        ISPInventory(
+                            id=i["id"],
+                            name=i["name"],
+                            category=i["category"],
+                            organization=None,  # Will be populated if needed
+                            model=i.get("model"),
+                            manufacturer=i.get("manufacturer"),
+                            serialNumber=i.get("serialNumber"),
+                            macAddress=i.get("macAddress"),
+                            ipAddress=i.get("ipAddress"),
+                            quantity=i.get("quantity", 0),
+                            quantityThreshold=i.get("quantityThreshold"),
+                            unitPrice=i.get("unitPrice", 0.0),
+                            status=i["status"],
+                            location=i.get("location"),
+                            assignedTo=i.get("assignedTo"),
+                            warrantyExpirationDate=i.get("warrantyExpirationDate"),
+                            purchaseDate=i.get("purchaseDate"),
+                            specifications=i.get("specifications"),
+                            notes=i.get("notes"),
+                            createdAt=i["createdAt"] if i["createdAt"] else None,
+                            updatedAt=i["updatedAt"] if i["updatedAt"] else None
+                        )
+                        for i in data["inventories"]
+                    ],
+                    packages=[
+                        ISPPackage(
+                            id=p["id"],
+                            name=p["name"],
+                            description=p.get("description", ""),
+                            price=p.get("price", 0.0),
+                            organization=None,  # Will be populated if needed
+                            downloadSpeed=p.get("downloadSpeed", 0.0),
+                            uploadSpeed=p.get("uploadSpeed", 0.0),
+                            burstDownload=p.get("burstDownload", 0.0),
+                            burstUpload=p.get("burstUpload", 0.0),
+                            thresholdDownload=p.get("thresholdDownload", 0.0),
+                            thresholdUpload=p.get("thresholdUpload", 0.0),
+                            burstTime=p.get("burstTime", 0),
+                            serviceType=p.get("serviceType"),
+                            addressPool=p.get("addressPool"),
+                            sessionTimeout=p.get("sessionTimeout"),
+                            idleTimeout=p.get("idleTimeout"),
+                            priority=p.get("priority"),
+                            vlanId=p.get("vlanId"),
+                            showInHotspot=p.get("showInHotspot", False),
+                            duration=p.get("duration"),
+                            durationUnit=p.get("durationUnit"),
+                            dataLimit=p.get("dataLimit"),
+                            dataLimitUnit=p.get("dataLimitUnit"),
+                            createdAt=p["createdAt"] if p["createdAt"] else None,
+                            updatedAt=p["updatedAt"] if p["updatedAt"] else None
+                        )
+                        for p in data["packages"]
+                    ],
+                    transactions=[
+                        ISPTransaction(
+                            id=tr["id"],
+                            transactionId=tr.get("transactionId", ""),
+                            transactionType=tr.get("transactionType", ""),
+                            transTime=tr.get("transTime", ""),
+                            amount=tr.get("amount", 0.0),
+                            businessShortCode=tr.get("businessShortCode", ""),
+                            billRefNumber=tr.get("billRefNumber", ""),
+                            invoiceNumber=tr.get("invoiceNumber", ""),
+                            orgAccountBalance=tr.get("orgAccountBalance", ""),
+                            thirdPartyTransID=tr.get("thirdPartyTransID", ""),
+                            phoneNumber=tr.get("phoneNumber", ""),
+                            firstName=tr.get("firstName", ""),
+                            middleName=tr.get("middleName"),
+                            lastName=tr.get("lastName", ""),
+                            createdAt=tr["createdAt"] if tr["createdAt"] else None,
+                            updatedAt=tr["updatedAt"] if tr["updatedAt"] else None
+                        )
+                        for tr in data["transactions"]
+                    ],
                     total_customers=data["total_customers"],
                     total_tickets=data["total_tickets"],
                     total_inventory_items=data["total_inventory_items"],
@@ -193,7 +290,7 @@ class DashboardResolver:
             } for p in packages],
             "transactions": [tr.to_dict() if hasattr(tr, 'to_dict') else {
                 "id": tr.id,
-                "transactionId": tr.transactionId,
+                "transactionId": getattr(tr, 'transactionId', tr.id),  # Use id as fallback if transactionId is missing
                 "transactionType": tr.transactionType,
                 "amount": tr.amount,
                 "createdAt": tr.createdAt.isoformat() if hasattr(tr, 'createdAt') and tr.createdAt else None,

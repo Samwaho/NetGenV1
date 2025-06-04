@@ -1,5 +1,5 @@
 import strawberry
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, ClassVar, Union, cast
 from dataclasses import field
 from bson.objectid import ObjectId
@@ -37,44 +37,46 @@ class ISPTransaction:
         Returns:
             ISPTransaction: A properly formatted ISPTransaction object
         """
+        current_time = datetime.now(timezone.utc)
+        
         # Handle both dictionary and object types
         if isinstance(transaction, dict):
             converted_transaction = {
                 "id": str(transaction["_id"]),
-                "transactionId": transaction["transactionId"],
-                "transactionType": transaction["transactionType"],
-                "transTime": transaction["transTime"],
-                "amount": transaction["amount"],
-                "businessShortCode": transaction["businessShortCode"],
-                "billRefNumber": transaction["billRefNumber"],
-                "invoiceNumber": transaction["invoiceNumber"],
-                "orgAccountBalance": transaction["orgAccountBalance"],
-                "thirdPartyTransID": transaction["thirdPartyTransID"],
-                "phoneNumber": transaction["phoneNumber"],
-                "firstName": transaction["firstName"],
+                "transactionId": transaction.get("transactionId", ""),
+                "transactionType": transaction.get("transactionType", ""),
+                "transTime": transaction.get("transTime", ""),
+                "amount": transaction.get("amount", 0.0),
+                "businessShortCode": transaction.get("businessShortCode", ""),
+                "billRefNumber": transaction.get("billRefNumber", ""),
+                "invoiceNumber": transaction.get("invoiceNumber", ""),
+                "orgAccountBalance": transaction.get("orgAccountBalance", ""),
+                "thirdPartyTransID": transaction.get("thirdPartyTransID", ""),
+                "phoneNumber": transaction.get("phoneNumber", ""),
+                "firstName": transaction.get("firstName", ""),
                 "middleName": transaction.get("middleName"),
-                "lastName": transaction["lastName"],
-                "createdAt": transaction["createdAt"],
-                "updatedAt": transaction["updatedAt"]
+                "lastName": transaction.get("lastName", ""),
+                "createdAt": transaction.get("createdAt", current_time),
+                "updatedAt": transaction.get("updatedAt", current_time)
             }
         else:
             converted_transaction = {
                 "id": str(transaction._id),
-                "transactionId": transaction.transactionId,
-                "transactionType": transaction.transactionType,
-                "transTime": transaction.transTime,
-                "amount": transaction.amount,
-                "businessShortCode": transaction.businessShortCode,
-                "billRefNumber": transaction.billRefNumber,
-                "invoiceNumber": transaction.invoiceNumber,
-                "orgAccountBalance": transaction.orgAccountBalance,
-                "thirdPartyTransID": transaction.thirdPartyTransID,
-                "phoneNumber": transaction.phoneNumber,
-                "firstName": transaction.firstName,
+                "transactionId": getattr(transaction, 'transactionId', ''),
+                "transactionType": getattr(transaction, 'transactionType', ''),
+                "transTime": getattr(transaction, 'transTime', ''),
+                "amount": getattr(transaction, 'amount', 0.0),
+                "businessShortCode": getattr(transaction, 'businessShortCode', ''),
+                "billRefNumber": getattr(transaction, 'billRefNumber', ''),
+                "invoiceNumber": getattr(transaction, 'invoiceNumber', ''),
+                "orgAccountBalance": getattr(transaction, 'orgAccountBalance', ''),
+                "thirdPartyTransID": getattr(transaction, 'thirdPartyTransID', ''),
+                "phoneNumber": getattr(transaction, 'phoneNumber', ''),
+                "firstName": getattr(transaction, 'firstName', ''),
                 "middleName": getattr(transaction, 'middleName', None),
-                "lastName": transaction.lastName,
-                "createdAt": transaction.createdAt,
-                "updatedAt": transaction.updatedAt
+                "lastName": getattr(transaction, 'lastName', ''),
+                "createdAt": getattr(transaction, 'createdAt', current_time),
+                "updatedAt": getattr(transaction, 'updatedAt', current_time)
             }
 
         return cls(**converted_transaction)

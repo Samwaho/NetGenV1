@@ -10,6 +10,8 @@ services:
     depends_on:
       - frontend
       - backend
+    volumes:
+      - ./hotspot:/usr/share/nginx/html/hotspot
     networks:
       - app-network
 

@@ -15,6 +15,7 @@ class TemplateCategory(Enum):
     GENERAL_NOTIFICATION = "general_notification"
     MARKETING = "marketing"
     CUSTOM = "custom"
+    HOTSPOT_VOUCHER = "hotspot_voucher"
 
 @strawberry.type
 class SmsTemplate:

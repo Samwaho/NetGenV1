@@ -37,6 +37,7 @@ const COMMON_VARIABLES = [
   "dueDate",
   "paybillNumber",
   "username",
+  "voucherCode",
 ];
 
 function extractVariables(content: string): string[] {

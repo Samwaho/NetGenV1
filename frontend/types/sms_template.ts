@@ -8,7 +8,8 @@ export enum TemplateCategory {
   TECHNICAL_SUPPORT = 'technical_support',
   GENERAL_NOTIFICATION = 'general_notification',
   MARKETING = 'marketing',
-  CUSTOM = 'custom'
+  CUSTOM = 'custom',
+  HOTSPOT_VOUCHER = 'hotspot_voucher'
 }
 
 export interface SmsTemplate {

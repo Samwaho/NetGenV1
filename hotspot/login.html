@@ -15,10 +15,20 @@
             return urlParams.get('org') || '67ed1d0dfa4861088cfcb6a0';
         }
 
+        // Get base API URL
+        function getApiUrl() {
+            // If running locally, use the devtunnel URL
+            if (window.location.protocol === 'file:') {
+                return 'https://w06z1rvh-80.inc1.devtunnels.ms';
+            }
+            // Otherwise use relative URL
+            return '';
+        }
+
         // Fetch packages from API with better error handling
         async function fetchPackages() {
             const orgId = getOrgId();
-            const apiUrl = `https://w06z1rvh-80.inc1.devtunnels.ms/api/hotspot/packages?organization_id=${orgId}`;
+            const apiUrl = `${getApiUrl()}/api/hotspot/packages?organization_id=${orgId}`;
             
             console.log('Fetching packages from:', apiUrl);
             
@@ -110,43 +120,60 @@
 
         // Handle package selection
         function selectPackage(packageId) {
-            // Store selected package ID
             localStorage.setItem('selectedPackageId', packageId);
-            
-            // Show payment options
             document.getElementById('package-selection').style.display = 'none';
-            document.getElementById('payment-options').style.display = 'block';
+            document.getElementById('mpesa-payment').style.display = 'block';
         }
 
-        // Handle voucher purchase - modified to work offline
-        function purchaseVoucher(paymentMethod) {
+        // Handle Mpesa voucher purchase
+        async function purchaseVoucherMpesa() {
             const packageId = localStorage.getItem('selectedPackageId');
-            
-            // Generate a random voucher code for testing
-            const voucherCode = 'TEST' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-            const expiryDate = new Date();
-            expiryDate.setDate(expiryDate.getDate() + 7); // 7 days from now
-            
-            // Show voucher details
-            document.getElementById('payment-options').style.display = 'none';
-            document.getElementById('voucher-result').style.display = 'block';
-            
-            document.getElementById('voucher-code').textContent = voucherCode;
-            document.getElementById('voucher-expiry').textContent = expiryDate.toLocaleString();
-            
-            // Auto-fill login form
-            document.login.username.value = voucherCode;
-            document.login.password.value = voucherCode;
-            
-            console.log('Generated test voucher:', voucherCode, 'for package:', packageId, 'with payment method:', paymentMethod);
-        }
+            const orgId = getOrgId();
+            const phoneInput = document.getElementById('mpesa-phone');
+            const phoneNumber = phoneInput.value.trim();
+            const errorDiv = document.getElementById('mpesa-error');
+            const loadingDiv = document.getElementById('mpesa-loading');
+            errorDiv.textContent = '';
+            loadingDiv.style.display = 'block';
 
-        // Handle voucher login
-        function loginWithVoucher() {
-            const voucher = document.getElementById('voucher-code').textContent;
-            document.login.username.value = voucher;
-            document.login.password.value = voucher;
-            document.login.submit();
+            if (!phoneNumber) {
+                errorDiv.textContent = 'Please enter your Mpesa phone number.';
+                loadingDiv.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${getApiUrl()}/api/hotspot/purchase-voucher`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Accept': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        organizationId: orgId,
+                        packageId: packageId,
+                        phoneNumber: phoneNumber
+                    })
+                });
+                loadingDiv.style.display = 'none';
+                if (!response.ok) {
+                    const err = await response.json();
+                    errorDiv.textContent = err.detail || 'Failed to initiate payment.';
+                    return;
+                }
+                const data = await response.json();
+                document.getElementById('mpesa-payment').style.display = 'none';
+                document.getElementById('voucher-result').style.display = 'block';
+                document.getElementById('voucher-code').textContent = 'Waiting for payment confirmation...';
+                document.getElementById('voucher-expiry').textContent = 'Please check your phone to complete the Mpesa payment.';
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                errorDiv.textContent = 'Network error. Please try again.';
+                console.error('Purchase error:', error);
+            }
         }
 
         // Show voucher entry form
@@ -214,7 +241,7 @@
         window.onload = function() {
             // Set up UI
             const packageSelection = document.getElementById('package-selection');
-            const paymentOptions = document.getElementById('payment-options');
+            const paymentOptions = document.getElementById('mpesa-payment');
             const voucherResult = document.getElementById('voucher-result');
             const voucherEntry = document.getElementById('voucher-entry');
             const haveVoucherBtn = document.getElementById('have-voucher-btn');
@@ -275,15 +302,17 @@
                 </div>
                 
                 <!-- Payment Options Section -->
-                <div id="payment-options" style="display: none;">
-                    <h2>Select Payment Method</h2>
-                    <div class="payment-methods">
-                        <button onclick="purchaseVoucher('credit_card')">Credit Card</button>
-                        <button onclick="purchaseVoucher('paypal')">PayPal</button>
-                        <button onclick="purchaseVoucher('mobile_money')">Mobile Money</button>
+                <div id="mpesa-payment" style="display: none;">
+                    <h2>Pay with Mpesa</h2>
+                    <div class="mpesa-form">
+                        <label for="mpesa-phone">Mpesa Phone Number:</label>
+                        <input type="tel" id="mpesa-phone" placeholder="e.g. 07XXXXXXXX or 2547XXXXXXXX" maxlength="13" />
+                        <button onclick="purchaseVoucherMpesa()">Pay &amp; Get Voucher</button>
+                        <div id="mpesa-loading" style="display:none; color: #888;">Processing payment, please wait...</div>
+                        <div id="mpesa-error" style="color: red;"></div>
                     </div>
                     <p class="info">
-                        <button type="button" onclick="document.getElementById('package-selection').style.display='block';document.getElementById('payment-options').style.display='none';">Back</button>
+                        <button type="button" onclick="document.getElementById('package-selection').style.display='block';document.getElementById('mpesa-payment').style.display='none';">Back</button>
                     </p>
                 </div>
                 

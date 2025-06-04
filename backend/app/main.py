@@ -75,10 +75,12 @@ app = FastAPI(title="Your API", version="1.0.0")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for hotspot access
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=1728000,
 )
 
 # GraphQL endpoint

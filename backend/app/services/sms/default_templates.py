@@ -75,5 +75,12 @@ DEFAULT_SMS_TEMPLATES: List[Dict[str, Any]] = [
         "category": TemplateCategory.MARKETING.value,
         "description": "Holiday greetings for customers",
         "variables": []
+    },
+    {
+        "name": "Hotspot Voucher Purchase",
+        "content": "Dear {{firstName}}, you have successfully purchased a hotspot voucher. Your voucher code is {{voucherCode}}. Please use this code to activate your hotspot. Thank you for choosing {{organizationName}}.",
+        "category": TemplateCategory.HOTSPOT_VOUCHER.value,
+        "description": "Notification of hotspot voucher purchase",
+        "variables": ["firstName", "voucherCode", "organizationName"]
     }
 ]
