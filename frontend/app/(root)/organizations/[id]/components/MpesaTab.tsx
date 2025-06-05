@@ -40,6 +40,7 @@ interface MpesaFormInputs {
 
 export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaTabProps) => {
   const [saving, setSaving] = useState(false);
+  const [showSensitive, setShowSensitive] = useState(false);
   
   const canManageMpesa = hasOrganizationPermissions(
     organization,
@@ -242,13 +243,27 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
                 <Separator />
                 <h3 className="font-medium text-lg">API Credentials</h3>
 
+                <div className="flex items-center justify-between mb-4">
+                  <Label htmlFor="showSensitive" className="flex flex-col space-y-1">
+                    <span>Show Sensitive Information</span>
+                    <span className="font-normal text-xs text-muted-foreground">
+                      Toggle to view or hide sensitive API credentials
+                    </span>
+                  </Label>
+                  <Switch
+                    id="showSensitive"
+                    checked={showSensitive}
+                    onCheckedChange={setShowSensitive}
+                  />
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="consumerKey">Consumer Key</Label>
                     <Input
                       id="consumerKey"
                       placeholder="Daraja API Consumer Key"
-                      type="password"
+                      type={showSensitive ? "text" : "password"}
                       {...register("consumerKey")}
                       disabled={!canManageMpesa}
                     />
@@ -259,7 +274,7 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
                     <Input
                       id="consumerSecret"
                       placeholder="Daraja API Consumer Secret"
-                      type="password"
+                      type={showSensitive ? "text" : "password"}
                       {...register("consumerSecret")}
                       disabled={!canManageMpesa}
                     />
@@ -270,7 +285,7 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
                     <Input
                       id="passKey"
                       placeholder="Pass Key for STK Push"
-                      type="password"
+                      type={showSensitive ? "text" : "password"}
                       {...register("passKey")}
                       disabled={!canManageMpesa}
                     />
@@ -316,7 +331,7 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
                     <Input
                       id="stkPushPassKey"
                       placeholder="Leave empty to use main Pass Key"
-                      type="password"
+                      type={showSensitive ? "text" : "password"}
                       {...register("stkPushPassKey")}
                       disabled={!canManageMpesa}
                     />

@@ -38,9 +38,18 @@ export const ORGANIZATION_FRAGMENT = gql`
       businessName
       accountReference
       isActive
+      consumerKey
+      consumerSecret
+      passKey
       environment
       callbackUrl
+      stkPushCallbackUrl
+      c2bCallbackUrl
+      b2cResultUrl
+      b2cTimeoutUrl
       transactionType
+      stkPushShortCode
+      stkPushPassKey
       createdAt
       updatedAt
     }
