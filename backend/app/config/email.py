@@ -24,8 +24,14 @@ class EmailManager:
             autoescape=True
         )
         
-        # Initialize Mailtrap client
+        # Initialize Mailtrap client with token validation
+        if not settings.MAILTRAP_API_TOKEN:
+            logger.error("MAILTRAP_API_TOKEN is not set in environment variables")
+            raise ValueError("MAILTRAP_API_TOKEN is required for email functionality")
+            
+        logger.info("Initializing Mailtrap client...")
         self.client = mt.MailtrapClient(token=settings.MAILTRAP_API_TOKEN)
+        logger.info("Mailtrap client initialized successfully")
 
     async def send_email(
         self,
@@ -52,7 +58,7 @@ class EmailManager:
 
             # Create mail object
             mail = mt.Mail(
-                sender=mt.Address(email=settings.MAILTRAP_FROM_EMAIL, name="Your App Name"),
+                sender=mt.Address(email=settings.MAILTRAP_FROM_EMAIL, name="ISPinnacle"),
                 to=[mt.Address(email=email) for email in recipients],
                 subject=subject,
                 html=html_content,
@@ -60,12 +66,16 @@ class EmailManager:
             )
 
             # Send email
+            logger.info("Attempting to send email via Mailtrap...")
             self.client.send(mail)
             logger.info(f"Email sent successfully to {recipients}")
             return True
 
         except Exception as e:
             logger.error(f"Failed to send email: {str(e)}", exc_info=True)
+            if hasattr(e, 'response'):
+                logger.error(f"Response status: {e.response.status_code}")
+                logger.error(f"Response body: {e.response.text}")
             return False
 
     async def send_verification_email(
