@@ -29,6 +29,7 @@ from app.config.redis import redis
 import json
 from app.services.sms.template import SmsTemplateService
 from app.services.sms.default_templates import DEFAULT_SMS_TEMPLATES
+from app.schemas.sms_template import TemplateCategory
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +224,7 @@ class OrganizationResolver:
                 organization_id=str(result.inserted_id),
                 name=template["name"],
                 content=template["content"],
-                category=template["category"],
+                category=TemplateCategory(template["category"]),
                 description=template.get("description"),
                 variables=template.get("variables", []),
                 is_active=True,
