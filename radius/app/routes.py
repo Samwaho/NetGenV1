@@ -392,13 +392,23 @@ async def radius_accounting(request: Request):
         
         # Get accounting data
         username = body.get("username", body.get("User-Name", ""))
-        acct_status_type = body.get("acct_status_type", body.get("Acct-Status-Type", ""))
-        session_id = body.get("acct_session_id", body.get("Acct-Session-Id", ""))
-        session_time = safe_int(body.get("acct_session_time", body.get("Acct-Session-Time", 0)))
-        input_octets = safe_int(body.get("acct_input_octets", body.get("Acct-Input-Octets", 0)))
-        output_octets = safe_int(body.get("acct_output_octets", body.get("Acct-Output-Octets", 0)))
-        input_gigawords = safe_int(body.get("acct_input_gigawords", body.get("Acct-Input-Gigawords", 0)))
-        output_gigawords = safe_int(body.get("acct_output_gigawords", body.get("Acct-Output-Gigawords", 0)))
+        acct_status_type = body.get("status", body.get("Acct-Status-Type", ""))
+        session_id = body.get("session_id", body.get("Acct-Session-Id", ""))
+        session_time = safe_int(body.get("session_time", body.get("Acct-Session-Time", 0)))
+        input_octets = safe_int(body.get("input_octets", body.get("Acct-Input-Octets", 0)))
+        output_octets = safe_int(body.get("output_octets", body.get("Acct-Output-Octets", 0)))
+        input_gigawords = safe_int(body.get("input_gigawords", body.get("Acct-Input-Gigawords", 0)))
+        output_gigawords = safe_int(body.get("output_gigawords", body.get("Acct-Output-Gigawords", 0)))
+        framed_ip = body.get("framed_ip_address", body.get("Framed-IP-Address", ""))
+        nas_ip = body.get("nas_ip_address", body.get("NAS-IP-Address", ""))
+        terminate_cause = body.get("terminate_cause", body.get("Acct-Terminate-Cause", ""))
+        service_type = body.get("service_type", body.get("Service-Type", ""))
+        nas_port_type = body.get("nas_port_type", body.get("NAS-Port-Type", ""))
+        nas_port = body.get("nas_port", body.get("NAS-Port", ""))
+        nas_identifier = body.get("nas_identifier", body.get("NAS-Identifier", ""))
+        mikrotik_rate_limit = body.get("mikrotik_rate_limit", body.get("Mikrotik-Rate-Limit", ""))
+        called_station_id = body.get("called_station_id", body.get("Called-Station-Id", ""))
+        calling_station_id = body.get("calling_station_id", body.get("Calling-Station-Id", ""))
         
         # Calculate total bytes (handling gigawords)
         input_bytes = input_octets + (input_gigawords * 4294967296)
@@ -421,8 +431,87 @@ async def radius_accounting(request: Request):
                     )
                     logger.info(f"Marked voucher {username} as in_use")
             
-            elif acct_status_type.lower() == "stop":
-                # Session stop - update data usage and session time
+            # Find existing accounting record for this session
+            existing_record = await hotspot_vouchers_accounting.find_one({
+                "voucherId": voucher["_id"],
+                "sessionId": session_id
+            })
+            
+            now = datetime.utcnow()
+            
+            if existing_record:
+                # Calculate delta values
+                delta_input = input_bytes - existing_record.get("totalInputBytes", 0)
+                delta_output = output_bytes - existing_record.get("totalOutputBytes", 0)
+                delta_time = session_time - existing_record.get("sessionTime", 0)
+                
+                # Update existing record
+                update_data = {
+                    "acctStatusType": acct_status_type,
+                    "sessionTime": session_time,
+                    "totalInputBytes": input_bytes,
+                    "totalOutputBytes": output_bytes,
+                    "totalBytes": total_bytes,
+                    "framedIpAddress": framed_ip,
+                    "nasIpAddress": nas_ip,
+                    "terminateCause": terminate_cause,
+                    "serviceType": service_type,
+                    "nasPortType": nas_port_type,
+                    "nasPort": nas_port,
+                    "nasIdentifier": nas_identifier,
+                    "mikrotikRateLimit": mikrotik_rate_limit,
+                    "calledStationId": called_station_id,
+                    "callingStationId": calling_station_id,
+                    "deltaInputBytes": delta_input,
+                    "deltaOutputBytes": delta_output,
+                    "deltaSessionTime": delta_time,
+                    "lastUpdate": now,
+                    "timestamp": now
+                }
+                
+                # For start status, set startTime
+                if acct_status_type.lower() == "start":
+                    update_data["startTime"] = now
+                
+                await hotspot_vouchers_accounting.update_one(
+                    {"_id": existing_record["_id"]},
+                    {"$set": update_data}
+                )
+                logger.info(f"Updated accounting record for voucher {username}, session {session_id}")
+            else:
+                # Create new record
+                accounting_data = {
+                    "voucherId": voucher["_id"],
+                    "code": username,
+                    "sessionId": session_id,
+                    "acctStatusType": acct_status_type,
+                    "sessionTime": session_time,
+                    "totalInputBytes": input_bytes,
+                    "totalOutputBytes": output_bytes,
+                    "totalBytes": total_bytes,
+                    "framedIpAddress": framed_ip,
+                    "nasIpAddress": nas_ip,
+                    "terminateCause": terminate_cause,
+                    "serviceType": service_type,
+                    "nasPortType": nas_port_type,
+                    "nasPort": nas_port,
+                    "nasIdentifier": nas_identifier,
+                    "mikrotikRateLimit": mikrotik_rate_limit,
+                    "calledStationId": called_station_id,
+                    "callingStationId": calling_station_id,
+                    "deltaInputBytes": input_bytes,
+                    "deltaOutputBytes": output_bytes,
+                    "deltaSessionTime": session_time,
+                    "startTime": now if acct_status_type.lower() == "start" else None,
+                    "timestamp": now,
+                    "lastUpdate": now
+                }
+                
+                await hotspot_vouchers_accounting.insert_one(accounting_data)
+                logger.info(f"Created new accounting record for voucher {username}, session {session_id}")
+            
+            # Update voucher usage data
+            if acct_status_type.lower() in ["stop", "interim-update"]:
                 update_data = {}
                 
                 # Update data usage
@@ -472,51 +561,13 @@ async def radius_accounting(request: Request):
                         {"$set": update_data}
                     )
                     logger.info(f"Updated voucher {username} usage data")
-            
-            elif acct_status_type.lower() == "interim-update":
-                # Interim update - update data usage and session time
-                update_data = {}
-                
-                # Update data usage
-                if total_bytes > 0:
-                    current_data_used = voucher.get("dataUsed", 0)
-                    new_data_used = current_data_used + total_bytes
-                    update_data["dataUsed"] = new_data_used
-                
-                # Update session time for duration-based vouchers
-                if voucher.get("duration") and session_time > 0:
-                    current_time_used = voucher.get("timeUsed", 0)
-                    new_time_used = current_time_used + session_time
-                    update_data["timeUsed"] = new_time_used
-                
-                if update_data:
-                    await hotspot_vouchers.update_one(
-                        {"_id": voucher["_id"]},
-                        {"$set": update_data}
-                    )
-            
-            # Store accounting data for vouchers
-            accounting_data = {
-                "voucherId": voucher["_id"],
-                "code": username,
-                "sessionId": session_id,
-                "acctStatusType": acct_status_type,
-                "sessionTime": session_time,
-                "inputOctets": input_octets,
-                "outputOctets": output_octets,
-                "inputGigawords": input_gigawords,
-                "outputGigawords": output_gigawords,
-                "totalBytes": total_bytes,
-                "timestamp": datetime.utcnow()
-            }
-            
-            await hotspot_vouchers_accounting.insert_one(accounting_data)
-            logger.debug(f"Stored accounting data for voucher {username}")
         else:
             # This is a regular PPPoE customer
             customer = await get_customer(username)
             
             if customer:
+                now = datetime.utcnow()
+                
                 if acct_status_type.lower() == "start":
                     # Set customer status to online
                     await update_customer_online_status(customer["_id"], True)
@@ -527,22 +578,82 @@ async def radius_accounting(request: Request):
                     await update_customer_online_status(customer["_id"], False)
                     logger.info(f"Set customer {username} status to offline")
                 
-                # Store accounting data
-                accounting_data = {
+                # Find existing accounting record for this session
+                existing_record = await isp_customers_accounting.find_one({
                     "customerId": customer["_id"],
-                    "username": username,
-                    "sessionId": session_id,
-                    "acctStatusType": acct_status_type,
-                    "inputOctets": input_octets,
-                    "outputOctets": output_octets,
-                    "inputGigawords": input_gigawords,
-                    "outputGigawords": output_gigawords,
-                    "totalBytes": total_bytes,
-                    "timestamp": datetime.utcnow()
-                }
+                    "sessionId": session_id
+                })
                 
-                await isp_customers_accounting.insert_one(accounting_data)
-                logger.debug(f"Stored accounting data for {username}")
+                if existing_record:
+                    # Calculate delta values
+                    delta_input = input_bytes - existing_record.get("totalInputBytes", 0)
+                    delta_output = output_bytes - existing_record.get("totalOutputBytes", 0)
+                    delta_time = session_time - existing_record.get("sessionTime", 0)
+                    
+                    # Update existing record
+                    update_data = {
+                        "acctStatusType": acct_status_type,
+                        "sessionTime": session_time,
+                        "totalInputBytes": input_bytes,
+                        "totalOutputBytes": output_bytes,
+                        "totalBytes": total_bytes,
+                        "framedIpAddress": framed_ip,
+                        "nasIpAddress": nas_ip,
+                        "terminateCause": terminate_cause,
+                        "serviceType": service_type,
+                        "nasPortType": nas_port_type,
+                        "nasPort": nas_port,
+                        "nasIdentifier": nas_identifier,
+                        "mikrotikRateLimit": mikrotik_rate_limit,
+                        "calledStationId": called_station_id,
+                        "callingStationId": calling_station_id,
+                        "deltaInputBytes": delta_input,
+                        "deltaOutputBytes": delta_output,
+                        "deltaSessionTime": delta_time,
+                        "lastUpdate": now,
+                        "timestamp": now
+                    }
+                    
+                    # For start status, set startTime
+                    if acct_status_type.lower() == "start":
+                        update_data["startTime"] = now
+                    
+                    await isp_customers_accounting.update_one(
+                        {"_id": existing_record["_id"]},
+                        {"$set": update_data}
+                    )
+                    logger.info(f"Updated accounting record for customer {username}, session {session_id}")
+                else:
+                    # Create new record
+                    accounting_data = {
+                        "customerId": customer["_id"],
+                        "username": username,
+                        "sessionId": session_id,
+                        "acctStatusType": acct_status_type,
+                        "sessionTime": session_time,
+                        "totalInputBytes": input_bytes,
+                        "totalOutputBytes": output_bytes,
+                        "totalBytes": total_bytes,
+                        "framedIpAddress": framed_ip,
+                        "nasIpAddress": nas_ip,
+                        "terminateCause": terminate_cause,
+                        "serviceType": service_type,
+                        "nasPortType": nas_port_type,
+                        "nasPort": nas_port,
+                        "nasIdentifier": nas_identifier,
+                        "mikrotikRateLimit": mikrotik_rate_limit,
+                        "calledStationId": called_station_id,
+                        "callingStationId": calling_station_id,
+                        "deltaInputBytes": input_bytes,
+                        "deltaOutputBytes": output_bytes,
+                        "deltaSessionTime": session_time,
+                        "startTime": now if acct_status_type.lower() == "start" else None,
+                        "timestamp": now,
+                        "lastUpdate": now
+                    }
+                    
+                    await isp_customers_accounting.insert_one(accounting_data)
+                    logger.info(f"Created new accounting record for customer {username}, session {session_id}")
         
         # Return success
         return Response(status_code=204)
