@@ -13,9 +13,10 @@ services:
       - backend
     volumes:
       - ./hotspot:/usr/share/nginx/html/hotspot
-      - ./ssl:/etc/nginx/ssl
+      - ./ssl:/etc/nginx/ssl:ro
     networks:
       - app-network
+    user: root
 
   frontend:
     build:
