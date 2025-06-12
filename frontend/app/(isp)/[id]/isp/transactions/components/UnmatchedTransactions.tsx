@@ -71,7 +71,7 @@ export function UnmatchedTransactions({ organizationId }: { organizationId: stri
   const handleOpenDialog = (transaction: ISPTransaction) => {
     setSelectedTransaction(transaction);
     setNewBillRef(transaction.billRefNumber || "");
-    setTransactionType(transaction.transactionType as TransactionType);
+    setTransactionType(transaction.transactionType as TransactionType || TransactionType.CUSTOMER_PAYMENT);
     setIsDialogOpen(true);
   };
 
@@ -145,7 +145,7 @@ export function UnmatchedTransactions({ organizationId }: { organizationId: stri
                 <span className="text-sm font-medium">Type:</span>
                 <div className="col-span-3">
                   <Select
-                    value={transactionType}
+                    value={transactionType || TransactionType.CUSTOMER_PAYMENT}
                     onValueChange={(value) => setTransactionType(value as TransactionType)}
                   >
                     <SelectTrigger>

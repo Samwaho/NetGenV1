@@ -54,12 +54,12 @@ const TransactionTypeFilter = memo(({
   value: string;
   onChange: (value: string) => void;
 }) => (
-  <Select value={value} onValueChange={onChange}>
+  <Select value={value || "all"} onValueChange={onChange}>
     <SelectTrigger className="w-[180px]">
       <SelectValue placeholder="All Transactions" />
     </SelectTrigger>
     <SelectContent>
-      <SelectItem value="">All Transactions</SelectItem>
+      <SelectItem value="all">All Transactions</SelectItem>
       <SelectItem value="customer_payment">Customer Payments</SelectItem>
       <SelectItem value="hotspot_voucher">Hotspot Vouchers</SelectItem>
     </SelectContent>
@@ -222,7 +222,7 @@ export function DataTable<TData, TValue>({
           />
         </div>
         <TransactionTypeFilter
-          value={filterOptions.transactionType || ""}
+          value={filterOptions.transactionType || "all"}
           onChange={(value) => {
             onFilterChange?.({
               ...filterOptions,
