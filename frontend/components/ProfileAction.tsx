@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useQuery } from "@apollo/client";
+import { useQuery, useApolloClient } from "@apollo/client";
 import { CURRENT_USER } from "@/graphql/auth";
 import {
   Popover,
@@ -22,6 +22,7 @@ const ProfileAction = () => {
   });
   const currentUser = data?.currentUser;
   const router = useRouter();
+  const client = useApolloClient();
 
   if (loading) {
     return (
@@ -96,8 +97,9 @@ const ProfileAction = () => {
           </Link>
           <Button
             className="w-full h-8 sm:h-8 bg-transparent border border-red-500 hover:bg-red-50 dark:hover:bg-transparent dark:hover:border-red-300 text-red-500 cursor-pointer"
-            onClick={() => {
+            onClick={async () => {
               removeAuthToken();
+              await client.clearStore();
               router.push("/");
             }}
           >
