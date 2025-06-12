@@ -109,11 +109,62 @@ export const GET_CUSTOMER_ACCOUNTINGS = gql`
       message
       totalCount
       accountings {
-        ...CompleteAccountingFields
+        id
+        username
+        customer {
+          id
+          firstName
+          lastName
+          username
+          status
+        }
+        sessionId
+        status
+        timestamp
+        lastUpdate
+        type
+        sessionTime
+        totalInputBytes
+        totalOutputBytes
+        totalBytes
+        framedIpAddress
+        nasIpAddress
+        terminateCause
+        serviceType
+        nasPortType
+        nasPort
+        nasIdentifier
+        mikrotikRateLimit
+        calledStationId
+        callingStationId
+        deltaInputBytes
+        deltaOutputBytes
+        deltaSessionTime
+        startTime
+        totalSessions
+        totalOnlineTime
+        lastSeen
+        lastSessionId
+        lastSession {
+          startTime
+          endTime
+          duration
+          inputBytes
+          outputBytes
+          framedIp
+          terminateCause
+          nasIpAddress
+          serviceType
+          nasPortType
+          nasPort
+          nasIdentifier
+          mikrotikRateLimit
+          calledStationId
+          callingStationId
+        }
       }
     }
   }
-  ${COMPLETE_ACCOUNTING_FIELDS}
 `;
 
 // Types for TypeScript integration
