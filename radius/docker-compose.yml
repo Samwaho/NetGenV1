@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  radius:
+    build: .
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./freeradius_config:/etc/freeradius/3.0
+      - ./app:/app/app
+    environment:
+      - MONGODB_URL=${MONGODB_URL}
+    networks:
+      - radius-network
+
+networks:
+  radius-network:
+    driver: bridge 
