@@ -98,7 +98,7 @@ class MpesaConfiguration:
 
 @strawberry.type
 class SmsConfiguration:
-    provider: str  # e.g., "twilio", "africas_talking", "vonage"
+    provider: Optional[str] = None  # e.g., "twilio", "africas_talking", "vonage"
     isActive: bool = False
     
     # Common API credentials
