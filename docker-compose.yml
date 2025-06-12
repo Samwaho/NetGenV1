@@ -7,11 +7,13 @@ services:
       dockerfile: Dockerfile
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
       - frontend
       - backend
     volumes:
       - ./hotspot:/usr/share/nginx/html/hotspot
+      - ./ssl:/etc/nginx/ssl
     networks:
       - app-network
 
@@ -20,7 +22,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     environment:
-      - NEXT_PUBLIC_GRAPHQL_URL=https://w06z1rvh-80.inc1.devtunnels.ms/graphql
+      - NEXT_PUBLIC_GRAPHQL_URL=https://ispinnacle.co.ke/graphql
       - NODE_ENV=production
     volumes:
       - ./frontend:/app
@@ -40,7 +42,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ALGORITHM=${ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
-      - FRONTEND_URL=https://w06z1rvh-80.inc1.devtunnels.ms
+      - FRONTEND_URL=https://ispinnacle.co.ke
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
@@ -72,7 +74,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ALGORITHM=${ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
-      - FRONTEND_URL=https://w06z1rvh-80.inc1.devtunnels.ms
+      - FRONTEND_URL=https://ispinnacle.co.ke
     volumes:
       - ./backend:/app
     networks:
@@ -92,7 +94,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ALGORITHM=${ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
-      - FRONTEND_URL=https://w06z1rvh-80.inc1.devtunnels.ms
+      - FRONTEND_URL=https://ispinnacle.co.ke
     volumes:
       - ./backend:/app
     networks:
