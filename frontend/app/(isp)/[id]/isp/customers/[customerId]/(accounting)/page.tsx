@@ -90,6 +90,7 @@ export default function CustomerAccountingPage() {
       pollInterval: 30000,
     }
   );
+  console.log("accountingData", accountingData);
 
   const getExpirationStatus = (expirationDate: string | undefined) => {
     if (!expirationDate) {
