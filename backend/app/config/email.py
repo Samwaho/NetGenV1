@@ -1,4 +1,4 @@
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+import mailtrap as mt
 from pydantic import EmailStr, BaseModel
 from app.config.settings import settings
 from jinja2 import Environment, FileSystemLoader
@@ -11,35 +11,8 @@ from typing import List
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Email configuration
-class EmailConfig(BaseModel):
-    MAIL_USERNAME: str
-    MAIL_PASSWORD: str
-    MAIL_FROM: EmailStr
-    MAIL_PORT: int
-    MAIL_SERVER: str
-    MAIL_STARTTLS: bool = True
-    MAIL_SSL_TLS: bool = False
-    USE_CREDENTIALS: bool = True
-    VALIDATE_CERTS: bool = True
-
-# Create email config
-email_conf = ConnectionConfig(
-    MAIL_USERNAME=settings.GMAIL_USERNAME,
-    MAIL_PASSWORD=settings.GMAIL_APP_PASSWORD,
-    MAIL_FROM=settings.GMAIL_USERNAME,
-    MAIL_PORT=587,
-    MAIL_SERVER="smtp.gmail.com",
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True
-)
-
 class EmailManager:
     def __init__(self):
-        self.fastmail = FastMail(email_conf)
-
         # Setup Jinja2 environment
         template_dir = Path(__file__).parent.parent / "templates" / "emails"
         if not template_dir.exists():
@@ -50,6 +23,9 @@ class EmailManager:
             loader=FileSystemLoader(str(template_dir)),
             autoescape=True
         )
+        
+        # Initialize Mailtrap client
+        self.client = mt.MailtrapClient(token=settings.MAILTRAP_API_TOKEN)
 
     async def send_email(
         self,
@@ -58,7 +34,7 @@ class EmailManager:
         template_name: str,
         context: dict = None
     ) -> bool:
-        """Send an email using FastMail with a template."""
+        """Send an email using Mailtrap API with a template."""
         try:
             logger.info(f"Preparing to send email to {recipients}")
 
@@ -74,14 +50,17 @@ class EmailManager:
             template = self.env.get_template(template_name)
             html_content = template.render(**context)
 
-            message = MessageSchema(
+            # Create mail object
+            mail = mt.Mail(
+                sender=mt.Address(email=settings.MAILTRAP_FROM_EMAIL, name="Your App Name"),
+                to=[mt.Address(email=email) for email in recipients],
                 subject=subject,
-                recipients=recipients,  # FastMail will validate email addresses
-                body=html_content,
-                subtype="html"
+                html=html_content,
+                category="Transactional"
             )
 
-            await self.fastmail.send_message(message)
+            # Send email
+            self.client.send(mail)
             logger.info(f"Email sent successfully to {recipients}")
             return True
 
@@ -100,7 +79,7 @@ class EmailManager:
             logger.info(f"Sending verification email to {to_email}")
             return await self.send_email(
                 subject="Verify your email address",
-                recipients=[to_email],  # Pass email as string
+                recipients=[to_email],
                 template_name="verification_email.html",
                 context={
                     "username": username,
@@ -119,19 +98,15 @@ class EmailManager:
     ) -> bool:
         """Send password reset email"""
         try:
-            subject = "Reset Your Password"
-            content = {
-                "username": username,
-                "reset_url": reset_url,
-                "expires_in": "1 hour"
-            }
-
-            # Send email directly without background tasks
             return await self.send_email(
-                subject=subject,
-                recipients=[to_email],  # Changed to_email to recipients list
+                subject="Reset Your Password",
+                recipients=[to_email],
                 template_name="password_reset.html",
-                context=content
+                context={
+                    "username": username,
+                    "reset_url": reset_url,
+                    "expires_in": "1 hour"
+                }
             )
         except Exception as e:
             logger.error(f"Failed to send password reset email: {str(e)}", exc_info=True)

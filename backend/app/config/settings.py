@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
     EMAIL_VERIFICATION_URL: str = os.getenv("EMAIL_VERIFICATION_URL")
 
+    # Mailtrap Settings
+    MAILTRAP_API_TOKEN: str = os.getenv("MAILTRAP_API_TOKEN")
+    MAILTRAP_FROM_EMAIL: str = os.getenv("MAILTRAP_FROM_EMAIL", "info@ispinnacle.co.ke")
+
     # M-PESA Settings
     MPESA_ENVIRONMENT: str = os.getenv("MPESA_ENVIRONMENT", "sandbox")  # sandbox or production
     MPESA_CONSUMER_KEY: str = os.getenv("MPESA_CONSUMER_KEY")
@@ -40,10 +44,6 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET")
     GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI")
-
-    # Gmail Settings
-    GMAIL_USERNAME: str = os.getenv("GMAIL_USERNAME")
-    GMAIL_APP_PASSWORD: str = os.getenv("GMAIL_APP_PASSWORD")
 
     # Application Settings
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
