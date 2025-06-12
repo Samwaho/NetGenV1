@@ -107,6 +107,9 @@ class ISPCustomerAccountingResolver:
             # Convert database records to ISPCustomerAccounting objects
             accounting_list = []
             for record in all_records:
+                # Map acctStatusType to status
+                record["status"] = record.get("acctStatusType", "Stop")
+                
                 # Ensure customer data is included
                 record["customer"] = {
                     "id": str(customer["_id"]),
@@ -115,6 +118,21 @@ class ISPCustomerAccountingResolver:
                     "username": customer["username"],
                     "status": customer.get("status", "ACTIVE")
                 }
+                
+                # Convert ObjectId to string for id field
+                if "_id" in record:
+                    record["id"] = str(record["_id"])
+                
+                # Ensure all required fields have default values
+                record.setdefault("type", None)
+                record.setdefault("sessionTime", 0)
+                record.setdefault("totalInputBytes", 0)
+                record.setdefault("totalOutputBytes", 0)
+                record.setdefault("totalBytes", 0)
+                record.setdefault("deltaInputBytes", 0)
+                record.setdefault("deltaOutputBytes", 0)
+                record.setdefault("deltaSessionTime", 0)
+                
                 accounting_list.append(await ISPCustomerAccounting.from_db(record))
             
             return ISPCustomerAccountingsResponse(
