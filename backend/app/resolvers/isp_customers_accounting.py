@@ -58,11 +58,12 @@ class ISPCustomerAccountingResolver:
         
         try:
             # First try to find customer by _id
-            customer = await isp_customers.find_one({"_id": ObjectId(customerId)})
-            
-            # If not found, try to find by customerId field
-            if not customer:
-                customer = await isp_customers.find_one({"customerId": customerId})
+            try:
+                customer_id = ObjectId(customerId)
+                customer = await isp_customers.find_one({"_id": customer_id})
+            except:
+                # If not a valid ObjectId, try to find by username
+                customer = await isp_customers.find_one({"username": customerId})
                 
             if not customer:
                 raise HTTPException(
@@ -82,11 +83,11 @@ class ISPCustomerAccountingResolver:
                     detail="Not authorized to access this customer"
                 )
             
-            # Use the correct customer ID for querying accounting records
+            # Build query to match either customer ID or username
             query = {
                 "$or": [
                     {"customerId": str(customer["_id"])},
-                    {"customerId": customer.get("customerId", "")}
+                    {"username": customer["username"]}
                 ]
             }
             
@@ -106,6 +107,14 @@ class ISPCustomerAccountingResolver:
             # Convert database records to ISPCustomerAccounting objects
             accounting_list = []
             for record in all_records:
+                # Ensure customer data is included
+                record["customer"] = {
+                    "id": str(customer["_id"]),
+                    "firstName": customer.get("firstName", ""),
+                    "lastName": customer.get("lastName", ""),
+                    "username": customer["username"],
+                    "status": customer.get("status", "ACTIVE")
+                }
                 accounting_list.append(await ISPCustomerAccounting.from_db(record))
             
             return ISPCustomerAccountingsResponse(
