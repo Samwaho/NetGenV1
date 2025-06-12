@@ -233,6 +233,8 @@ class AuthResolver:
                 "email": email,
                 "firstName": first_name,
                 "lastName": last_name,
+                "phone": "",
+                "password": "",
                 "role": UserRole.USER.value,
                 "isVerified": True,
                 "createdAt": datetime.now(timezone.utc),
