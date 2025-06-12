@@ -53,7 +53,7 @@ class AuthResolver:
             
         hashed_password = hash_password(input.password)
         
-        user_id = await users.insert_one({
+        result = await users.insert_one({
             "email": input.email,
             "password": hashed_password,
             "firstName": input.firstName,
@@ -64,6 +64,7 @@ class AuthResolver:
             "createdAt": datetime.now(timezone.utc),
             "updatedAt": datetime.now(timezone.utc)
         })
+        user_id = result.inserted_id
 
         verification_token = create_verification_token(input.email)
         verification_url = f"{settings.FRONTEND_URL}/verify-email?token={verification_token}"
@@ -228,7 +229,7 @@ class AuthResolver:
                 token = create_token(existing_user["_id"])
                 return AuthResponse(success=True, message="Login successful", token=token)
                 
-            user_id = await users.insert_one({
+            result = await users.insert_one({
                 "email": email,
                 "firstName": first_name,
                 "lastName": last_name,
@@ -237,6 +238,7 @@ class AuthResolver:
                 "createdAt": datetime.now(timezone.utc),
                 "updatedAt": datetime.now(timezone.utc)
             })
+            user_id = result.inserted_id
             
             token = create_token(user_id)
             return AuthResponse(success=True, message="Login successful", token=token)
