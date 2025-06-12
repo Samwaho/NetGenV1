@@ -23,6 +23,8 @@ db = client[DATABASE_NAME]
 isp_customers = db.isp_customers
 isp_customers_accounting = db.isp_customers_accounting
 isp_packages = db.isp_packages
+hotspot_vouchers = db.hotspot_vouchers
+hotspot_vouchers_accounting = db.hotspot_vouchers_accounting
 
 
 async def connect_to_database():
