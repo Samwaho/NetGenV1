@@ -71,9 +71,7 @@ export default function CustomerAccountingPage() {
   const organizationId = params.id as string;
   const customerId = params.customerId as string;
 
-  console.log("Customer ID:", customerId);
-
-  const { data: customerData, loading: customerLoading, error: customerError } = useQuery<CustomerResponse>(
+  const { data: customerData, loading: customerLoading } = useQuery<CustomerResponse>(
     GET_ISP_CUSTOMER,
     {
       variables: { id: customerId },
@@ -81,7 +79,7 @@ export default function CustomerAccountingPage() {
     }
   );
 
-  const { data: accountingData, loading: accountingLoading, error: accountingError } = useQuery<CustomerAccountingsResponse>(
+  const { data: accountingData, loading: accountingLoading } = useQuery<CustomerAccountingsResponse>(
     GET_CUSTOMER_ACCOUNTINGS,
     {
       variables: {
@@ -93,11 +91,6 @@ export default function CustomerAccountingPage() {
     }
   );
 
-  console.log("Customer Data:", customerData);
-  console.log("Customer Error:", customerError);
-  console.log("Accounting Data:", accountingData);
-  console.log("Accounting Error:", accountingError);
-  console.log("Accounting Loading:", accountingLoading);
 
   const getExpirationStatus = (expirationDate: string | undefined) => {
     if (!expirationDate) {
