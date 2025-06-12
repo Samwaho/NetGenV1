@@ -1,16 +1,21 @@
+export enum TransactionType {
+  CUSTOMER_PAYMENT = "customer_payment",
+  HOTSPOT_VOUCHER = "hotspot_voucher"
+}
+
 export interface ISPTransaction {
   id: string;
   organizationId: string;
-  transactionType: string;
+  transactionType: TransactionType;
   callbackType: string;
   status: string;
   amount: number;
   phoneNumber: string;
   createdAt: string;
   updatedAt: string;
+  transactionId: string;
   
   // Common fields
-  transactionId?: string;
   paymentMethod?: string;
   
   // Customer payment specific fields
@@ -35,14 +40,14 @@ export interface ISPTransaction {
 
 export interface CreateISPTransactionInput {
   organizationId: string;
-  transactionType: string;
+  transactionType: TransactionType;
   callbackType: string;
   status: string;
   amount: number;
   phoneNumber: string;
+  transactionId: string;
   
   // Common fields
-  transactionId?: string;
   paymentMethod?: string;
   
   // Customer payment specific fields
@@ -68,7 +73,7 @@ export interface CreateISPTransactionInput {
 export interface ISPTransactionResponse {
   success: boolean;
   message: string;
-  transaction?: ISPTransaction;
+  transaction: ISPTransaction;
 }
 
 export interface ISPTransactionsResponse {

@@ -4,7 +4,7 @@ from app.schemas.isp_customer import ISPCustomer
 from app.schemas.isp_ticket import ISPTicket
 from app.schemas.isp_inventory import ISPInventory
 from app.schemas.isp_package import ISPPackage
-from app.schemas.isp_transactions import ISPTransaction
+from app.schemas.isp_transactions import ISPTransaction, TransactionType, TransactionStatus
 from app.config.database import isp_customers, isp_tickets, isp_inventories, isp_packages, isp_mpesa_transactions
 from app.config.redis import redis
 from bson.objectid import ObjectId
@@ -51,7 +51,7 @@ def parse_dashboard_datetimes(data):
             if field in p:
                 p[field] = parse_dt(p[field])
     for tr in data.get("transactions", []):
-        for field in ["createdAt", "updatedAt"]:
+        for field in ["createdAt", "updatedAt", "expiresAt"]:
             if field in tr:
                 tr[field] = parse_dt(tr[field])
     return data
@@ -188,21 +188,31 @@ class DashboardResolver:
                     transactions=[
                         ISPTransaction(
                             id=tr["id"],
-                            transactionId=tr.get("transactionId", ""),
-                            transactionType=tr.get("transactionType", ""),
-                            transTime=tr.get("transTime", ""),
+                            organizationId=tr["organizationId"],
+                            transactionType=tr.get("transactionType", TransactionType.CUSTOMER_PAYMENT.value),
+                            callbackType=tr.get("callbackType", ""),
+                            status=tr.get("status", TransactionStatus.COMPLETED.value),
                             amount=tr.get("amount", 0.0),
-                            businessShortCode=tr.get("businessShortCode", ""),
-                            billRefNumber=tr.get("billRefNumber", ""),
-                            invoiceNumber=tr.get("invoiceNumber", ""),
-                            orgAccountBalance=tr.get("orgAccountBalance", ""),
-                            thirdPartyTransID=tr.get("thirdPartyTransID", ""),
                             phoneNumber=tr.get("phoneNumber", ""),
+                            createdAt=tr["createdAt"] if tr["createdAt"] else None,
+                            updatedAt=tr["updatedAt"] if tr["updatedAt"] else None,
+                            transactionId=tr.get("transactionId", tr["id"]),  # Use id as fallback
+                            paymentMethod=tr.get("paymentMethod", "mpesa"),
+                            # Customer payment specific fields
                             firstName=tr.get("firstName", ""),
                             middleName=tr.get("middleName"),
                             lastName=tr.get("lastName", ""),
-                            createdAt=tr["createdAt"] if tr["createdAt"] else None,
-                            updatedAt=tr["updatedAt"] if tr["updatedAt"] else None
+                            billRefNumber=tr.get("billRefNumber"),
+                            businessShortCode=tr.get("businessShortCode"),
+                            orgAccountBalance=tr.get("orgAccountBalance"),
+                            transTime=tr.get("transTime"),
+                            # Hotspot voucher specific fields
+                            voucherCode=tr.get("voucherCode"),
+                            packageId=tr.get("packageId"),
+                            packageName=tr.get("packageName"),
+                            duration=tr.get("duration"),
+                            dataLimit=tr.get("dataLimit"),
+                            expiresAt=tr.get("expiresAt")
                         )
                         for tr in data["transactions"]
                     ],
@@ -290,11 +300,31 @@ class DashboardResolver:
             } for p in packages],
             "transactions": [tr.to_dict() if hasattr(tr, 'to_dict') else {
                 "id": tr.id,
-                "transactionId": getattr(tr, 'transactionId', tr.id),  # Use id as fallback if transactionId is missing
+                "organizationId": tr.organizationId,
                 "transactionType": tr.transactionType,
+                "callbackType": tr.callbackType,
+                "status": tr.status,
                 "amount": tr.amount,
+                "phoneNumber": tr.phoneNumber,
                 "createdAt": tr.createdAt.isoformat() if hasattr(tr, 'createdAt') and tr.createdAt else None,
-                "updatedAt": tr.updatedAt.isoformat() if hasattr(tr, 'updatedAt') and tr.updatedAt else None
+                "updatedAt": tr.updatedAt.isoformat() if hasattr(tr, 'updatedAt') and tr.updatedAt else None,
+                "transactionId": getattr(tr, 'transactionId', tr.id),  # Use id as fallback
+                "paymentMethod": getattr(tr, 'paymentMethod', 'mpesa'),
+                # Customer payment specific fields
+                "firstName": getattr(tr, 'firstName', ''),
+                "middleName": getattr(tr, 'middleName'),
+                "lastName": getattr(tr, 'lastName', ''),
+                "billRefNumber": getattr(tr, 'billRefNumber'),
+                "businessShortCode": getattr(tr, 'businessShortCode'),
+                "orgAccountBalance": getattr(tr, 'orgAccountBalance'),
+                "transTime": getattr(tr, 'transTime'),
+                # Hotspot voucher specific fields
+                "voucherCode": getattr(tr, 'voucherCode'),
+                "packageId": getattr(tr, 'packageId'),
+                "packageName": getattr(tr, 'packageName'),
+                "duration": getattr(tr, 'duration'),
+                "dataLimit": getattr(tr, 'dataLimit'),
+                "expiresAt": tr.expiresAt.isoformat() if hasattr(tr, 'expiresAt') and tr.expiresAt else None
             } for tr in transactions],
             "total_customers": total_customers,
             "total_tickets": total_tickets,

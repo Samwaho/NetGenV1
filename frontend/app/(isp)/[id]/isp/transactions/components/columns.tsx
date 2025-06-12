@@ -1,10 +1,21 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ISPTransaction } from "@/types/isp_transaction";
+import { ISPTransaction, TransactionType } from "@/types/isp_transaction";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+
+const getTransactionTypeLabel = (type: TransactionType): string => {
+  switch (type) {
+    case TransactionType.CUSTOMER_PAYMENT:
+      return "Customer Payment";
+    case TransactionType.HOTSPOT_VOUCHER:
+      return "Hotspot Voucher";
+    default:
+      return type;
+  }
+};
 
 export const columns: ColumnDef<ISPTransaction>[] = [
   {
@@ -42,16 +53,13 @@ export const columns: ColumnDef<ISPTransaction>[] = [
     cell: ({ row }) => {
       const type = row.original.transactionType;
       let variant: "default" | "secondary" | "outline" = "default";
-      let label = type;
 
       switch (type) {
-        case "customer_payment":
+        case TransactionType.CUSTOMER_PAYMENT:
           variant = "default";
-          label = "Customer Payment";
           break;
-        case "hotspot_voucher":
+        case TransactionType.HOTSPOT_VOUCHER:
           variant = "secondary";
-          label = "Hotspot Voucher";
           break;
         default:
           variant = "outline";
@@ -59,7 +67,7 @@ export const columns: ColumnDef<ISPTransaction>[] = [
 
       return (
         <Badge variant={variant}>
-          {label}
+          {getTransactionTypeLabel(type)}
         </Badge>
       );
     },

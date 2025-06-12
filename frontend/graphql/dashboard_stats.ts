@@ -46,11 +46,31 @@ export const GET_DASHBOARD_STATS = gql`
       }
       transactions {
         id
+        organizationId
         transactionId
         transactionType
+        callbackType
+        status
         amount
+        phoneNumber
         createdAt
         updatedAt
+        paymentMethod
+        # Customer payment specific fields
+        firstName
+        middleName
+        lastName
+        billRefNumber
+        businessShortCode
+        orgAccountBalance
+        transTime
+        # Hotspot voucher specific fields
+        voucherCode
+        packageId
+        packageName
+        duration
+        dataLimit
+        expiresAt
       }
       totalCustomers
       totalTickets
