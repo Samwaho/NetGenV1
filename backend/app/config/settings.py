@@ -25,8 +25,12 @@ class Settings(BaseSettings):
     EMAIL_VERIFICATION_URL: str = os.getenv("EMAIL_VERIFICATION_URL")
 
     # Mailtrap Settings
-    MAILTRAP_API_TOKEN: str = os.getenv("MAILTRAP_API_TOKEN")
+    MAILTRAP_API_TOKEN: str = os.getenv("MAILTRAP_API_TOKEN", "")  # Make it optional with empty default
     MAILTRAP_FROM_EMAIL: str = os.getenv("MAILTRAP_FROM_EMAIL", "info@ispinnacle.co.ke")
+
+    # Gmail Settings (for backward compatibility)
+    GMAIL_USERNAME: str | None = os.getenv("GMAIL_USERNAME")
+    GMAIL_APP_PASSWORD: str | None = os.getenv("GMAIL_APP_PASSWORD")
 
     # M-PESA Settings
     MPESA_ENVIRONMENT: str = os.getenv("MPESA_ENVIRONMENT", "sandbox")  # sandbox or production
