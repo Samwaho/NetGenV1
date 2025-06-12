@@ -27,6 +27,8 @@ from app.config.utils import record_activity
 from app.api.mpesa import register_c2b_urls, get_mpesa_access_token
 from app.config.redis import redis
 import json
+from app.services.sms.template import SmsTemplateService
+from app.services.sms.default_templates import DEFAULT_SMS_TEMPLATES
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +216,19 @@ class OrganizationResolver:
             {"_id": current_user.id},
             {"$push": {"organizations": str(result.inserted_id)}}
         )
+
+        # Create default SMS templates for the organization
+        for template in DEFAULT_SMS_TEMPLATES:
+            await SmsTemplateService.create_template(
+                organization_id=str(result.inserted_id),
+                name=template["name"],
+                content=template["content"],
+                category=template["category"],
+                description=template.get("description"),
+                variables=template.get("variables", []),
+                is_active=True,
+                created_by=str(current_user.id)
+            )
 
         # Record activity
         await record_activity(
