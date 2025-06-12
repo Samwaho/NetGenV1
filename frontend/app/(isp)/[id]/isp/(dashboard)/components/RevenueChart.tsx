@@ -5,19 +5,22 @@ import { GET_ISP_TRANSACTIONS } from "@/graphql/isp_transactions";
 import { Loader2, TrendingUp, Info, DollarSign } from "lucide-react";
 import { 
   ResponsiveContainer, 
-  LineChart, 
-  Line, 
+  BarChart, 
+  Bar, 
   XAxis, 
   YAxis, 
   Tooltip, 
   CartesianGrid,
-  TooltipProps
+  TooltipProps,
+  Rectangle
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { useState } from "react";
 import { ISPTransaction, TransactionType } from "@/types/isp_transaction";
-import { format, parseISO, startOfDay, endOfDay, eachDayOfInterval } from "date-fns";
+import { format, parseISO, startOfDay, endOfDay, eachDayOfInterval, subDays, subWeeks, subMonths, subYears } from "date-fns";
+
+type TimePeriod = "daily" | "weekly" | "monthly" | "yearly";
 
 interface ChartData {
   date: string;
@@ -74,61 +77,113 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   return null;
 };
 
+// Custom bar to remove hover effect
+const CustomBar = (props: any) => {
+  const { x, y, width, height, fill } = props;
+  return <Rectangle x={x} y={y} width={width} height={height} fill={fill} radius={[4, 4, 0, 0]} />;
+};
+
+// Time period selector component
+const TimePeriodSelector = ({ 
+  selectedPeriod,
+  onChange
+}: { 
+  selectedPeriod: TimePeriod, 
+  onChange: (period: TimePeriod) => void 
+}) => {
+  const options: {label: string, value: TimePeriod}[] = [
+    { label: "Daily", value: "daily" },
+    { label: "Weekly", value: "weekly" },
+    { label: "Monthly", value: "monthly" },
+    { label: "Yearly", value: "yearly" }
+  ];
+
+  return (
+    <div className="flex items-center gap-1 rounded-md bg-muted p-1 text-xs">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "px-2 py-1 rounded-sm font-medium transition-all",
+            selectedPeriod === option.value 
+              ? "bg-background text-foreground shadow-sm" 
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
 export function RevenueChart({ transactions }: RevenueChartProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("daily");
   
   if (transactions.length === 0) return <EmptyState />;
 
-  // Get date range from transactions
-  const dates = transactions.map(tx => parseISO(tx.createdAt));
-  const startDate = startOfDay(new Date(Math.min(...dates.map(d => d.getTime()))));
-  const endDate = endOfDay(new Date(Math.max(...dates.map(d => d.getTime()))));
+  // Get date range based on selected time period
+  const now = new Date();
+  let startDate: Date;
+  switch (timePeriod) {
+    case "daily":
+      startDate = subDays(now, 7);
+      break;
+    case "weekly":
+      startDate = subWeeks(now, 4);
+      break;
+    case "monthly":
+      startDate = subMonths(now, 6);
+      break;
+    case "yearly":
+      startDate = subYears(now, 1);
+      break;
+    default:
+      startDate = subDays(now, 7);
+  }
 
-  // Create array of all days in range
-  const days = eachDayOfInterval({ start: startDate, end: endDate });
+  // Filter transactions within date range
+  const filteredTransactions = transactions.filter(tx => {
+    const txDate = parseISO(tx.createdAt);
+    return txDate >= startDate && txDate <= now;
+  });
 
-  // Initialize data structure with all days
-  const dailyData = days.reduce((acc, day) => {
-    const dateStr = format(day, "MMM dd");
-    acc[dateStr] = {
-      date: dateStr,
-      amount: 0,
-      customerPayments: 0,
-      voucherSales: 0
-    };
+  // Group transactions by date and type
+  const groupedData = filteredTransactions.reduce((acc, tx) => {
+    const date = format(parseISO(tx.createdAt), timePeriod === "daily" ? "MMM dd" : "MMM yyyy");
+    if (!acc[date]) {
+      acc[date] = {
+        date,
+        amount: 0,
+        customerPayments: 0,
+        voucherSales: 0
+      };
+    }
+    acc[date].amount += tx.amount;
+    if (tx.transactionType === TransactionType.CUSTOMER_PAYMENT) {
+      acc[date].customerPayments += 1;
+    } else if (tx.transactionType === TransactionType.HOTSPOT_VOUCHER) {
+      acc[date].voucherSales += 1;
+    }
     return acc;
   }, {} as Record<string, ChartData>);
 
-  // Group transactions by date and type
-  transactions.forEach(transaction => {
-    const date = format(parseISO(transaction.createdAt), "MMM dd");
-    if (dailyData[date]) {
-      dailyData[date].amount += transaction.amount;
-      if (transaction.transactionType === TransactionType.CUSTOMER_PAYMENT) {
-        dailyData[date].customerPayments += 1;
-      } else if (transaction.transactionType === TransactionType.HOTSPOT_VOUCHER) {
-        dailyData[date].voucherSales += 1;
-      }
-    }
-  });
-
   // Convert to array and sort by date
-  const data = Object.values(dailyData).sort((a, b) => {
+  const data = Object.values(groupedData).sort((a, b) => {
     const dateA = parseISO(a.date);
     const dateB = parseISO(b.date);
     return dateA.getTime() - dateB.getTime();
   });
 
-  // Calculate total revenue and transaction counts
-  const totalRevenue = transactions.reduce((sum, tx) => sum + tx.amount, 0);
-  const totalCustomerPayments = transactions.filter(tx => tx.transactionType === TransactionType.CUSTOMER_PAYMENT).length;
-  const totalVoucherSales = transactions.filter(tx => tx.transactionType === TransactionType.HOTSPOT_VOUCHER).length;
+  // Calculate totals and averages
+  const totalRevenue = data.reduce((sum, d) => sum + d.amount, 0);
+  const totalCustomerPayments = data.reduce((sum, d) => sum + d.customerPayments, 0);
+  const totalVoucherSales = data.reduce((sum, d) => sum + d.voucherSales, 0);
   
-  // Calculate averages
   const avgRevenue = data.length > 0 ? totalRevenue / data.length : 0;
-  const avgCustomerPayments = data.length > 0 ? totalCustomerPayments / data.length : 0;
-  const avgVoucherSales = data.length > 0 ? totalVoucherSales / data.length : 0;
 
   // Determine if revenue is trending up or down
   const lastTwoDataPoints = data.filter(d => d.amount > 0).slice(-2);
@@ -162,13 +217,17 @@ export function RevenueChart({ transactions }: RevenueChartProps) {
         </div>
         <div className="text-right">
           <p className="text-sm font-medium">KES {avgRevenue.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground">Daily average</p>
+          <p className="text-xs text-muted-foreground">Average per period</p>
         </div>
+      </div>
+
+      <div className="flex justify-end mb-2">
+        <TimePeriodSelector selectedPeriod={timePeriod} onChange={setTimePeriod} />
       </div>
 
       <div className="h-[240px] w-full mt-2">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
+          <BarChart
             data={data}
             margin={{ top: 10, right: 10, left: 0, bottom: 15 }}
           >
@@ -200,15 +259,12 @@ export function RevenueChart({ transactions }: RevenueChartProps) {
               domain={[0, yAxisMax]}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Line 
-              type="monotone"
+            <Bar 
               dataKey="amount" 
-              stroke="url(#revenueGradient)" 
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 8 }}
+              fill="url(#revenueGradient)"
+              shape={<CustomBar />}
             />
-          </LineChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
 
@@ -225,7 +281,7 @@ export function RevenueChart({ transactions }: RevenueChartProps) {
         </div>
         <div className="flex items-center gap-1">
           <Info className="h-3 w-3" />
-          <span>Based on {transactions.length} transactions</span>
+          <span>Based on {filteredTransactions.length} transactions</span>
         </div>
       </div>
     </div>
