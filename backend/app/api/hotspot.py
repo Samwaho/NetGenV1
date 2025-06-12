@@ -257,7 +257,7 @@ async def purchase_voucher_with_mpesa(request: Request):
             api_url = f"https://{api_url}"
         
         # Use the STK Push callback URL from mpesa config or generate default
-        callback_url = mpesa_config.get("stkPushCallbackUrl") or f"{api_url}/api/isp-customer-payments/callback/{organization_id}/stk_push"
+        callback_url = mpesa_config.get("stkPushCallbackUrl") or f"{api_url}/api/payments/callback/{organization_id}/stk_push"
         
         # Prepare STK Push payload according to Safaricom docs
         stk_payload = {

@@ -14,6 +14,7 @@ import base64
 from app.config.settings import settings
 from app.config.utils import record_activity
 from app.schemas.enums import OrganizationPermission, IspManagerCustomerStatus
+from pydantic import BaseModel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -33,6 +34,388 @@ MPESA_URLS = {
         "b2c_payment": "https://api.safaricom.co.ke/mpesa/b2c/v1/paymentrequest"
     }
 }
+
+class MpesaService:
+    @staticmethod
+    async def get_access_token(consumer_key: str, consumer_secret: str, environment: str = "sandbox") -> str:
+        """Get Mpesa access token using consumer key and secret"""
+        try:
+            auth_url = MPESA_URLS[environment]["auth"]
+            auth_string = base64.b64encode(f"{consumer_key}:{consumer_secret}".encode()).decode()
+            
+            headers = {
+                "Authorization": f"Basic {auth_string}",
+                "Content-Type": "application/json"
+            }
+            
+            logger.info(f"Mpesa Auth Request - URL: {auth_url}")
+            response = requests.get(auth_url, headers=headers)
+            
+            if response.status_code == 200:
+                return response.json().get("access_token")
+            else:
+                error_msg = f"Failed to get Mpesa access token: {response.text}"
+                logger.error(error_msg)
+                raise HTTPException(status_code=500, detail=error_msg)
+        except Exception as e:
+            error_msg = f"Error getting Mpesa access token: {str(e)}"
+            logger.error(error_msg)
+            raise HTTPException(status_code=500, detail=error_msg)
+
+    @staticmethod
+    async def register_c2b_urls(organization_id: str, shortcode: str, 
+                               access_token: str = None, environment: str = "sandbox") -> bool:
+        """Register C2B URLs for a given shortcode"""
+        try:
+            org = await organizations.find_one({"_id": ObjectId(organization_id)})
+            if not org or not org.get("mpesaConfig"):
+                logger.error(f"Invalid organization or missing Mpesa config for ID: {organization_id}")
+                return False
+            
+            mpesa_config = org["mpesaConfig"]
+            
+            if not access_token:
+                consumer_key = mpesa_config.get("consumerKey")
+                consumer_secret = mpesa_config.get("consumerSecret")
+                
+                if not consumer_key or not consumer_secret:
+                    logger.error("Missing consumer key or secret for Mpesa API")
+                    return False
+                
+                access_token = await MpesaService.get_access_token(consumer_key, consumer_secret, environment)
+                
+                if not access_token:
+                    return False
+            
+            api_url = settings.API_URL
+            if not api_url.startswith(('http://', 'https://')):
+                api_url = f"https://{api_url}"
+            
+            c2b_callback_url = f"{api_url}/api/payments/callback/{organization_id}/c2b"
+            c2b_validation_url = f"{api_url}/api/payments/validate"
+            stk_callback_url = f"{api_url}/api/payments/callback/{organization_id}/stk_push"
+            
+            c2b_payload = {
+                "ShortCode": shortcode,
+                "ResponseType": "Completed",
+                "ConfirmationURL": c2b_callback_url,
+                "ValidationURL": c2b_validation_url
+            }
+            
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
+            
+            logger.info(f"Registering payment callbacks for shortcode {shortcode}")
+            logger.info(f"Validation URL: {c2b_validation_url}")
+            logger.info(f"Confirmation URL: {c2b_callback_url}")
+            logger.info(f"STK Push Callback URL: {stk_callback_url}")
+            logger.info(f"Request Payload: {json.dumps(c2b_payload, indent=2)}")
+            
+            c2b_response = requests.post(MPESA_URLS[environment]["register_c2b_url"], json=c2b_payload, headers=headers)
+            
+            logger.info(f"C2B Registration Response: {c2b_response.text}")
+            
+            if c2b_response.status_code != 200:
+                logger.error(f"Failed to register payment callbacks: {c2b_response.text}")
+                return False
+                
+            c2b_result = c2b_response.json()
+            if c2b_result.get("ResponseCode") not in ["0", "00000000"]:
+                logger.error(f"Failed to register payment callbacks: {c2b_result}")
+                return False
+            
+            update_data = {
+                "mpesaConfig.c2bCallbackUrl": c2b_callback_url,
+                "mpesaConfig.validationUrl": c2b_validation_url,
+                "mpesaConfig.stkPushCallbackUrl": stk_callback_url,
+                "mpesaConfig.callbacksRegistered": True,
+                "mpesaConfig.updatedAt": datetime.now(timezone.utc)
+            }
+            
+            await organizations.update_one(
+                {"_id": ObjectId(organization_id)},
+                {"$set": update_data}
+            )
+            
+            logger.info(f"Successfully registered all payment callbacks for shortcode {shortcode}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error registering Mpesa callbacks: {str(e)}")
+            return False
+
+# Export functions for backward compatibility
+get_mpesa_access_token = MpesaService.get_access_token
+register_c2b_urls = MpesaService.register_c2b_urls
+
+class C2BTransactionService:
+    @staticmethod
+    async def process_transaction(organization_id: str, payload: Dict[str, Any]) -> bool:
+        """Process a C2B transaction"""
+        try:
+            # Extract transaction details
+            transaction_type = payload.get("TransactionType")
+            transaction_id = payload.get("TransID")
+            amount = float(payload.get("TransAmount", 0))
+            phone = payload.get("MSISDN")
+            bill_ref = payload.get("BillRefNumber")
+            
+            if not all([transaction_type, transaction_id, amount, phone, bill_ref]):
+                logger.error("Missing required C2B transaction fields")
+                return False
+            
+            # Process as customer payment
+            return await process_customer_payment(
+                organization_id=organization_id,
+                username=bill_ref,
+                amount=amount,
+                phone=phone,
+                transaction_id=transaction_id
+            )
+            
+        except Exception as e:
+            logger.error(f"Error processing C2B transaction: {str(e)}")
+            return False
+
+class STKTransactionService:
+    @staticmethod
+    async def process_transaction(organization_id: str, payload: Dict[str, Any]) -> bool:
+        """Process an STK Push transaction"""
+        try:
+            logger.info(f"=== STK TRANSACTION PROCESSING STARTED ===")
+            logger.info(f"Organization ID: {organization_id}")
+            logger.info(f"Raw Payload: {json.dumps(payload, indent=2)}")
+            
+            body = payload.get("Body", {})
+            stk_callback = body.get("stkCallback", {})
+            
+            logger.info(f"=== STK CALLBACK DETAILS ===")
+            logger.info(f"Result Code: {stk_callback.get('ResultCode')}")
+            logger.info(f"Result Description: {stk_callback.get('ResultDesc')}")
+            logger.info(f"Merchant Request ID: {stk_callback.get('MerchantRequestID')}")
+            logger.info(f"Checkout Request ID: {stk_callback.get('CheckoutRequestID')}")
+            
+            if stk_callback.get("ResultCode") != 0:
+                logger.error(f"STK Push failed with Result Code: {stk_callback.get('ResultCode')}")
+                logger.error(f"Error Description: {stk_callback.get('ResultDesc')}")
+                return False
+            
+            # Extract transaction details
+            items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
+            amount = None
+            mpesa_receipt = None
+            phone = None
+            
+            logger.info(f"=== CALLBACK METADATA ITEMS ===")
+            logger.info(f"Items: {json.dumps(items, indent=2)}")
+            
+            for item in items:
+                name, value = item.get("Name"), item.get("Value")
+                if name == "Amount":
+                    amount = float(value)
+                elif name == "MpesaReceiptNumber":
+                    mpesa_receipt = value
+                elif name == "PhoneNumber":
+                    phone = value
+                logger.info(f"Processed Item - Name: {name}, Value: {value}")
+            
+            logger.info(f"=== EXTRACTED TRANSACTION DETAILS ===")
+            logger.info(f"Amount: {amount}")
+            logger.info(f"Mpesa Receipt: {mpesa_receipt}")
+            logger.info(f"Phone Number: {phone}")
+            
+            if not all([amount, mpesa_receipt, phone]):
+                logger.error("Missing required STK transaction fields")
+                return False
+            
+            # Get account reference (voucher code)
+            merchant_request_id = stk_callback.get("MerchantRequestID")
+            checkout_request_id = stk_callback.get("CheckoutRequestID")
+            
+            logger.info(f"=== LOOKING UP TRANSACTION ===")
+            logger.info(f"Merchant Request ID: {merchant_request_id}")
+            logger.info(f"Checkout Request ID: {checkout_request_id}")
+            
+            transaction = await isp_mpesa_transactions.find_one({
+                "organizationId": ObjectId(organization_id),
+                "merchantRequestId": merchant_request_id,
+                "checkoutRequestId": checkout_request_id
+            })
+            
+            logger.info(f"Transaction Found: {bool(transaction)}")
+            if transaction:
+                logger.info(f"Transaction Details: {json.dumps(transaction, default=str, indent=2)}")
+            
+            if not transaction or not transaction.get("accountReference"):
+                logger.error("Transaction not found or missing account reference")
+                return False
+            
+            voucher_code = transaction["accountReference"]
+            logger.info(f"=== PROCESSING VOUCHER ===")
+            logger.info(f"Voucher Code: {voucher_code}")
+            
+            # Process as hotspot voucher payment
+            success = await process_hotspot_voucher_payment(
+                organization_id=organization_id,
+                voucher_code=voucher_code,
+                amount=amount,
+                transaction_id=mpesa_receipt
+            )
+            
+            logger.info(f"Voucher Processing Result: {success}")
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error processing STK transaction: {str(e)}")
+            logger.exception("Full traceback:")
+            return False
+
+@router.post("/callback/{organization_id}/{callback_type}")
+async def mpesa_callback(organization_id: str, callback_type: str, request: Request):
+    """Universal callback handler for all Mpesa callback types"""
+    try:
+        logger.info(f"=== MPESA CALLBACK RECEIVED ===")
+        logger.info(f"Request Headers: {dict(request.headers)}")
+        logger.info(f"Request Method: {request.method}")
+        logger.info(f"Request URL: {request.url}")
+        
+        payload = await request.json()
+        logger.info(f"Callback Type: {callback_type}")
+        logger.info(f"Organization ID: {organization_id}")
+        logger.info(f"Raw Payload: {json.dumps(payload, indent=2)}")
+        
+        # Store transaction data
+        await store_transaction(organization_id, callback_type, payload)
+        
+        # Process based on callback type
+        if callback_type == "c2b":
+            logger.info("Processing C2B transaction")
+            success = await C2BTransactionService.process_transaction(organization_id, payload)
+        elif callback_type == "stk_push":
+            logger.info("Processing STK Push transaction")
+            success = await STKTransactionService.process_transaction(organization_id, payload)
+        else:
+            logger.error(f"Unknown callback type: {callback_type}")
+            return {"ResultCode": 1, "ResultDesc": "Rejected"}
+        
+        logger.info(f"Transaction Processing Result: {success}")
+        return {"ResultCode": 0 if success else 1, "ResultDesc": "Accepted" if success else "Rejected"}
+        
+    except Exception as e:
+        logger.error(f"Error processing Mpesa {callback_type} callback: {str(e)}")
+        logger.exception("Full traceback:")
+        return {"ResultCode": 1, "ResultDesc": "Rejected"}
+
+@router.post("/validate")
+async def mpesa_validate(request: Request):
+    """Simple validation endpoint for M-Pesa that always returns success"""
+    try:
+        logger.info(f"=== MPESA VALIDATION REQUEST RECEIVED ===")
+        logger.info(f"Request Headers: {dict(request.headers)}")
+        logger.info(f"Request Method: {request.method}")
+        logger.info(f"Request URL: {request.url}")
+        
+        payload = await request.json()
+        logger.info(f"Validation payload: {json.dumps(payload, indent=2)}")
+        
+        return {
+            "ResultCode": 0,
+            "ResultDesc": "Accepted"
+        }
+    except Exception as e:
+        logger.error(f"Error processing Mpesa validation request: {str(e)}")
+        return {
+            "ResultCode": 1,
+            "ResultDesc": "Rejected"
+        }
+
+@router.post("/register-callbacks/{organization_id}")
+async def register_callbacks_for_organization(organization_id: str, request: Request):
+    """Register all callback URLs for an organization"""
+    try:
+        user, org, _ = await authenticate_user(request, OrganizationPermission.MANAGE_MPESA_CONFIG)
+        mpesa_config = org["mpesaConfig"]
+        
+        missing_fields = []
+        if not mpesa_config.get("shortCode"):
+            missing_fields.append("shortCode")
+        if not mpesa_config.get("consumerKey"):
+            missing_fields.append("consumerKey")
+        if not mpesa_config.get("consumerSecret"):
+            missing_fields.append("consumerSecret")
+            
+        if missing_fields:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing required fields: {', '.join(missing_fields)}"
+            )
+        
+        environment = mpesa_config.get("environment", "sandbox")
+        access_token = await MpesaService.get_access_token(
+            mpesa_config["consumerKey"],
+            mpesa_config["consumerSecret"],
+            environment
+        )
+        
+        if not access_token:
+            raise HTTPException(status_code=500, detail="Failed to obtain Mpesa access token")
+        
+        c2b_success = await MpesaService.register_c2b_urls(
+            organization_id,
+            mpesa_config["shortCode"],
+            access_token,
+            environment
+        )
+        
+        if c2b_success:
+            await record_activity(
+                user.id,
+                ObjectId(organization_id),
+                "registered Mpesa callbacks"
+            )
+            
+            updated_config = (await organizations.find_one({"_id": ObjectId(organization_id)}))["mpesaConfig"]
+            
+            return {
+                "success": True,
+                "message": "Successfully registered Mpesa callbacks",
+                "c2bCallbackUrl": updated_config.get("c2bCallbackUrl")
+            }
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail="Failed to register callbacks with Mpesa"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error registering callbacks: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error registering callbacks")
+
+@router.get("/callback-status/{organization_id}")
+async def check_callback_status(organization_id: str, request: Request):
+    """Check the registration status of Mpesa callbacks for an organization"""
+    try:
+        _, org, _ = await authenticate_user(request, OrganizationPermission.VIEW_MPESA_CONFIG)
+        mpesa_config = org["mpesaConfig"]
+        
+        return {
+            "success": True,
+            "message": "Mpesa callback status retrieved",
+            "status": {
+                "isActive": mpesa_config.get("isActive", False),
+                "callbacksRegistered": mpesa_config.get("callbacksRegistered", False),
+                "environment": mpesa_config.get("environment", "sandbox"),
+                "c2bCallbackUrl": mpesa_config.get("c2bCallbackUrl")
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking callback status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error checking callback status")
 
 async def authenticate_user(request: Request, required_permission: OrganizationPermission = None) -> Tuple[Any, Any, Any]:
     """Authenticate user and verify organization permissions"""
@@ -67,174 +450,6 @@ async def authenticate_user(request: Request, required_permission: OrganizationP
             raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     return user, org, organization_id
-
-async def get_mpesa_access_token(consumer_key: str, consumer_secret: str, environment: str = "sandbox") -> str:
-    """Get Mpesa access token using consumer key and secret"""
-    try:
-        auth_url = MPESA_URLS[environment]["auth"]
-        auth_string = base64.b64encode(f"{consumer_key}:{consumer_secret}".encode()).decode()
-        
-        headers = {
-            "Authorization": f"Basic {auth_string}",
-            "Content-Type": "application/json"
-        }
-        
-        logger.info(f"Mpesa Auth Request - URL: {auth_url}")
-        response = requests.get(auth_url, headers=headers)
-        
-        if response.status_code == 200:
-            return response.json().get("access_token")
-        else:
-            error_msg = f"Failed to get Mpesa access token: {response.text}"
-            logger.error(error_msg)
-            raise HTTPException(status_code=500, detail=error_msg)
-    except Exception as e:
-        error_msg = f"Error getting Mpesa access token: {str(e)}"
-        logger.error(error_msg)
-        raise HTTPException(status_code=500, detail=error_msg)
-
-async def register_c2b_urls(organization_id: str, shortcode: str, 
-                           access_token: str = None, environment: str = "sandbox") -> bool:
-    """Register C2B URLs for a given shortcode"""
-    try:
-        org = await organizations.find_one({"_id": ObjectId(organization_id)})
-        if not org or not org.get("mpesaConfig"):
-            logger.error(f"Invalid organization or missing Mpesa config for ID: {organization_id}")
-            return False
-        
-        mpesa_config = org["mpesaConfig"]
-        
-        if not access_token:
-            consumer_key = mpesa_config.get("consumerKey")
-            consumer_secret = mpesa_config.get("consumerSecret")
-            
-            if not consumer_key or not consumer_secret:
-                logger.error("Missing consumer key or secret for Mpesa API")
-                return False
-            
-            access_token = await get_mpesa_access_token(consumer_key, consumer_secret, environment)
-            
-            if not access_token:
-                return False
-        
-        api_url = settings.API_URL
-        if not api_url.startswith(('http://', 'https://')):
-            api_url = f"https://{api_url}"
-        
-        c2b_callback_url = f"{api_url}/api/isp-customer-payments/callback/{organization_id}/c2b"
-        c2b_validation_url = f"{api_url}/api/isp-customer-payments/validate"
-        stk_callback_url = f"{api_url}/api/isp-customer-payments/callback/{organization_id}/stk_push"
-        
-        c2b_payload = {
-            "ShortCode": shortcode,
-            "ResponseType": "Completed",
-            "ConfirmationURL": c2b_callback_url,
-            "ValidationURL": c2b_validation_url
-        }
-        
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-        
-        logger.info(f"Registering payment callbacks for shortcode {shortcode}")
-        logger.info(f"Validation URL: {c2b_validation_url}")
-        logger.info(f"Confirmation URL: {c2b_callback_url}")
-        logger.info(f"STK Push Callback URL: {stk_callback_url}")
-        
-        c2b_response = requests.post(MPESA_URLS[environment]["register_c2b_url"], json=c2b_payload, headers=headers)
-        
-        if c2b_response.status_code != 200:
-            logger.error(f"Failed to register payment callbacks: {c2b_response.text}")
-            return False
-            
-        c2b_result = c2b_response.json()
-        if c2b_result.get("ResponseCode") not in ["0", "00000000"]:
-            logger.error(f"Failed to register payment callbacks: {c2b_result}")
-            return False
-        
-        update_data = {
-            "mpesaConfig.c2bCallbackUrl": c2b_callback_url,
-            "mpesaConfig.validationUrl": c2b_validation_url,
-            "mpesaConfig.stkPushCallbackUrl": stk_callback_url,
-            "mpesaConfig.callbacksRegistered": True,
-            "mpesaConfig.updatedAt": datetime.now(timezone.utc)
-        }
-        
-        await organizations.update_one(
-            {"_id": ObjectId(organization_id)},
-            {"$set": update_data}
-        )
-        
-        logger.info(f"Successfully registered all payment callbacks for shortcode {shortcode}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error registering Mpesa callbacks: {str(e)}")
-        return False
-
-@router.post("/register-callbacks/{organization_id}")
-async def register_callbacks_for_organization(organization_id: str, request: Request):
-    """Register all callback URLs for an organization"""
-    try:
-        user, org, _ = await authenticate_user(request, OrganizationPermission.MANAGE_MPESA_CONFIG)
-        mpesa_config = org["mpesaConfig"]
-        
-        missing_fields = []
-        if not mpesa_config.get("shortCode"):
-            missing_fields.append("shortCode")
-        if not mpesa_config.get("consumerKey"):
-            missing_fields.append("consumerKey")
-        if not mpesa_config.get("consumerSecret"):
-            missing_fields.append("consumerSecret")
-            
-        if missing_fields:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Missing required fields: {', '.join(missing_fields)}"
-            )
-        
-        environment = mpesa_config.get("environment", "sandbox")
-        access_token = await get_mpesa_access_token(
-            mpesa_config["consumerKey"],
-            mpesa_config["consumerSecret"],
-            environment
-        )
-        
-        if not access_token:
-            raise HTTPException(status_code=500, detail="Failed to obtain Mpesa access token")
-        
-        c2b_success = await register_c2b_urls(
-            organization_id,
-            mpesa_config["shortCode"],
-            access_token,
-            environment
-        )
-        
-        if c2b_success:
-            await record_activity(
-                user.id,
-                ObjectId(organization_id),
-                "registered Mpesa callbacks"
-            )
-            
-            updated_config = (await organizations.find_one({"_id": ObjectId(organization_id)}))["mpesaConfig"]
-            
-            return {
-                "success": True,
-                "message": "Successfully registered Mpesa callbacks",
-                "c2bCallbackUrl": updated_config.get("c2bCallbackUrl")
-            }
-        else:
-            raise HTTPException(
-                status_code=500, 
-                detail="Failed to register callbacks with Mpesa"
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error registering callbacks: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error registering callbacks")
 
 async def store_transaction(organization_id: str, callback_type: str, payload: Dict[Any, Any]):
     """Store essential Mpesa transaction data"""
@@ -297,200 +512,6 @@ async def store_transaction(organization_id: str, callback_type: str, payload: D
         
     except Exception as e:
         logger.error(f"Error storing Mpesa transaction: {str(e)}")
-
-@router.post("/callback/{organization_id}/{callback_type}")
-async def mpesa_callback(organization_id: str, callback_type: str, request: Request):
-    """Universal callback handler for all Mpesa callback types"""
-    try:
-        payload = await request.json()
-        logger.info(f"=== MPESA CALLBACK RECEIVED ===")
-        logger.info(f"Callback Type: {callback_type}")
-        logger.info(f"Organization ID: {organization_id}")
-        logger.info(f"Raw Payload: {json.dumps(payload, indent=2)}")
-        
-        await store_transaction(organization_id, callback_type, payload)
-        
-        if callback_type == "stk_push":
-            try:
-                body = payload.get("Body", {})
-                stk_callback = body.get("stkCallback", {})
-                
-                logger.info(f"=== STK PUSH CALLBACK DETAILS ===")
-                logger.info(f"Result Code: {stk_callback.get('ResultCode')}")
-                logger.info(f"Result Description: {stk_callback.get('ResultDesc')}")
-                logger.info(f"Merchant Request ID: {stk_callback.get('MerchantRequestID')}")
-                logger.info(f"Checkout Request ID: {stk_callback.get('CheckoutRequestID')}")
-                
-                if stk_callback.get("ResultCode") == 0:  # Success
-                    items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
-                    amount = None
-                    mpesa_receipt = None
-                    phone = None
-                    
-                    for item in items:
-                        name, value = item.get("Name"), item.get("Value")
-                        if name == "Amount":
-                            amount = float(value)
-                        elif name == "MpesaReceiptNumber":
-                            mpesa_receipt = value
-                        elif name == "PhoneNumber":
-                            phone = value
-                    
-                    logger.info(f"=== PAYMENT DETAILS ===")
-                    logger.info(f"Amount: {amount}")
-                    logger.info(f"Mpesa Receipt: {mpesa_receipt}")
-                    logger.info(f"Phone Number: {phone}")
-                    
-                    merchant_request_id = stk_callback.get("MerchantRequestID")
-                    checkout_request_id = stk_callback.get("CheckoutRequestID")
-                    
-                    transaction = await isp_mpesa_transactions.find_one({
-                        "organizationId": ObjectId(organization_id),
-                        "merchantRequestId": merchant_request_id,
-                        "checkoutRequestId": checkout_request_id
-                    })
-                    
-                    logger.info(f"=== TRANSACTION LOOKUP ===")
-                    logger.info(f"Transaction Found: {bool(transaction)}")
-                    if transaction:
-                        logger.info(f"Transaction Details: {json.dumps(transaction, default=str, indent=2)}")
-                    
-                    if transaction and transaction.get("accountReference"):
-                        account_ref = transaction.get("accountReference")
-                        logger.info(f"=== VOUCHER PROCESSING ===")
-                        logger.info(f"Account Reference: {account_ref}")
-                        
-                        voucher = await hotspot_vouchers.find_one({
-                            "organizationId": ObjectId(organization_id),
-                            "code": account_ref,
-                            "status": "pending"
-                        })
-                        
-                        logger.info(f"Voucher Found: {bool(voucher)}")
-                        if voucher:
-                            logger.info(f"Voucher Details: {json.dumps(voucher, default=str, indent=2)}")
-                            
-                            # Get organization details for SMS
-                            org = await organizations.find_one({"_id": ObjectId(organization_id)})
-                            if not org:
-                                logger.error(f"Organization {organization_id} not found")
-                                return {"ResultCode": 0, "ResultDesc": "Accepted"}
-                                
-                            # Get package details
-                            package = await isp_packages.find_one({"_id": voucher["packageId"]})
-                            if not package:
-                                logger.error(f"Package not found for voucher {account_ref}")
-                                return {"ResultCode": 0, "ResultDesc": "Accepted"}
-                            
-                            # Update voucher status
-                            update_result = await hotspot_vouchers.update_one(
-                                {"_id": voucher["_id"]},
-                                {
-                                    "$set": {
-                                        "status": "active",
-                                        "paymentReference": mpesa_receipt,
-                                        "updatedAt": datetime.now(timezone.utc)
-                                    }
-                                }
-                            )
-                            
-                            if update_result.modified_count > 0:
-                                logger.info(f"Activated voucher {account_ref} after payment confirmation")
-                                
-                                # Get SMS template for voucher
-                                from app.services.sms.template import SmsTemplateService
-                                from app.services.sms.utils import send_sms_for_organization
-                                from app.schemas.sms_template import TemplateCategory
-                                
-                                logger.info(f"=== FETCHING SMS TEMPLATE ===")
-                                template_result = await SmsTemplateService.list_templates(
-                                    organization_id=organization_id,
-                                    category=TemplateCategory.HOTSPOT_VOUCHER,
-                                    is_active=True
-                                )
-                                
-                                logger.info(f"Template Result: {json.dumps(template_result, default=str, indent=2)}")
-                                
-                                template_doc = None
-                                if template_result.get("success") and template_result.get("templates"):
-                                    template_doc = template_result["templates"][0]
-                                    logger.info(f"Found template: {json.dumps(template_doc, default=str, indent=2)}")
-                                    
-                                if template_doc:
-                                    # Format expiry date
-                                    expiry_date = voucher.get("expiresAt")
-                                    if expiry_date:
-                                        if not expiry_date.tzinfo:
-                                            expiry_date = expiry_date.replace(tzinfo=timezone.utc)
-                                        expiry_str = expiry_date.strftime("%Y-%m-%d %H:%M")
-                                    else:
-                                        expiry_str = "N/A"
-                                        
-                                    # Prepare SMS variables
-                                    sms_vars = {
-                                        "firstName": "Customer",  # Since we don't have customer name for hotspot users
-                                        "voucherCode": account_ref,
-                                        "organizationName": org.get("name", "Provider"),
-                                        "packageName": package.get("name", ""),
-                                        "expirationDate": expiry_str,
-                                        "amountPaid": amount
-                                    }
-                                    
-                                    logger.info(f"=== SENDING SMS ===")
-                                    logger.info(f"SMS Variables: {json.dumps(sms_vars, indent=2)}")
-                                    logger.info(f"Phone Number: {voucher.get('phoneNumber')}")
-                                    
-                                    # Render and send SMS
-                                    message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
-                                    logger.info(f"Rendered Message: {message}")
-                                    
-                                    sms_result = await send_sms_for_organization(
-                                        organization_id=organization_id,
-                                        to=voucher.get("phoneNumber"),
-                                        message=message
-                                    )
-                                    
-                                    logger.info(f"SMS Send Result: {json.dumps(sms_result, default=str, indent=2)}")
-                                    logger.info(f"Sent voucher SMS to {voucher.get('phoneNumber')}")
-                                else:
-                                    logger.warning(f"No SMS template found for voucher delivery in organization {organization_id}")
-                            else:
-                                logger.error(f"Failed to update voucher {account_ref}")
-                        else:
-                            logger.error(f"Voucher {account_ref} not found or not in pending state")
-                    else:
-                        logger.error(f"Transaction not found or missing account reference")
-                else:
-                    logger.error(f"STK Push failed with Result Code: {stk_callback.get('ResultCode')}")
-                    logger.error(f"Error Description: {stk_callback.get('ResultDesc')}")
-            except Exception as e:
-                logger.error(f"Error processing STK Push callback: {str(e)}")
-                logger.exception("Full traceback:")
-        
-        return {"ResultCode": 0, "ResultDesc": "Accepted"}
-    except Exception as e:
-        logger.error(f"Error processing Mpesa {callback_type} callback: {str(e)}")
-        logger.exception("Full traceback:")
-        return {"ResultCode": 1, "ResultDesc": "Rejected"}
-
-@router.post("/validate")
-async def mpesa_validate(request: Request):
-    """Simple validation endpoint for M-Pesa that always returns success"""
-    try:
-        payload = await request.json()
-        logger.info(f"Received Mpesa validation request")
-        logger.info(f"Validation payload: {payload}")
-        
-        return {
-            "ResultCode": 0,
-            "ResultDesc": "Accepted"
-        }
-    except Exception as e:
-        logger.error(f"Error processing Mpesa validation request: {str(e)}")
-        return {
-            "ResultCode": 1,
-            "ResultDesc": "Rejected"
-        }
 
 async def process_customer_payment(organization_id: str, username: str, amount: float, phone: str = None, transaction_id: str = None) -> bool:
     """Process a payment from a customer and update their subscription"""
@@ -659,29 +680,6 @@ async def process_hotspot_voucher_payment(organization_id: str, voucher_code: st
         logger.error(f"Error processing hotspot voucher payment: {str(e)}")
         return False
 
-@router.get("/callback-status/{organization_id}")
-async def check_callback_status(organization_id: str, request: Request):
-    """Check the registration status of Mpesa callbacks for an organization"""
-    try:
-        _, org, _ = await authenticate_user(request, OrganizationPermission.VIEW_MPESA_CONFIG)
-        mpesa_config = org["mpesaConfig"]
-        
-        return {
-            "success": True,
-            "message": "Mpesa callback status retrieved",
-            "status": {
-                "isActive": mpesa_config.get("isActive", False),
-                "callbacksRegistered": mpesa_config.get("callbacksRegistered", False),
-                "environment": mpesa_config.get("environment", "sandbox"),
-                "c2bCallbackUrl": mpesa_config.get("c2bCallbackUrl")
-            }
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error checking callback status: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error checking callback status")
-
 @router.post("/stk-push/{organization_id}")
 async def initiate_stk_push(organization_id: str, request: Request):
     """Initiate STK Push request for a customer"""
@@ -708,29 +706,41 @@ async def initiate_stk_push(organization_id: str, request: Request):
         passkey = mpesa_config.get("stkPushPassKey") or mpesa_config.get("passKey")
         consumer_key = mpesa_config.get("consumerKey")
         consumer_secret = mpesa_config.get("consumerSecret")
-        callback_url = mpesa_config.get("c2bCallbackUrl")
+        callback_url = mpesa_config.get("stkPushCallbackUrl")
         environment = mpesa_config.get("environment", "sandbox")
         
         if not all([shortcode, passkey, consumer_key, consumer_secret]):
             raise HTTPException(status_code=400, detail="Missing required Mpesa configuration")
         
-        access_token = await get_mpesa_access_token(consumer_key, consumer_secret, environment)
+        access_token = await MpesaService.get_access_token(consumer_key, consumer_secret, environment)
         if not access_token:
             raise HTTPException(status_code=500, detail="Failed to obtain Mpesa access token")
         
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         password = base64.b64encode((shortcode + passkey + timestamp).encode()).decode()
         
+        # Generate callback URL
+        api_url = settings.API_URL
+        if not api_url.startswith(('http://', 'https://')):
+            api_url = f"https://{api_url}"
+        
+        # Use the STK Push callback URL from mpesa config or generate default
+        if not callback_url:
+            callback_url = f"{api_url}/api/payments/callback/{organization_id}/stk_push"
+        
+        logger.info(f"=== STK PUSH CALLBACK URL ===")
+        logger.info(f"Using callback URL: {callback_url}")
+        
         payload = {
             "BusinessShortCode": shortcode,
             "Password": password,
             "Timestamp": timestamp,
-            "TransactionType": mpesa_config.get("transactionType", "CustomerPayBillOnline"),
+            "TransactionType": "CustomerPayBillOnline",
             "Amount": int(float(amount)),
             "PartyA": phone_number,
             "PartyB": shortcode,
             "PhoneNumber": phone_number,
-            "CallBackURL": callback_url or f"{settings.API_URL}/api/mpesa/callback/{organization_id}/stk-push",
+            "CallBackURL": callback_url,
             "AccountReference": data.get("accountReference") or mpesa_config.get("accountReference") or "Account",
             "TransactionDesc": data.get("transactionDesc", "Payment")
         }
@@ -740,7 +750,14 @@ async def initiate_stk_push(organization_id: str, request: Request):
             "Content-Type": "application/json"
         }
         
+        logger.info(f"=== STK PUSH REQUEST ===")
+        logger.info(f"Request URL: {MPESA_URLS[environment]['stk_push']}")
+        logger.info(f"Request Headers: {json.dumps(headers, indent=2)}")
+        logger.info(f"Request Payload: {json.dumps(payload, indent=2)}")
+        
         response = requests.post(MPESA_URLS[environment]["stk_push"], json=payload, headers=headers)
+        
+        logger.info(f"STK Push Response: {response.text}")
         
         if response.status_code == 200:
             result = response.json()

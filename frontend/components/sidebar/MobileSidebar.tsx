@@ -38,7 +38,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ organizationId }) => {
             <DrawerHeader className="flex justify-between items-center px-6 pt-6">
               <DrawerTitle>
                 <span className="text-2xl font-bold tracking-wider text-gradient-custom">
-                  NetGN
+                  ISPinnacle
                 </span>
               </DrawerTitle>
               <DrawerClose>

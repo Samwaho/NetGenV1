@@ -86,8 +86,8 @@ app.add_middleware(
 # GraphQL endpoint
 app.include_router(graphql_app, prefix="/graphql")
 
-# Mpesa API routes
-app.include_router(mpesa.router, prefix="/api/isp-customer-payments", tags=["mpesa"])
+# Payment API routes
+app.include_router(mpesa.router, prefix="/api/payments", tags=["payments"])
 
 # SMS API routes
 app.include_router(sms.router, prefix="/api/sms", tags=["sms"])

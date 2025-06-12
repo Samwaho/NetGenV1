@@ -10,7 +10,7 @@ const testimonials = [
     name: "Sarah Johnson",
     role: "Chief Executive Officer",
     image: "/testimonials/avatar1.jpg",
-    content: "NetGen has transformed how we manage our ISP operations. The customer management and billing features have saved us countless hours.",
+    content: "ISPinnacle has transformed how we manage our ISP operations. The customer management and billing features have saved us countless hours.",
     rating: 5,
     company: "TechNet ISP"
   },

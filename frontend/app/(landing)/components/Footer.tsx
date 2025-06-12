@@ -103,7 +103,7 @@ export function Footer() {
             <motion.div variants={itemVariants} className="space-y-4">
               <Link href="/" className="flex items-center space-x-2">
                 <h3 className="text-2xl font-bold bg-gradient-custom bg-clip-text text-transparent">
-                  NetGen
+                  ISPinnacle
                 </h3>
               </Link>
               <p className="text-sm text-muted-foreground max-w-sm">

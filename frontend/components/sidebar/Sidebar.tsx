@@ -73,7 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({ organizationId }) => {
       </div>
       <div className="flex items-center gap-4 px-2">
         <Link href="/" className="text-2xl font-bold tracking-wider text-gradient-custom">
-          NetGen
+          ISPinnacle
         </Link>
       </div>
     </div>
