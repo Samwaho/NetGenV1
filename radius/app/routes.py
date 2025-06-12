@@ -3,7 +3,7 @@ from typing import Dict, Optional, Union
 from .models import RadiusProfile, ServiceType
 from datetime import datetime, timedelta
 from bson import ObjectId
-from .config.database import isp_customers, isp_customers_accounting, isp_packages
+from .config.database import isp_customers, isp_customers_accounting, isp_packages, hotspot_vouchers, hotspot_vouchers_accounting
 import logging
 import json
 from fastapi.responses import JSONResponse
