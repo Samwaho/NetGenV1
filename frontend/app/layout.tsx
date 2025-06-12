@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NetGen - ISP Management Platform",
+  title: "ISPinnacle - ISP Management Platform",
   description: "Smart management solutions for modern Internet Service Providers",
   keywords: [
     "ISP management",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     "Billing system",
     "Network monitoring",
   ],
-  authors: [{ name: "NetGen" }],
+  authors: [{ name: "ISPinnacle" }],
 };
 
 export const viewport: Viewport = {
