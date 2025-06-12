@@ -3,7 +3,7 @@ import { useQuery } from "@apollo/client";
 import { GET_ISP_TRANSACTIONS } from "@/graphql/isp_transactions";
 import { DataTable } from "./components/TransactionsTable";
 import { columns } from "./components/columns";
-import { Receipt, CreditCard, TrendingUp, ShieldAlert, Wallet } from "lucide-react";
+import { Receipt, CreditCard, TrendingUp, ShieldAlert, Wallet, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { ISPTransaction } from "@/types/isp_transaction";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -16,6 +16,7 @@ import { OrganizationPermissions } from "@/lib/permissions";
 import { useMemo, memo, ReactElement, useState, useCallback, Suspense } from "react";
 import { UnmatchedTransactions } from "./components/UnmatchedTransactions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Define filter options interface
 interface TransactionFilterOptions {
@@ -24,6 +25,7 @@ interface TransactionFilterOptions {
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
   search?: string;
+  transactionType?: string;
 }
 
 // Define the props type for StatsCard
@@ -125,10 +127,10 @@ const StatsSection = memo(({ stats, isLoading }: {
       isLoading={isLoading}
     />
     <StatsCard
-      title="Highest Transaction"
-      value={`KES ${stats.highestAmount.toLocaleString()}`}
-      percentage="Highest amount received"
-      icon={<TrendingUp className="h-4 w-4 text-blue-500" />}
+      title="Voucher Sales"
+      value={stats.voucherSales}
+      percentage={`${((stats.voucherSales / stats.totalTransactions) * 100).toFixed(1)}% of total`}
+      icon={<Wifi className="h-4 w-4 text-blue-500" />}
       color="text-blue-500"
       isLoading={isLoading}
     />
@@ -163,16 +165,16 @@ const useTransactionStats = (transactions: ISPTransaction[], totalCount: number)
     // Calculate total amount for all transactions
     const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
 
-    // Find highest transaction amount
-    const highestAmount = Math.max(...transactions.map(t => t.amount), 0);
+    // Count voucher sales
+    const voucherSales = transactions.filter(t => t.transactionType === "hotspot_voucher").length;
 
     return {
       totalAmount,
       totalTransactions: totalCount,
       transactionsToday: todayTransactions.length,
       amountToday: todayAmount,
-      highestAmount,
-      successRate: totalCount ? ((transactions.filter(t => t.transactionType === "PAYMENT").length / totalCount) * 100).toFixed(1) : "0",
+      voucherSales,
+      successRate: totalCount ? ((transactions.filter(t => t.status === "completed").length / totalCount) * 100).toFixed(1) : "0",
     };
   }, [transactions, totalCount]);
 };
@@ -189,6 +191,27 @@ const AccessDenied = memo(() => (
 ));
 AccessDenied.displayName = "AccessDenied";
 
+// Transaction type filter component
+const TransactionTypeFilter = memo(({ 
+  value, 
+  onChange 
+}: { 
+  value?: string; 
+  onChange: (value: string) => void 
+}) => (
+  <Select value={value} onValueChange={onChange}>
+    <SelectTrigger className="w-[180px]">
+      <SelectValue placeholder="All Transactions" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="">All Transactions</SelectItem>
+      <SelectItem value="customer_payment">Customer Payments</SelectItem>
+      <SelectItem value="hotspot_voucher">Hotspot Vouchers</SelectItem>
+    </SelectContent>
+  </Select>
+));
+TransactionTypeFilter.displayName = "TransactionTypeFilter";
+
 export default function TransactionsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -204,6 +227,7 @@ export default function TransactionsPage() {
     sortBy: searchParams.get("sortBy") || "createdAt",
     sortDirection: (searchParams.get("sortDirection") || "desc") as "asc" | "desc",
     search: searchParams.get("search") || undefined,
+    transactionType: searchParams.get("transactionType") || undefined,
   });
 
   // Memoized filter change handler
@@ -279,6 +303,10 @@ export default function TransactionsPage() {
             View and manage payment transactions
           </p>
         </div>
+        <TransactionTypeFilter 
+          value={filterOptions.transactionType} 
+          onChange={(value) => handleFilterChange({ ...filterOptions, transactionType: value })}
+        />
       </div>
 
       <Suspense fallback={<StatsSection stats={stats} isLoading={true} />}>

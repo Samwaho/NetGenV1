@@ -10,19 +10,35 @@ import type {
 const TRANSACTION_CORE_FIELDS = gql`
   fragment TransactionCoreFields on ISPTransaction {
     id
-    transactionId
+    organizationId
     transactionType
-    transTime
+    callbackType
+    status
     amount
+    phoneNumber
+    
+    # Common fields
+    transactionId
+    paymentMethod
+    
+    # Customer payment specific fields
+    firstName
+    middleName
+    lastName
     businessShortCode
     billRefNumber
     invoiceNumber
     orgAccountBalance
     thirdPartyTransID
-    phoneNumber
-    firstName
-    middleName
-    lastName
+    transTime
+    
+    # Hotspot voucher specific fields
+    voucherCode
+    packageId
+    packageName
+    duration
+    dataLimit
+    expiresAt
   }
 `;
 
@@ -49,7 +65,8 @@ export const GET_ISP_TRANSACTIONS = gql`
     $pageSize: Int = 20,
     $sortBy: String = "createdAt",
     $sortDirection: String = "desc",
-    $search: String
+    $search: String,
+    $transactionType: String
   ) {
     transactions(
       organizationId: $organizationId,
@@ -57,31 +74,18 @@ export const GET_ISP_TRANSACTIONS = gql`
       pageSize: $pageSize,
       sortBy: $sortBy,
       sortDirection: $sortDirection,
-      search: $search
+      search: $search,
+      transactionType: $transactionType
     ) {
       success
       message
       totalCount
       transactions {
-        id
-        transactionId
-        transactionType
-        transTime
-        amount
-        businessShortCode
-        billRefNumber
-        invoiceNumber
-        orgAccountBalance
-        thirdPartyTransID
-        phoneNumber
-        firstName
-        middleName
-        lastName
-        createdAt
-        updatedAt
+        ...CompleteTransactionFields
       }
     }
   }
+  ${COMPLETE_TRANSACTION_FIELDS}
 `;
 
 export const GET_ISP_TRANSACTION = gql`
@@ -142,11 +146,11 @@ export const UPDATE_TRANSACTION_BILL_REF = gql`
       success
       message
       transaction {
-        id
-        billRefNumber
+        ...CompleteTransactionFields
       }
     }
   }
+  ${COMPLETE_TRANSACTION_FIELDS}
 `;
 
 export type {

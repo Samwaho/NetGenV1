@@ -24,7 +24,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, memo } from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2, Search } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Define the interface here since it's not exported from the module
 interface TransactionFilterOptions {
@@ -33,6 +34,7 @@ interface TransactionFilterOptions {
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
   search?: string;
+  transactionType?: string;
 }
 
 interface DataTableProps<TData, TValue> {
@@ -43,6 +45,27 @@ interface DataTableProps<TData, TValue> {
   onFilterChange?: (filters: TransactionFilterOptions) => void;
   isLoading?: boolean;
 }
+
+// Transaction Type Filter Component
+const TransactionTypeFilter = memo(({ 
+  value, 
+  onChange 
+}: { 
+  value: string;
+  onChange: (value: string) => void;
+}) => (
+  <Select value={value} onValueChange={onChange}>
+    <SelectTrigger className="w-[180px]">
+      <SelectValue placeholder="All Transactions" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="">All Transactions</SelectItem>
+      <SelectItem value="customer_payment">Customer Payments</SelectItem>
+      <SelectItem value="hotspot_voucher">Hotspot Vouchers</SelectItem>
+    </SelectContent>
+  </Select>
+));
+TransactionTypeFilter.displayName = "TransactionTypeFilter";
 
 // Pagination Controls Component
 const PaginationControls = memo(({ 
@@ -182,18 +205,31 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Input
-          placeholder="Search transactions..."
-          value={filterOptions.search || ""}
-          onChange={(event) => {
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search transactions..."
+            value={filterOptions.search || ""}
+            onChange={(event) => {
+              onFilterChange?.({
+                ...filterOptions,
+                search: event.target.value,
+                page: 1, // Reset to first page on search
+              });
+            }}
+            className="pl-8"
+          />
+        </div>
+        <TransactionTypeFilter
+          value={filterOptions.transactionType || ""}
+          onChange={(value) => {
             onFilterChange?.({
               ...filterOptions,
-              search: event.target.value,
-              page: 1, // Reset to first page on search
+              transactionType: value,
+              page: 1, // Reset to first page on filter change
             });
           }}
-          className="max-w-sm"
         />
       </div>
 
@@ -216,7 +252,19 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="ml-2">Loading transactions...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}

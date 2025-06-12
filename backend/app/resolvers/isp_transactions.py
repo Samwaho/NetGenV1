@@ -7,7 +7,9 @@ from app.schemas.isp_transactions import (
     ISPTransaction,
     ISPTransactionResponse,
     ISPTransactionsResponse,
-    CreateISPTransactionInput
+    CreateISPTransactionInput,
+    TransactionType,
+    TransactionStatus
 )
 from app.config.deps import Context
 from bson.objectid import ObjectId
@@ -39,7 +41,8 @@ def deserialize(s):
     return json.loads(s)
 
 def parse_transaction_datetimes(transaction_dict):
-    for field in ["createdAt", "updatedAt", "transTime"]:
+    datetime_fields = ["createdAt", "updatedAt", "transTime", "expiresAt"]
+    for field in datetime_fields:
         if field in transaction_dict and isinstance(transaction_dict[field], str):
             try:
                 transaction_dict[field] = datetime.fromisoformat(transaction_dict[field])
@@ -106,7 +109,8 @@ class ISPTransactionResolver:
         page_size: Optional[int] = DEFAULT_PAGE_SIZE,
         sort_by: Optional[str] = "createdAt",
         sort_direction: Optional[str] = "desc",
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        transaction_type: Optional[str] = None
     ) -> ISPTransactionsResponse:
         try:
             context: Context = info.context
@@ -127,6 +131,10 @@ class ISPTransactionResolver:
             org_object_id = ObjectId(organization_id)
             query_filter = {"organizationId": org_object_id}
             
+            # Add transaction type filter if specified
+            if transaction_type:
+                query_filter["transactionType"] = transaction_type
+            
             if search:
                 import re
                 search_regex = {"$regex": f".*{re.escape(search)}.*", "$options": "i"}
@@ -135,7 +143,9 @@ class ISPTransactionResolver:
                     {"phoneNumber": search_regex},
                     {"firstName": search_regex},
                     {"lastName": search_regex},
-                    {"transactionId": search_regex}
+                    {"transactionId": search_regex},
+                    {"voucherCode": search_regex},
+                    {"packageName": search_regex}
                 ]
             
             total_count = await isp_mpesa_transactions.count_documents(query_filter)
@@ -151,6 +161,8 @@ class ISPTransactionResolver:
             for t in transactions:
                 t['id'] = str(t['_id'])
                 t['organizationId'] = str(t['organizationId'])
+                if 'packageId' in t and t['packageId']:
+                    t['packageId'] = str(t['packageId'])
                 transformed_transactions.append(await ISPTransaction.from_db(t))
             
             return ISPTransactionsResponse(
@@ -175,7 +187,7 @@ class ISPTransactionResolver:
         info: strawberry.Info
     ) -> ISPTransactionResponse:
         """
-        Create a new ISP transaction (mainly for testing purposes).
+        Create a new ISP transaction.
         
         Args:
             input: Transaction creation input
@@ -205,22 +217,40 @@ class ISPTransactionResolver:
         current_time = datetime.now(timezone.utc)
         transaction_data = {
             "organizationId": ObjectId(input.organizationId),
-            "transactionId": input.transactionId,
             "transactionType": input.transactionType,
-            "transTime": input.transTime,
+            "callbackType": input.callbackType,
+            "status": input.status,
             "amount": input.amount,
+            "phoneNumber": input.phoneNumber,
+            "createdAt": current_time,
+            "updatedAt": current_time,
+            
+            # Common fields
+            "transactionId": input.transactionId,
+            "paymentMethod": input.paymentMethod,
+            
+            # Customer payment specific fields
+            "firstName": input.firstName,
+            "middleName": input.middleName,
+            "lastName": input.lastName,
             "businessShortCode": input.businessShortCode,
             "billRefNumber": input.billRefNumber,
             "invoiceNumber": input.invoiceNumber,
             "orgAccountBalance": input.orgAccountBalance,
             "thirdPartyTransID": input.thirdPartyTransID,
-            "phoneNumber": input.phoneNumber,
-            "firstName": input.firstName,
-            "middleName": input.middleName,
-            "lastName": input.lastName,
-            "createdAt": current_time,
-            "updatedAt": current_time
+            "transTime": input.transTime,
+            
+            # Hotspot voucher specific fields
+            "voucherCode": input.voucherCode,
+            "packageId": ObjectId(input.packageId) if input.packageId else None,
+            "packageName": input.packageName,
+            "duration": input.duration,
+            "dataLimit": input.dataLimit,
+            "expiresAt": input.expiresAt
         }
+
+        # Remove None values
+        transaction_data = {k: v for k, v in transaction_data.items() if v is not None}
 
         # Insert the new transaction
         try:
@@ -231,7 +261,9 @@ class ISPTransactionResolver:
             raise HTTPException(status_code=500, detail="Database error occurred")
 
         # Record activity
-        activity_message = f"manually created transaction {input.transactionId}"
+        activity_message = f"manually created {input.transactionType} transaction"
+        if input.transactionId:
+            activity_message += f" {input.transactionId}"
         await record_activity(
             current_user.id,
             ObjectId(input.organizationId),
@@ -288,7 +320,9 @@ class ISPTransactionResolver:
         transaction_data = await ISPTransaction.from_db(transaction)
         
         # Record activity before deletion
-        activity_message = f"deleted transaction {transaction['transactionId']}"
+        activity_message = f"deleted {transaction.get('transactionType', 'unknown')} transaction"
+        if transaction.get('transactionId'):
+            activity_message += f" {transaction['transactionId']}"
         await record_activity(
             current_user.id,
             transaction["organizationId"],
@@ -337,6 +371,7 @@ class ISPTransactionResolver:
             # Base query
             query = {
                 "organizationId": org_id,
+                "transactionType": TransactionType.CUSTOMER_PAYMENT.value,
                 "billRefNumber": {"$nin": customer_usernames}
             }
             

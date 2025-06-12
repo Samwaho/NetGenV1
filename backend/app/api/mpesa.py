@@ -606,20 +606,33 @@ async def process_customer_payment(organization_id: str, username: str, amount: 
         logger.info(f"Updated subscription for customer {username}: active until {new_expiry}")
 
         try:
+            logger.info(f"=== STARTING PAYMENT CONFIRMATION SMS PROCESS ===")
+            logger.info(f"Organization ID: {organization_id}")
+            logger.info(f"Customer Username: {username}")
+            
             org = await organizations.find_one({"_id": ObjectId(organization_id)})
             org_name = org.get("name", "Provider") if org else "Provider"
             paybill_number = None
             if org and org.get("mpesaConfig"):
                 paybill_number = org["mpesaConfig"].get("shortCode")
+            
+            logger.info(f"Organization Name: {org_name}")
+            logger.info(f"Paybill Number: {paybill_number}")
 
             template_result = await SmsTemplateService.list_templates(
                 organization_id=organization_id,
                 category=TemplateCategory.PAYMENT_CONFIRMATION,
                 is_active=True
             )
+            logger.info(f"Template Result: {json.dumps(template_result, default=str)}")
+            
             template_doc = None
             if template_result.get("success") and template_result.get("templates"):
                 template_doc = template_result["templates"][0]
+                logger.info(f"Found Template: {json.dumps(template_doc, default=str)}")
+            else:
+                logger.error("No active payment confirmation template found")
+                
             if template_doc:
                 sms_vars = {
                     "firstName": customer.get("firstName", ""),
@@ -630,14 +643,28 @@ async def process_customer_payment(organization_id: str, username: str, amount: 
                     "paybillNumber": paybill_number or "",
                     "expirationDate": new_expiry.strftime("%Y-%m-%d")
                 }
+                logger.info(f"SMS Variables: {json.dumps(sms_vars, default=str)}")
+                
                 message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
-                await send_sms_for_organization(
-                    organization_id=organization_id,
-                    to=customer.get("phone"),
-                    message=message
-                )
+                logger.info(f"Rendered Message: {message}")
+                
+                customer_phone = customer.get("phone")
+                logger.info(f"Customer Phone: {customer_phone}")
+                
+                if not customer_phone:
+                    logger.error("Customer phone number is missing")
+                else:
+                    sms_result = await send_sms_for_organization(
+                        organization_id=organization_id,
+                        to=customer_phone,
+                        message=message
+                    )
+                    logger.info(f"SMS Send Result: {json.dumps(sms_result, default=str)}")
+            else:
+                logger.error("Template document is missing")
         except Exception as sms_exc:
-            logger.error(f"Failed to send payment confirmation SMS: {sms_exc}")
+            logger.error(f"Failed to send payment confirmation SMS: {str(sms_exc)}")
+            logger.exception("Full traceback:")
 
         return True
         
@@ -648,6 +675,12 @@ async def process_customer_payment(organization_id: str, username: str, amount: 
 async def process_hotspot_voucher_payment(organization_id: str, voucher_code: str, amount: float, transaction_id: str = None) -> bool:
     """Process a payment for a hotspot voucher"""
     try:
+        logger.info(f"=== PROCESSING HOTSPOT VOUCHER PAYMENT ===")
+        logger.info(f"Organization ID: {organization_id}")
+        logger.info(f"Voucher Code: {voucher_code}")
+        logger.info(f"Amount: {amount}")
+        logger.info(f"Transaction ID: {transaction_id}")
+
         voucher = await hotspot_vouchers.find_one({
             "organizationId": ObjectId(organization_id),
             "code": voucher_code,
@@ -657,20 +690,118 @@ async def process_hotspot_voucher_payment(organization_id: str, voucher_code: st
         if not voucher:
             logger.error(f"Pending voucher with code {voucher_code} not found in organization {organization_id}")
             return False
+
+        # Get organization details
+        org = await organizations.find_one({"_id": ObjectId(organization_id)})
+        if not org:
+            logger.error(f"Organization {organization_id} not found")
+            return False
+
+        # Get package details
+        package = await isp_packages.find_one({"_id": voucher["packageId"]})
+        if not package:
+            logger.error(f"Package not found for voucher {voucher_code}")
+            return False
+
+        now = datetime.now(timezone.utc)
         
+        # Update voucher status
         update_result = await hotspot_vouchers.update_one(
             {"_id": voucher["_id"]},
             {
                 "$set": {
                     "status": "active",
                     "paymentReference": transaction_id,
-                    "updatedAt": datetime.now(timezone.utc)
+                    "activatedAt": now,
+                    "updatedAt": now
                 }
             }
         )
         
         if update_result.modified_count > 0:
             logger.info(f"Activated voucher {voucher_code} after payment confirmation")
+
+            # Store detailed transaction data
+            transaction_data = {
+                "organizationId": ObjectId(organization_id),
+                "callbackType": "hotspot_voucher",
+                "createdAt": now,
+                "updatedAt": now,
+                "transactionId": transaction_id,
+                "amount": amount,
+                "voucherCode": voucher_code,
+                "packageId": voucher["packageId"],
+                "packageName": package.get("name", ""),
+                "duration": package.get("duration", 0),
+                "dataLimit": package.get("dataLimit", 0),
+                "phoneNumber": voucher.get("phoneNumber"),
+                "status": "completed",
+                "paymentMethod": "mpesa",
+                "expiresAt": voucher.get("expiresAt")
+            }
+            
+            await isp_mpesa_transactions.insert_one(transaction_data)
+            logger.info(f"Stored detailed transaction data for voucher {voucher_code}")
+            
+            # Send SMS notification
+            try:
+                template_result = await SmsTemplateService.list_templates(
+                    organization_id=organization_id,
+                    category=TemplateCategory.HOTSPOT_VOUCHER,
+                    is_active=True
+                )
+                
+                template_doc = None
+                if template_result.get("success") and template_result.get("templates"):
+                    template_doc = template_result["templates"][0]
+                    logger.info(f"Found hotspot voucher template: {json.dumps(template_doc, default=str)}")
+                else:
+                    logger.error("No active hotspot voucher template found")
+                    
+                if template_doc:
+                    # Format expiry date
+                    expiry_date = voucher.get("expiresAt")
+                    if expiry_date:
+                        if not expiry_date.tzinfo:
+                            expiry_date = expiry_date.replace(tzinfo=timezone.utc)
+                        expiry_str = expiry_date.strftime("%Y-%m-%d %H:%M")
+                    else:
+                        expiry_str = "N/A"
+                        
+                    # Prepare SMS variables
+                    sms_vars = {
+                        "firstName": "Customer",  # Since we don't have customer name for hotspot users
+                        "voucherCode": voucher_code,
+                        "organizationName": org.get("name", "Provider"),
+                        "packageName": package.get("name", ""),
+                        "expirationDate": expiry_str,
+                        "amountPaid": amount,
+                        "dataLimit": package.get("dataLimit", "Unlimited"),
+                        "duration": f"{package.get('duration', 0)} days"
+                    }
+                    
+                    logger.info(f"SMS Variables: {json.dumps(sms_vars, default=str)}")
+                    
+                    # Render and send SMS
+                    message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
+                    logger.info(f"Rendered Message: {message}")
+                    
+                    phone_number = voucher.get("phoneNumber")
+                    if not phone_number:
+                        logger.error("Voucher phone number is missing")
+                    else:
+                        sms_result = await send_sms_for_organization(
+                            organization_id=organization_id,
+                            to=phone_number,
+                            message=message
+                        )
+                        logger.info(f"SMS Send Result: {json.dumps(sms_result, default=str)}")
+                else:
+                    logger.error("Template document is missing")
+            except Exception as sms_exc:
+                logger.error(f"Failed to send hotspot voucher SMS: {str(sms_exc)}")
+                logger.exception("Full traceback:")
+                
             return True
         else:
             logger.error(f"Failed to update voucher {voucher_code}")
@@ -678,6 +809,7 @@ async def process_hotspot_voucher_payment(organization_id: str, voucher_code: st
             
     except Exception as e:
         logger.error(f"Error processing hotspot voucher payment: {str(e)}")
+        logger.exception("Full traceback:")
         return False
 
 @router.post("/stk-push/{organization_id}")
