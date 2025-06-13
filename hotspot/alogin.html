@@ -11,12 +11,20 @@
     <link rel="stylesheet" href="css/style.css">
     <script>
         function startClock() {
-            $(if popup == 'true')
-            open('$(link-status)', 'hotspot_status', 'toolbar=0,location=0,directories=0,status=0,menubars=0,resizable=1,width=290,height=200');
-        $(endif)
-        location.href = unescape('$(link-redirect-esc)');
+            // Check if popup parameter is true
+            const urlParams = new URLSearchParams(window.location.search);
+            const shouldPopup = urlParams.get('popup') === 'true';
+            
+            if (shouldPopup) {
+                const statusUrl = '$(link-status)';
+                window.open(statusUrl, 'hotspot_status', 
+                    'toolbar=0,location=0,directories=0,status=0,menubars=0,resizable=1,width=290,height=200');
+            }
+            
+            // Redirect to the target URL
+            const redirectUrl = decodeURIComponent('$(link-redirect-esc)');
+            window.location.href = redirectUrl;
         }
-
     </script> 
 </head>
 

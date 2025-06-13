@@ -17,12 +17,7 @@
 
         // Get base API URL
         function getApiUrl() {
-            // If running locally, use the devtunnel URL
-            if (window.location.protocol === 'file:') {
-                return 'https://ispinnacle.co.ke';
-            }
-            // Otherwise use relative URL
-            return '';
+            return 'https://ispinnacle.co.ke';
         }
 
         // Fetch packages from API with better error handling
@@ -37,11 +32,13 @@
                 const response = await fetch(apiUrl, {
                     method: 'GET',
                     headers: {
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
                     }
                 });
 
                 if (!response.ok) {
+                    console.error(`API Error: ${response.status} ${response.statusText}`);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
@@ -351,7 +348,7 @@
         <div class="main">
             <div class="wrap animated fadeIn">
                 <div class="logo-area">
-                    <div class="logo">NetGN Hotspot</div>
+                    <div class="logo">ISPinnacle Hotspot</div>
                     <div class="tagline">High-speed internet access</div>
                 </div>
                 
