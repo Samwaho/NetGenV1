@@ -12,6 +12,7 @@ import base64
 from app.config.settings import settings
 from fastapi.middleware.cors import CORSMiddleware
 import json
+from app.api.mpesa import MpesaService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -275,13 +276,8 @@ async def purchase_voucher_with_mpesa(request: Request):
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         password = base64.b64encode((shortcode + passkey + timestamp).encode()).decode()
         
-        # Generate callback URL
-        api_url = settings.API_URL
-        if not api_url.startswith(('http://', 'https://')):
-            api_url = f"https://{api_url}"
-        
-        # Use the STK Push callback URL from mpesa config or generate default
-        callback_url = mpesa_config.get("stkPushCallbackUrl") or f"{api_url}/api/payments/callback/{organization_id}/stk_push"
+        # Generate callback URL using the utility function
+        callback_url = mpesa_config.get("stkPushCallbackUrl") or MpesaService.generate_callback_url(organization_id, "stk_push")
         
         # Prepare STK Push payload according to Safaricom docs
         stk_payload = {
@@ -313,6 +309,9 @@ async def purchase_voucher_with_mpesa(request: Request):
         logger.info(f"Voucher Code: {voucher_code}")
         logger.info(f"Callback URL: {callback_url}")
         logger.info(f"Environment: {environment}")
+        logger.info(f"Request URL: {MPESA_URLS[environment]['stk_push']}")
+        logger.info(f"Request Headers: {json.dumps(headers, indent=2)}")
+        logger.info(f"Request Payload: {json.dumps(stk_payload, indent=2)}")
         
         stk_response = requests.post(
             MPESA_URLS[environment]["stk_push"],
@@ -323,7 +322,11 @@ async def purchase_voucher_with_mpesa(request: Request):
         # Log the response for debugging
         logger.info(f"=== STK PUSH RESPONSE ===")
         logger.info(f"Status Code: {stk_response.status_code}")
-        logger.info(f"Response Body: {json.dumps(stk_response.json(), indent=2)}")
+        try:
+            response_json = stk_response.json()
+            logger.info(f"Response Body: {json.dumps(response_json, indent=2)}")
+        except:
+            logger.error(f"Failed to parse response as JSON: {stk_response.text}")
         
         if stk_response.status_code != 200:
             # Clean up the voucher if STK push fails
@@ -340,7 +343,7 @@ async def purchase_voucher_with_mpesa(request: Request):
         
         # Store transaction information
         from app.config.database import isp_mpesa_transactions
-        await isp_mpesa_transactions.insert_one({
+        transaction_data = {
             "organizationId": ObjectId(organization_id),
             "phoneNumber": phone_number,
             "amount": float(package["price"]),
@@ -348,8 +351,13 @@ async def purchase_voucher_with_mpesa(request: Request):
             "merchantRequestId": stk_result.get("MerchantRequestID"),
             "checkoutRequestId": stk_result.get("CheckoutRequestID"),
             "status": "pending",
-            "createdAt": datetime.now(timezone.utc)
-        })
+            "createdAt": datetime.now(timezone.utc),
+            "callbackUrl": callback_url  # Store the callback URL for reference
+        }
+        await isp_mpesa_transactions.insert_one(transaction_data)
+        
+        logger.info(f"=== STK PUSH TRANSACTION STORED ===")
+        logger.info(f"Transaction Data: {json.dumps(transaction_data, default=str, indent=2)}")
         
         return {
             "success": True,
@@ -364,6 +372,7 @@ async def purchase_voucher_with_mpesa(request: Request):
         raise he
     except Exception as e:
         logger.error(f"Error purchasing voucher: {str(e)}")
+        logger.exception("Full traceback:")
         # Always return a proper JSON response with 500 status
         raise HTTPException(status_code=500, detail=f"Error processing voucher purchase: {str(e)}")
 

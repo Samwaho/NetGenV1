@@ -63,6 +63,27 @@ class MpesaService:
             raise HTTPException(status_code=500, detail=error_msg)
 
     @staticmethod
+    def generate_callback_url(organization_id: str, callback_type: str) -> str:
+        """Generate a callback URL for Mpesa callbacks
+        
+        Args:
+            organization_id: The ID of the organization
+            callback_type: Type of callback (c2b, stk_push, etc.)
+            
+        Returns:
+            str: The fully qualified callback URL
+        """
+        api_url = settings.API_URL
+        
+        # Ensure URL starts with https://
+        if not api_url.startswith(('http://', 'https://')):
+            api_url = f"https://{api_url}"
+        elif api_url.startswith('http://'):
+            api_url = f"https://{api_url[7:]}"
+            
+        return f"{api_url}/api/payments/callback/{organization_id}/{callback_type}"
+
+    @staticmethod
     async def register_c2b_urls(organization_id: str, shortcode: str, 
                                access_token: str = None, environment: str = "sandbox") -> bool:
         """Register C2B URLs for a given shortcode"""
@@ -87,14 +108,12 @@ class MpesaService:
                 if not access_token:
                     return False
             
-            api_url = settings.API_URL
-            if not api_url.startswith(('http://', 'https://')):
-                api_url = f"https://{api_url}"
+            # Generate all callback URLs using the utility function
+            c2b_callback_url = MpesaService.generate_callback_url(organization_id, "c2b")
+            c2b_validation_url = f"{settings.API_URL}/api/payments/validate"
+            stk_callback_url = MpesaService.generate_callback_url(organization_id, "stk_push")
             
-            c2b_callback_url = f"{api_url}/api/payments/callback/{organization_id}/c2b"
-            c2b_validation_url = f"{api_url}/api/payments/validate"
-            stk_callback_url = f"{api_url}/api/payments/callback/{organization_id}/stk_push"
-            
+            # Register C2B URLs
             c2b_payload = {
                 "ShortCode": shortcode,
                 "ResponseType": "Completed",
@@ -107,25 +126,29 @@ class MpesaService:
                 "Content-Type": "application/json"
             }
             
-            logger.info(f"Registering payment callbacks for shortcode {shortcode}")
-            logger.info(f"Validation URL: {c2b_validation_url}")
-            logger.info(f"Confirmation URL: {c2b_callback_url}")
+            logger.info(f"=== REGISTERING MPESA CALLBACKS ===")
+            logger.info(f"Organization ID: {organization_id}")
+            logger.info(f"Environment: {environment}")
+            logger.info(f"Shortcode: {shortcode}")
+            logger.info(f"C2B Validation URL: {c2b_validation_url}")
+            logger.info(f"C2B Confirmation URL: {c2b_callback_url}")
             logger.info(f"STK Push Callback URL: {stk_callback_url}")
             logger.info(f"Request Payload: {json.dumps(c2b_payload, indent=2)}")
             
+            # Make C2B registration request
             c2b_response = requests.post(MPESA_URLS[environment]["register_c2b_url"], json=c2b_payload, headers=headers)
-            
             logger.info(f"C2B Registration Response: {c2b_response.text}")
             
             if c2b_response.status_code != 200:
-                logger.error(f"Failed to register payment callbacks: {c2b_response.text}")
+                logger.error(f"Failed to register C2B callbacks: {c2b_response.text}")
                 return False
                 
             c2b_result = c2b_response.json()
             if c2b_result.get("ResponseCode") not in ["0", "00000000"]:
-                logger.error(f"Failed to register payment callbacks: {c2b_result}")
+                logger.error(f"Failed to register C2B callbacks: {c2b_result}")
                 return False
             
+            # Update organization with all callback URLs
             update_data = {
                 "mpesaConfig.c2bCallbackUrl": c2b_callback_url,
                 "mpesaConfig.validationUrl": c2b_validation_url,
@@ -139,11 +162,12 @@ class MpesaService:
                 {"$set": update_data}
             )
             
-            logger.info(f"Successfully registered all payment callbacks for shortcode {shortcode}")
+            logger.info(f"Successfully registered all Mpesa callbacks for shortcode {shortcode}")
             return True
             
         except Exception as e:
             logger.error(f"Error registering Mpesa callbacks: {str(e)}")
+            logger.exception("Full traceback:")
             return False
 
 # Export functions for backward compatibility
@@ -281,36 +305,59 @@ async def mpesa_callback(organization_id: str, callback_type: str, request: Requ
         logger.info(f"Request Method: {request.method}")
         logger.info(f"Request URL: {request.url}")
         
+        # Verify organization exists
+        org = await organizations.find_one({"_id": ObjectId(organization_id)})
+        if not org:
+            logger.error(f"Organization {organization_id} not found")
+            return {"ResultCode": 1, "ResultDesc": "Organization not found"}
+            
+        # Verify Mpesa is configured
+        mpesa_config = org.get("mpesaConfig", {})
+        if not mpesa_config.get("isActive"):
+            logger.error(f"Mpesa not active for organization {organization_id}")
+            return {"ResultCode": 1, "ResultDesc": "Mpesa not active"}
+        
         payload = await request.json()
         logger.info(f"Callback Type: {callback_type}")
         logger.info(f"Organization ID: {organization_id}")
         logger.info(f"Raw Payload: {json.dumps(payload, indent=2)}")
         
-        # Store transaction data
+        # Store transaction data first
         await store_transaction(organization_id, callback_type, payload)
         
         # Process based on callback type
         if callback_type == "c2b":
-            logger.info("Processing C2B transaction")
+            logger.info("=== PROCESSING C2B TRANSACTION ===")
             success = await C2BTransactionService.process_transaction(organization_id, payload)
+            logger.info(f"C2B Transaction Processing Result: {success}")
+            
+            # For C2B, always return success to Mpesa
+            # This is because we've already stored the transaction and will process it asynchronously if needed
+            return {"ResultCode": 0, "ResultDesc": "Accepted"}
+            
         elif callback_type == "stk_push":
-            logger.info("Processing STK Push transaction")
+            logger.info("=== PROCESSING STK PUSH TRANSACTION ===")
             success = await STKTransactionService.process_transaction(organization_id, payload)
+            logger.info(f"STK Push Transaction Processing Result: {success}")
+            
+            # For STK Push, return based on processing result
+            # This is because STK Push requires immediate response
+            return {
+                "ResultCode": 0 if success else 1,
+                "ResultDesc": "Accepted" if success else "Failed to process STK Push"
+            }
         else:
             logger.error(f"Unknown callback type: {callback_type}")
-            return {"ResultCode": 1, "ResultDesc": "Rejected"}
-        
-        logger.info(f"Transaction Processing Result: {success}")
-        return {"ResultCode": 0 if success else 1, "ResultDesc": "Accepted" if success else "Rejected"}
+            return {"ResultCode": 1, "ResultDesc": f"Unknown callback type: {callback_type}"}
         
     except Exception as e:
         logger.error(f"Error processing Mpesa {callback_type} callback: {str(e)}")
         logger.exception("Full traceback:")
-        return {"ResultCode": 1, "ResultDesc": "Rejected"}
+        return {"ResultCode": 1, "ResultDesc": "Internal server error"}
 
 @router.post("/validate")
 async def mpesa_validate(request: Request):
-    """Simple validation endpoint for M-Pesa that always returns success"""
+    """Handle M-Pesa validation requests"""
     try:
         logger.info(f"=== MPESA VALIDATION REQUEST RECEIVED ===")
         logger.info(f"Request Headers: {dict(request.headers)}")
@@ -320,15 +367,41 @@ async def mpesa_validate(request: Request):
         payload = await request.json()
         logger.info(f"Validation payload: {json.dumps(payload, indent=2)}")
         
+        # Extract organization from shortcode
+        shortcode = payload.get("BusinessShortCode")
+        if not shortcode:
+            logger.error("No BusinessShortCode in validation request")
+            return {
+                "ResultCode": 1,
+                "ResultDesc": "Missing BusinessShortCode"
+            }
+            
+        # Find organization by shortcode
+        org = await organizations.find_one({
+            "mpesaConfig.shortCode": str(shortcode),
+            "mpesaConfig.isActive": True
+        })
+        
+        if not org:
+            logger.error(f"No active organization found for shortcode {shortcode}")
+            return {
+                "ResultCode": 1,
+                "ResultDesc": "Invalid BusinessShortCode"
+            }
+            
+        # For now, we accept all validation requests
+        # You can add custom validation logic here if needed
+        logger.info(f"Validation accepted for organization {org['_id']} with shortcode {shortcode}")
         return {
             "ResultCode": 0,
             "ResultDesc": "Accepted"
         }
     except Exception as e:
         logger.error(f"Error processing Mpesa validation request: {str(e)}")
+        logger.exception("Full traceback:")
         return {
             "ResultCode": 1,
-            "ResultDesc": "Rejected"
+            "ResultDesc": "Internal server error"
         }
 
 @router.post("/register-callbacks/{organization_id}")
@@ -894,7 +967,6 @@ async def initiate_stk_push(organization_id: str, request: Request):
         passkey = mpesa_config.get("stkPushPassKey") or mpesa_config.get("passKey")
         consumer_key = mpesa_config.get("consumerKey")
         consumer_secret = mpesa_config.get("consumerSecret")
-        callback_url = mpesa_config.get("stkPushCallbackUrl")
         environment = mpesa_config.get("environment", "sandbox")
         
         if not all([shortcode, passkey, consumer_key, consumer_secret]):
@@ -907,14 +979,8 @@ async def initiate_stk_push(organization_id: str, request: Request):
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         password = base64.b64encode((shortcode + passkey + timestamp).encode()).decode()
         
-        # Generate callback URL
-        api_url = settings.API_URL
-        if not api_url.startswith(('http://', 'https://')):
-            api_url = f"https://{api_url}"
-        
-        # Use the STK Push callback URL from mpesa config or generate default
-        if not callback_url:
-            callback_url = f"{api_url}/api/payments/callback/{organization_id}/stk_push"
+        # Generate callback URL using the utility function
+        callback_url = mpesa_config.get("stkPushCallbackUrl") or MpesaService.generate_callback_url(organization_id, "stk_push")
         
         logger.info(f"=== STK PUSH CALLBACK URL ===")
         logger.info(f"Using callback URL: {callback_url}")
@@ -939,26 +1005,42 @@ async def initiate_stk_push(organization_id: str, request: Request):
         }
         
         logger.info(f"=== STK PUSH REQUEST ===")
+        logger.info(f"Organization ID: {organization_id}")
+        logger.info(f"Phone Number: {phone_number}")
+        logger.info(f"Amount: {amount}")
+        logger.info(f"Environment: {environment}")
         logger.info(f"Request URL: {MPESA_URLS[environment]['stk_push']}")
         logger.info(f"Request Headers: {json.dumps(headers, indent=2)}")
         logger.info(f"Request Payload: {json.dumps(payload, indent=2)}")
         
         response = requests.post(MPESA_URLS[environment]["stk_push"], json=payload, headers=headers)
         
-        logger.info(f"STK Push Response: {response.text}")
+        logger.info(f"=== STK PUSH RESPONSE ===")
+        logger.info(f"Status Code: {response.status_code}")
+        try:
+            response_json = response.json()
+            logger.info(f"Response Body: {json.dumps(response_json, indent=2)}")
+        except:
+            logger.error(f"Failed to parse response as JSON: {response.text}")
         
         if response.status_code == 200:
             result = response.json()
             
-            await isp_mpesa_transactions.insert_one({
+            # Store transaction information
+            transaction_data = {
                 "organizationId": ObjectId(organization_id),
                 "phoneNumber": phone_number,
                 "amount": amount,
                 "merchantRequestId": result.get("MerchantRequestID"),
                 "checkoutRequestId": result.get("CheckoutRequestID"),
                 "status": "pending",
-                "createdAt": datetime.now(timezone.utc)
-            })
+                "createdAt": datetime.now(timezone.utc),
+                "callbackUrl": callback_url  # Store the callback URL for reference
+            }
+            await isp_mpesa_transactions.insert_one(transaction_data)
+            
+            logger.info(f"=== STK PUSH TRANSACTION STORED ===")
+            logger.info(f"Transaction Data: {json.dumps(transaction_data, default=str, indent=2)}")
             
             return {
                 "success": True,
@@ -967,12 +1049,19 @@ async def initiate_stk_push(organization_id: str, request: Request):
                 "checkoutRequestId": result.get("CheckoutRequestID")
             }
         else:
-            logger.error(f"Failed to initiate STK push: {response.text}")
-            raise HTTPException(status_code=500, detail="Failed to initiate STK push")
+            error_msg = response.text
+            try:
+                error_data = response.json()
+                error_msg = error_data.get("errorMessage", error_msg)
+            except:
+                pass
+            logger.error(f"Failed to initiate STK push: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to initiate STK push: {error_msg}")
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error initiating STK push: {str(e)}")
+        logger.exception("Full traceback:")
         raise HTTPException(status_code=500, detail="Error initiating STK push")
 
 @router.post("/callback/{organization_id}/validation")
