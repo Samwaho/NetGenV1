@@ -544,44 +544,36 @@ async def store_transaction(organization_id: str, callback_type: str, payload: D
             body = payload.get("Body", {})
             stk_callback = body.get("stkCallback", {})
             
-            # Check if transaction already exists
-            existing_transaction = await isp_mpesa_transactions.find_one({
-                "organizationId": ObjectId(organization_id),
-                "merchantRequestId": stk_callback.get("MerchantRequestID"),
-                "checkoutRequestId": stk_callback.get("CheckoutRequestID")
-            })
-            
-            if existing_transaction:
-                logger.info(f"Transaction already exists for STK push: {stk_callback.get('MerchantRequestID')}")
+            # Only proceed if this is a successful transaction
+            if stk_callback.get("ResultCode") != 0:
+                logger.info(f"Not storing failed STK push transaction with Result Code: {stk_callback.get('ResultCode')}")
                 return
             
-            if stk_callback.get("ResultCode") == 0:  # Success
-                items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
-                for item in items:
-                    name, value = item.get("Name"), item.get("Value")
-                    if name == "Amount":
-                        transaction_data["amount"] = float(value)
-                    elif name == "MpesaReceiptNumber":
-                        transaction_data["transactionId"] = value
-                    elif name == "PhoneNumber":
-                        transaction_data["phoneNumber"] = value
-                
-                transaction_data.update({
-                    "transactionType": "stk_push",  # Map to schema enum value
-                    "status": "completed",
-                    "resultCode": stk_callback.get("ResultCode"),
-                    "merchantRequestId": stk_callback.get("MerchantRequestID"),
-                    "checkoutRequestId": stk_callback.get("CheckoutRequestID"),
-                    "paymentMethod": "mpesa"
-                })
+            items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
+            for item in items:
+                name, value = item.get("Name"), item.get("Value")
+                if name == "Amount":
+                    transaction_data["amount"] = float(value)
+                elif name == "MpesaReceiptNumber":
+                    transaction_data["transactionId"] = value
+                elif name == "PhoneNumber":
+                    transaction_data["phoneNumber"] = value
+            
+            transaction_data.update({
+                "transactionType": "stk_push",
+                "status": "completed",
+                "resultCode": stk_callback.get("ResultCode"),
+                "merchantRequestId": stk_callback.get("MerchantRequestID"),
+                "checkoutRequestId": stk_callback.get("CheckoutRequestID"),
+                "paymentMethod": "mpesa"
+            })
+            
+            # Insert only if we have all required fields
+            if all(key in transaction_data for key in ["amount", "transactionId", "phoneNumber"]):
+                result = await isp_mpesa_transactions.insert_one(transaction_data)
+                logger.info(f"Stored successful STK push transaction with ID: {result.inserted_id}")
             else:
-                transaction_data.update({
-                    "transactionType": "stk_push",  # Map to schema enum value
-                    "status": "failed",
-                    "resultCode": stk_callback.get("ResultCode"),
-                    "merchantRequestId": stk_callback.get("MerchantRequestID"),
-                    "checkoutRequestId": stk_callback.get("CheckoutRequestID")
-                })
+                logger.error("Missing required fields in STK push transaction data")
         
         elif callback_type == "c2b":
             # Check if transaction already exists
@@ -599,7 +591,7 @@ async def store_transaction(organization_id: str, callback_type: str, payload: D
             if mpesa_transaction_type == "pay bill":
                 transaction_type = "c2b"
             else:
-                transaction_type = "customer_payment"  # Default to customer_payment for other C2B types
+                transaction_type = "customer_payment"
             
             field_mappings = {
                 "TransID": "transactionId",
@@ -624,20 +616,15 @@ async def store_transaction(organization_id: str, callback_type: str, payload: D
                         transaction_data[db_key] = payload.get(mpesa_key)
             
             transaction_data.update({
-                "transactionType": transaction_type,  # Use mapped transaction type
+                "transactionType": transaction_type,
                 "status": "completed",
                 "paymentMethod": "mpesa"
             })
-        
-        elif callback_type == "hotspot_voucher":
-            # For hotspot vouchers, we don't need to check for duplicates
-            # as they are created during the voucher activation process
-            return
-        
-        # Insert the transaction
-        result = await isp_mpesa_transactions.insert_one(transaction_data)
-        logger.info(f"Stored transaction with ID: {result.inserted_id}")
-        
+            
+            # Insert the transaction
+            result = await isp_mpesa_transactions.insert_one(transaction_data)
+            logger.info(f"Stored C2B transaction with ID: {result.inserted_id}")
+            
     except Exception as e:
         logger.error(f"Error storing Mpesa transaction: {str(e)}")
         logger.exception("Full traceback:")
