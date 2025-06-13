@@ -211,19 +211,20 @@
                                 form.method = 'POST';
                                 form.action = '$(link-login-only)';
                                 
-                                // Add required fields for MikroTik authentication
+                                // Get CHAP values from MikroTik
+                                const chapId = document.getElementById('chap-id')?.value || '$(chap-id)';
+                                const chapChallenge = document.getElementById('chap-challenge')?.value || '$(chap-challenge)';
+                                
+                                // Add required fields for MikroTik authentication with CHAP
                                 const fields = {
                                     'username': voucherCode,
                                     'password': voucherCode,
                                     'dst': '$(link-orig)',
-                                    'popup': 'true'
+                                    'popup': 'true',
+                                    'chap-id': chapId,
+                                    'chap-challenge': chapChallenge,
+                                    'chap': '1'  // Enable CHAP authentication
                                 };
-                                
-                                // Add CHAP fields if present
-                                if ('$(chap-id)' && '$(chap-challenge)') {
-                                    fields['chap-id'] = '$(chap-id)';
-                                    fields['chap-challenge'] = '$(chap-challenge)';
-                                }
                                 
                                 // Create and append form fields
                                 for (const [name, value] of Object.entries(fields)) {
@@ -362,19 +363,20 @@
                     hotspotForm.method = 'POST';
                     hotspotForm.action = '$(link-login-only)';
                     
-                    // Add required fields for MikroTik authentication
+                    // Get CHAP values from MikroTik
+                    const chapId = document.getElementById('chap-id')?.value || '$(chap-id)';
+                    const chapChallenge = document.getElementById('chap-challenge')?.value || '$(chap-challenge)';
+                    
+                    // Add required fields for MikroTik authentication with CHAP
                     const fields = {
                         'username': username,
                         'password': password,
                         'dst': '$(link-orig)',
-                        'popup': 'true'
+                        'popup': 'true',
+                        'chap-id': chapId,
+                        'chap-challenge': chapChallenge,
+                        'chap': '1'  // Enable CHAP authentication
                     };
-                    
-                    // Add CHAP fields if present
-                    if ('$(chap-id)' && '$(chap-challenge)') {
-                        fields['chap-id'] = '$(chap-id)';
-                        fields['chap-challenge'] = '$(chap-challenge)';
-                    }
                     
                     // Create and append form fields
                     for (const [name, value] of Object.entries(fields)) {
