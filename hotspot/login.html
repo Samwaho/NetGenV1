@@ -299,6 +299,47 @@
             displayPackages(localPackages);
         }
 
+        // Add this function to handle voucher form submission
+        async function handleVoucherSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const username = form.username.value.trim();
+            const password = form.password.value.trim();
+            
+            if (!username || !password) {
+                alert('Please enter the voucher code in both fields');
+                return;
+            }
+            
+            if (username !== password) {
+                alert('Voucher codes do not match');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/hotspot/connect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        voucherCode: username
+                    })
+                });
+                
+                if (response.ok) {
+                    // Connection successful, redirect to success page
+                    window.location.href = 'alogin.html';
+                } else {
+                    const error = await response.json();
+                    alert(error.detail || 'Failed to connect. Please check your voucher code.');
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                alert('Network error. Please try again.');
+            }
+        }
+
         // Initialize the page
         window.onload = function() {
             // Set up UI
@@ -335,6 +376,12 @@
             
             // Start loading packages
             fetchPackages();
+            
+            // Add form submit handler
+            const voucherForm = document.getElementById('voucher-form');
+            if (voucherForm) {
+                voucherForm.addEventListener('submit', handleVoucherSubmit);
+            }
         };
     </script>
 </head>
@@ -419,14 +466,11 @@
                 <!-- Voucher Entry Section -->
                 <div id="voucher-entry" style="display: none;">
                     <h2>Enter Your Voucher</h2>
-                    <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onSubmit="return doLogin()" $(endif) class="voucher-form">
-                        <input type="hidden" name="dst" value="$(link-orig)" />
-                        <input type="hidden" name="popup" value="true" />
-                        
+                    <form id="voucher-form" class="voucher-form">
                         <div class="form-group">
                             <label>
                                 <span class="input-icon">🎟️</span>
-                                <input name="username" type="text" value="$(username)" placeholder="Voucher Code" />
+                                <input name="username" type="text" placeholder="Voucher Code" />
                             </label>
                         </div>
 

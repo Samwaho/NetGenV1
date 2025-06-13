@@ -498,8 +498,14 @@ async def connect_with_voucher(request: Request):
             raise HTTPException(status_code=404, detail="Invalid or inactive voucher")
             
         # Check if voucher is expired
-        if voucher.get("expiresAt") and voucher["expiresAt"] < datetime.now(timezone.utc):
-            raise HTTPException(status_code=400, detail="Voucher has expired")
+        now = datetime.now(timezone.utc)
+        expires_at = voucher.get("expiresAt")
+        if expires_at:
+            # Ensure expires_at is timezone-aware
+            if not expires_at.tzinfo:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at < now:
+                raise HTTPException(status_code=400, detail="Voucher has expired")
             
         # Get organization details
         org = await organizations.find_one({"_id": voucher["organizationId"]})
@@ -520,8 +526,8 @@ async def connect_with_voucher(request: Request):
             {"_id": voucher["_id"]},
             {
                 "$set": {
-                    "lastUsedAt": datetime.now(timezone.utc),
-                    "updatedAt": datetime.now(timezone.utc)
+                    "lastUsedAt": now,
+                    "updatedAt": now
                 },
                 "$inc": {"usageCount": 1}
             }
@@ -532,7 +538,7 @@ async def connect_with_voucher(request: Request):
             "message": "Connection successful",
             "voucher": {
                 "code": voucher_code,
-                "expiresAt": voucher.get("expiresAt"),
+                "expiresAt": expires_at,
                 "package": {
                     "name": package.get("name"),
                     "duration": package.get("duration"),
