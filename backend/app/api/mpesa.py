@@ -95,7 +95,6 @@ class MpesaService:
             c2b_validation_url = f"{api_url}/api/payments/validate"
             stk_callback_url = f"{api_url}/api/payments/callback/{organization_id}/stk_push"
             
-            # Register C2B URLs
             c2b_payload = {
                 "ShortCode": shortcode,
                 "ResponseType": "Completed",
@@ -125,30 +124,6 @@ class MpesaService:
             c2b_result = c2b_response.json()
             if c2b_result.get("ResponseCode") not in ["0", "00000000"]:
                 logger.error(f"Failed to register payment callbacks: {c2b_result}")
-                return False
-
-            # Register STK Push callback URL
-            stk_payload = {
-                "ShortCode": shortcode,
-                "ResponseType": "Completed",
-                "ConfirmationURL": stk_callback_url,
-                "ValidationURL": c2b_validation_url
-            }
-
-            logger.info(f"Registering STK Push callback URL")
-            logger.info(f"STK Push Request Payload: {json.dumps(stk_payload, indent=2)}")
-
-            stk_response = requests.post(MPESA_URLS[environment]["register_c2b_url"], json=stk_payload, headers=headers)
-            
-            logger.info(f"STK Push Registration Response: {stk_response.text}")
-            
-            if stk_response.status_code != 200:
-                logger.error(f"Failed to register STK Push callback: {stk_response.text}")
-                return False
-                
-            stk_result = stk_response.json()
-            if stk_result.get("ResponseCode") not in ["0", "00000000"]:
-                logger.error(f"Failed to register STK Push callback: {stk_result}")
                 return False
             
             update_data = {
