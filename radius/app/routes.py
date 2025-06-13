@@ -182,9 +182,11 @@ async def radius_authorize(request: Request):
                 logger.warning(f"Package not found for voucher: {username}")
                 return format_radius_response({"Reply-Message": "Invalid package"})
             
-            # Build response
+            # Build response with CHAP authentication
             reply = {
-                "Cleartext-Password": username  # Use voucher code as password
+                "Auth-Type": "CHAP",  # Force CHAP authentication
+                "Cleartext-Password": username,  # Use voucher code as password
+                "Service-Type": "Login-User"  # Specify service type for hotspot
             }
             
             # Convert package to RadiusProfile
@@ -361,6 +363,16 @@ async def radius_authenticate(request: Request):
         # Find customer
         customer = await get_customer(username)
         if not customer:
+            # Check if this is a hotspot voucher
+            voucher = await hotspot_vouchers.find_one({"code": username})
+            if voucher:
+                # For hotspot vouchers, the code is both username and password
+                if username == password:
+                    logger.info(f"Hotspot voucher authentication successful: {username}")
+                    return Response(status_code=204)
+                else:
+                    logger.warning(f"Invalid voucher authentication: {username}")
+                    return format_radius_response({"Reply-Message": "Invalid voucher"})
             return format_radius_response({"Reply-Message": "Login invalid"})
         
         # Check password
