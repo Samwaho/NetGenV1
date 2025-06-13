@@ -127,11 +127,35 @@ async def get_hotspot_packages(organization_id: str = Query(..., description="Or
                 "serviceType": package.get("serviceType", "HOTSPOT")
             })
         
-        return {"packages": packages}
+        return JSONResponse(
+            content={"packages": packages},
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Accept, Content-Type, Cache-Control",
+                "Access-Control-Expose-Headers": "Content-Length, Content-Range",
+                "Access-Control-Max-Age": "1728000"
+            }
+        )
     
     except Exception as e:
         logger.error(f"Error fetching hotspot packages: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch packages: {str(e)}")
+
+@router.options("/packages")
+async def options_packages():
+    """Handle OPTIONS request for packages endpoint"""
+    return Response(
+        status_code=204,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Accept, Content-Type, Cache-Control",
+            "Access-Control-Max-Age": "1728000",
+            "Content-Type": "text/plain charset=UTF-8",
+            "Content-Length": "0"
+        }
+    )
 
 @router.options("/purchase-voucher")
 async def options_purchase_voucher():
