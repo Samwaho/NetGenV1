@@ -341,20 +341,23 @@ async def purchase_voucher_with_mpesa(request: Request):
         
         stk_result = stk_response.json()
         
-        # Store minimal transaction data for callback matching
+        # Store transaction information
         from app.config.database import isp_mpesa_transactions
-        callback_reference = {
+        transaction_data = {
             "organizationId": ObjectId(organization_id),
+            "phoneNumber": phone_number,
+            "amount": float(package["price"]),
+            "accountReference": voucher_code,
             "merchantRequestId": stk_result.get("MerchantRequestID"),
             "checkoutRequestId": stk_result.get("CheckoutRequestID"),
-            "accountReference": voucher_code,  # needed to identify the voucher
-            "status": "initiated",  # different from 'pending' to indicate no transaction yet
-            "createdAt": datetime.now(timezone.utc)
+            "status": "pending",
+            "createdAt": datetime.now(timezone.utc),
+            "callbackUrl": callback_url  # Store the callback URL for reference
         }
-        await isp_mpesa_transactions.insert_one(callback_reference)
+        await isp_mpesa_transactions.insert_one(transaction_data)
         
-        logger.info(f"=== STK PUSH CALLBACK REFERENCE STORED ===")
-        logger.info(f"Callback Reference: {json.dumps(callback_reference, default=str, indent=2)}")
+        logger.info(f"=== STK PUSH TRANSACTION STORED ===")
+        logger.info(f"Transaction Data: {json.dumps(transaction_data, default=str, indent=2)}")
         
         return {
             "success": True,
