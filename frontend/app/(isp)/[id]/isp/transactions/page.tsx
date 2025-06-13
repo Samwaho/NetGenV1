@@ -263,13 +263,19 @@ export default function TransactionsPage() {
       nextFetchPolicy: "cache-first",
       notifyOnNetworkStatusChange: true,
       onCompleted: (data) => {
-        console.log("Query completed with data:", data);
+        console.log("=== QUERY COMPLETED ===");
+        console.log("Organization ID:", organizationId);
+        console.log("Filter Options:", filterOptions);
+        console.log("Query Response:", data);
         if (!data?.transactions?.success) {
           toast.error(data?.transactions?.message || 'Failed to load transactions');
         }
       },
       onError: (error) => {
-        console.error("Query error:", error);
+        console.error("=== QUERY ERROR ===");
+        console.error("Organization ID:", organizationId);
+        console.error("Filter Options:", filterOptions);
+        console.error("Error:", error);
         toast.error(`Error loading transactions: ${error.message}`);
       }
     }
@@ -277,6 +283,8 @@ export default function TransactionsPage() {
 
   const transactions = data?.transactions.transactions || [];
   const totalCount = data?.transactions.totalCount || 0;
+  console.log("=== PROCESSED DATA ===");
+  console.log("Organization ID:", organizationId);
   console.log("Processed transactions:", transactions);
   console.log("Total count:", totalCount);
   const stats = useTransactionStats(transactions, totalCount);

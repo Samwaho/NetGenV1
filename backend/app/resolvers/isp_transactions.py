@@ -115,7 +115,34 @@ class ISPTransactionResolver:
         try:
             context: Context = info.context
             current_user = await context.authenticate()
-            logger.info(f"Fetching transactions for org {organization_id}, user {current_user.id}")
+            logger.info(f"=== TRANSACTIONS QUERY STARTED ===")
+            logger.info(f"Organization ID: {organization_id}")
+            logger.info(f"User ID: {current_user.id}")
+            logger.info(f"Page: {page}, Page Size: {page_size}")
+            logger.info(f"Sort By: {sort_by}, Sort Direction: {sort_direction}")
+
+            # Verify organization exists and user has access
+            org = await organizations.find_one({"_id": ObjectId(organization_id)})
+            if not org:
+                logger.error(f"Organization not found: {organization_id}")
+                return ISPTransactionsResponse(
+                    success=False,
+                    message="Organization not found",
+                    transactions=[],
+                    total_count=0
+                )
+
+            user_member = next((m for m in org.get("members", []) if m.get("userId") == current_user.id), None)
+            if not user_member:
+                logger.error(f"User {current_user.id} is not a member of organization {organization_id}")
+                return ISPTransactionsResponse(
+                    success=False,
+                    message="Not authorized to view transactions",
+                    transactions=[],
+                    total_count=0
+                )
+
+            logger.info(f"User is a member of the organization with role: {user_member.get('roleName')}")
 
             cache_key = transactions_cache_key(current_user.id, organization_id, page, page_size, sort_by, sort_direction, search)
             cached = await redis.get(cache_key)
@@ -152,9 +179,14 @@ class ISPTransactionResolver:
                 ]
                 logger.info(f"Search filter applied: {search}")
             
-            logger.info(f"Query filter: {query_filter}")
+            logger.info(f"Final query filter: {json.dumps(query_filter, default=str)}")
+            
+            # First, let's check if there are any transactions at all for this org
+            all_transactions_count = await isp_mpesa_transactions.count_documents({"organizationId": org_object_id})
+            logger.info(f"Total transactions for organization (no filters): {all_transactions_count}")
+            
             total_count = await isp_mpesa_transactions.count_documents(query_filter)
-            logger.info(f"Total count: {total_count}")
+            logger.info(f"Total count with filters: {total_count}")
             
             cursor = isp_mpesa_transactions.find(query_filter)
         
@@ -164,6 +196,9 @@ class ISPTransactionResolver:
         
             transactions = await cursor.to_list(None)
             logger.info(f"Found {len(transactions)} transactions")
+            
+            if transactions:
+                logger.info(f"Sample transaction: {json.dumps(transactions[0], default=str)}")
             
             await redis.set(cache_key, serialize({"transactions": transactions, "total_count": total_count}), ex=CACHE_TTL)
             transformed_transactions = []
