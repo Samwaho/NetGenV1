@@ -341,6 +341,24 @@ async def purchase_voucher_with_mpesa(request: Request):
         
         stk_result = stk_response.json()
         
+        # Store transaction information
+        from app.config.database import isp_mpesa_transactions
+        transaction_data = {
+            "organizationId": ObjectId(organization_id),
+            "phoneNumber": phone_number,
+            "amount": float(package["price"]),
+            "accountReference": voucher_code,
+            "merchantRequestId": stk_result.get("MerchantRequestID"),
+            "checkoutRequestId": stk_result.get("CheckoutRequestID"),
+            "status": "pending",
+            "createdAt": datetime.now(timezone.utc),
+            "callbackUrl": callback_url  # Store the callback URL for reference
+        }
+        await isp_mpesa_transactions.insert_one(transaction_data)
+        
+        logger.info(f"=== STK PUSH TRANSACTION STORED ===")
+        logger.info(f"Transaction Data: {json.dumps(transaction_data, default=str, indent=2)}")
+        
         return {
             "success": True,
             "message": "Payment initiated. Please check your phone to complete the transaction.",
@@ -543,5 +561,3 @@ async def connect_with_voucher(request: Request):
     except Exception as e:
         logger.error(f"Error connecting with voucher: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
