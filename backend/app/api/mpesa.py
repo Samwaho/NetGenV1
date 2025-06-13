@@ -221,9 +221,43 @@ class STKTransactionService:
             logger.info(f"Merchant Request ID: {stk_callback.get('MerchantRequestID')}")
             logger.info(f"Checkout Request ID: {stk_callback.get('CheckoutRequestID')}")
             
+            merchant_request_id = stk_callback.get("MerchantRequestID")
+            checkout_request_id = stk_callback.get("CheckoutRequestID")
+
+            # First check if we already have a completed transaction for this request
+            existing_completed = await isp_mpesa_transactions.find_one({
+                "organizationId": ObjectId(organization_id),
+                "merchantRequestId": merchant_request_id,
+                "checkoutRequestId": checkout_request_id,
+                "status": "completed"
+            })
+            
+            if existing_completed:
+                logger.info(f"Transaction already processed successfully: {merchant_request_id}")
+                return True
+
+            # If payment failed, update the reference record and return
             if stk_callback.get("ResultCode") != 0:
                 logger.error(f"STK Push failed with Result Code: {stk_callback.get('ResultCode')}")
                 logger.error(f"Error Description: {stk_callback.get('ResultDesc')}")
+                
+                # Update the reference record to failed
+                await isp_mpesa_transactions.update_one(
+                    {
+                        "organizationId": ObjectId(organization_id),
+                        "merchantRequestId": merchant_request_id,
+                        "checkoutRequestId": checkout_request_id,
+                        "status": "initiated"
+                    },
+                    {
+                        "$set": {
+                            "status": "failed",
+                            "resultCode": stk_callback.get("ResultCode"),
+                            "resultDesc": stk_callback.get("ResultDesc"),
+                            "updatedAt": datetime.now(timezone.utc)
+                        }
+                    }
+                )
                 return False
             
             # Extract transaction details
@@ -254,42 +288,55 @@ class STKTransactionService:
                 logger.error("Missing required STK transaction fields")
                 return False
             
-            # Get account reference (voucher code)
-            merchant_request_id = stk_callback.get("MerchantRequestID")
-            checkout_request_id = stk_callback.get("CheckoutRequestID")
-            
-            logger.info(f"=== LOOKING UP TRANSACTION ===")
-            logger.info(f"Merchant Request ID: {merchant_request_id}")
-            logger.info(f"Checkout Request ID: {checkout_request_id}")
-            
-            transaction = await isp_mpesa_transactions.find_one({
+            # Get the reference record
+            reference = await isp_mpesa_transactions.find_one({
                 "organizationId": ObjectId(organization_id),
                 "merchantRequestId": merchant_request_id,
-                "checkoutRequestId": checkout_request_id
+                "checkoutRequestId": checkout_request_id,
+                "status": "initiated"
             })
             
-            logger.info(f"Transaction Found: {bool(transaction)}")
-            if transaction:
-                logger.info(f"Transaction Details: {json.dumps(transaction, default=str, indent=2)}")
-            
-            if not transaction or not transaction.get("accountReference"):
-                logger.error("Transaction not found or missing account reference")
+            if not reference:
+                logger.error("Reference record not found for callback")
                 return False
-            
-            voucher_code = transaction["accountReference"]
-            logger.info(f"=== PROCESSING VOUCHER ===")
-            logger.info(f"Voucher Code: {voucher_code}")
-            
-            # Process as hotspot voucher payment
-            success = await process_hotspot_voucher_payment(
-                organization_id=organization_id,
-                voucher_code=voucher_code,
-                amount=amount,
-                transaction_id=mpesa_receipt
+
+            # Update the reference record with full transaction details
+            update_result = await isp_mpesa_transactions.update_one(
+                {"_id": reference["_id"]},
+                {
+                    "$set": {
+                        "status": "completed",
+                        "amount": amount,
+                        "transactionId": mpesa_receipt,
+                        "phoneNumber": phone,
+                        "resultCode": stk_callback.get("ResultCode"),
+                        "resultDesc": stk_callback.get("ResultDesc"),
+                        "updatedAt": datetime.now(timezone.utc)
+                    }
+                }
             )
             
-            logger.info(f"Voucher Processing Result: {success}")
-            return success
+            if update_result.modified_count == 0:
+                logger.error("Failed to update transaction record")
+                return False
+
+            # Process the payment based on the reference type
+            if reference.get("accountReference"):  # This is a voucher payment
+                voucher_code = reference["accountReference"]
+                logger.info(f"=== PROCESSING VOUCHER ===")
+                logger.info(f"Voucher Code: {voucher_code}")
+                
+                success = await process_hotspot_voucher_payment(
+                    organization_id=organization_id,
+                    voucher_code=voucher_code,
+                    amount=amount,
+                    transaction_id=mpesa_receipt
+                )
+                
+                logger.info(f"Voucher Processing Result: {success}")
+                return success
+            
+            return True
             
         except Exception as e:
             logger.error(f"Error processing STK transaction: {str(e)}")
@@ -1025,6 +1072,19 @@ async def initiate_stk_push(organization_id: str, request: Request):
         
         if response.status_code == 200:
             result = response.json()
+            
+            # Store minimal transaction data for callback matching
+            callback_reference = {
+                "organizationId": ObjectId(organization_id),
+                "merchantRequestId": result.get("MerchantRequestID"),
+                "checkoutRequestId": result.get("CheckoutRequestID"),
+                "status": "initiated",  # different from 'pending' to indicate no transaction yet
+                "createdAt": datetime.now(timezone.utc)
+            }
+            await isp_mpesa_transactions.insert_one(callback_reference)
+            
+            logger.info(f"=== STK PUSH CALLBACK REFERENCE STORED ===")
+            logger.info(f"Callback Reference: {json.dumps(callback_reference, default=str, indent=2)}")
             
             return {
                 "success": True,
