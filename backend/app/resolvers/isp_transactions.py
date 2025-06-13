@@ -115,10 +115,12 @@ class ISPTransactionResolver:
         try:
             context: Context = info.context
             current_user = await context.authenticate()
+            logger.info(f"Fetching transactions for org {organization_id}, user {current_user.id}")
 
             cache_key = transactions_cache_key(current_user.id, organization_id, page, page_size, sort_by, sort_direction, search)
             cached = await redis.get(cache_key)
             if cached:
+                logger.info("Returning cached transactions")
                 data = deserialize(cached)
                 transaction_list = [await ISPTransaction.from_db(parse_transaction_datetimes(t)) for t in data["transactions"]]
                 return ISPTransactionsResponse(
@@ -134,6 +136,7 @@ class ISPTransactionResolver:
             # Add transaction type filter if specified
             if transaction_type:
                 query_filter["transactionType"] = transaction_type
+                logger.info(f"Filtering by transaction type: {transaction_type}")
             
             if search:
                 import re
@@ -147,8 +150,12 @@ class ISPTransactionResolver:
                     {"voucherCode": search_regex},
                     {"packageName": search_regex}
                 ]
+                logger.info(f"Search filter applied: {search}")
             
+            logger.info(f"Query filter: {query_filter}")
             total_count = await isp_mpesa_transactions.count_documents(query_filter)
+            logger.info(f"Total count: {total_count}")
+            
             cursor = isp_mpesa_transactions.find(query_filter)
         
             sort_order = DESCENDING if sort_direction.lower() == "desc" else ASCENDING
@@ -156,6 +163,8 @@ class ISPTransactionResolver:
             cursor = cursor.skip((page - 1) * page_size).limit(page_size)
         
             transactions = await cursor.to_list(None)
+            logger.info(f"Found {len(transactions)} transactions")
+            
             await redis.set(cache_key, serialize({"transactions": transactions, "total_count": total_count}), ex=CACHE_TTL)
             transformed_transactions = []
             for t in transactions:
@@ -165,6 +174,7 @@ class ISPTransactionResolver:
                     t['packageId'] = str(t['packageId'])
                 transformed_transactions.append(await ISPTransaction.from_db(t))
             
+            logger.info(f"Returning {len(transformed_transactions)} transformed transactions")
             return ISPTransactionsResponse(
                 success=True,
                 message="Transactions retrieved successfully",
@@ -173,6 +183,7 @@ class ISPTransactionResolver:
             )
         except Exception as e:
             logger.error(f"Error fetching transactions: {str(e)}")
+            logger.exception("Full traceback:")
             return ISPTransactionsResponse(
                 success=False,
                 message=f"Failed to fetch transactions: {str(e)}",

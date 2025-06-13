@@ -263,11 +263,13 @@ export default function TransactionsPage() {
       nextFetchPolicy: "cache-first",
       notifyOnNetworkStatusChange: true,
       onCompleted: (data) => {
+        console.log("Query completed with data:", data);
         if (!data?.transactions?.success) {
           toast.error(data?.transactions?.message || 'Failed to load transactions');
         }
       },
       onError: (error) => {
+        console.error("Query error:", error);
         toast.error(`Error loading transactions: ${error.message}`);
       }
     }
@@ -275,6 +277,8 @@ export default function TransactionsPage() {
 
   const transactions = data?.transactions.transactions || [];
   const totalCount = data?.transactions.totalCount || 0;
+  console.log("Processed transactions:", transactions);
+  console.log("Total count:", totalCount);
   const stats = useTransactionStats(transactions, totalCount);
 
   // Show loading state while checking permissions
@@ -288,6 +292,7 @@ export default function TransactionsPage() {
   }
 
   if (error) {
+    console.error("Error state:", error);
     toast.error("Failed to load transactions");
     return null;
   }
