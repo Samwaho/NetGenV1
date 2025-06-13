@@ -1026,22 +1026,6 @@ async def initiate_stk_push(organization_id: str, request: Request):
         if response.status_code == 200:
             result = response.json()
             
-            # Store transaction information
-            transaction_data = {
-                "organizationId": ObjectId(organization_id),
-                "phoneNumber": phone_number,
-                "amount": amount,
-                "merchantRequestId": result.get("MerchantRequestID"),
-                "checkoutRequestId": result.get("CheckoutRequestID"),
-                "status": "pending",
-                "createdAt": datetime.now(timezone.utc),
-                "callbackUrl": callback_url  # Store the callback URL for reference
-            }
-            await isp_mpesa_transactions.insert_one(transaction_data)
-            
-            logger.info(f"=== STK PUSH TRANSACTION STORED ===")
-            logger.info(f"Transaction Data: {json.dumps(transaction_data, default=str, indent=2)}")
-            
             return {
                 "success": True,
                 "message": "STK push initiated",
