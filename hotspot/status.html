@@ -11,16 +11,23 @@
     <title>Internet hotspot - Status</title>
     <link rel="stylesheet" href="css/style.css">
     <script>
-    $(if advert-pending == 'yes')
+        // Initialize popup variable
         var popup = '';
+        
+        // Check if advert is pending using MikroTik variable
+        var advertPending = '$(advert-pending)' === 'yes';
+        
         function focusAdvert() {
             if (window.focus) popup.focus();
         }
+        
         function openAdvert() {
-            popup = open('$(link-advert)', 'hotspot_advert', '');
-            setTimeout("focusAdvert()", 1000);
+            if (advertPending) {
+                popup = open('$(link-advert)', 'hotspot_advert', '');
+                setTimeout("focusAdvert()", 1000);
+            }
         }
-    $(endif)
+        
         function openLogout() {
             if (window.name != 'hotspot_status') return true;
             open('$(link-logout)', 'hotspot_logout', 'toolbar=0,location=0,directories=0,status=0,menubars=0,resizable=1,width=280,height=250');
@@ -46,6 +53,11 @@
                 document.documentElement.classList.add('dark');
             }
             updateThemeIcon();
+            
+            // Open advert if pending
+            if (advertPending) {
+                openAdvert();
+            }
         };
     </script>
 </head>
