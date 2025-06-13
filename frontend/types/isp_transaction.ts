@@ -1,12 +1,14 @@
 export enum TransactionType {
   CUSTOMER_PAYMENT = "customer_payment",
-  HOTSPOT_VOUCHER = "hotspot_voucher"
+  HOTSPOT_VOUCHER = "hotspot_voucher",
+  STK_PUSH = "stk_push",
+  C2B = "c2b"
 }
 
 export interface ISPTransaction {
   id: string;
   organizationId: string;
-  transactionType: TransactionType;
+  transactionType: string;
   callbackType: string;
   status: string;
   amount: number;

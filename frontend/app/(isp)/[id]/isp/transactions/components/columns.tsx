@@ -6,12 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 
-const getTransactionTypeLabel = (type: TransactionType): string => {
+const getTransactionTypeLabel = (type: string): string => {
   switch (type) {
     case TransactionType.CUSTOMER_PAYMENT:
       return "Customer Payment";
     case TransactionType.HOTSPOT_VOUCHER:
       return "Hotspot Voucher";
+    case TransactionType.STK_PUSH:
+      return "STK Push";
+    case TransactionType.C2B:
+      return "C2B";
     default:
       return type;
   }
@@ -60,6 +64,12 @@ export const columns: ColumnDef<ISPTransaction>[] = [
           break;
         case TransactionType.HOTSPOT_VOUCHER:
           variant = "secondary";
+          break;
+        case TransactionType.STK_PUSH:
+          variant = "outline";
+          break;
+        case TransactionType.C2B:
+          variant = "outline";
           break;
         default:
           variant = "outline";
