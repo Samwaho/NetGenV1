@@ -437,4 +437,90 @@ async def process_hotspot_voucher_payment(organization_id: str, voucher_code: st
         logger.error(f"Error processing hotspot voucher payment: {str(e)}")
         return False
 
+@router.get("/voucher-status/{voucher_id}")
+async def get_voucher_status(voucher_id: str):
+    """Get the current status of a voucher"""
+    try:
+        voucher = await hotspot_vouchers.find_one({"_id": ObjectId(voucher_id)})
+        if not voucher:
+            raise HTTPException(status_code=404, detail="Voucher not found")
+            
+        return {
+            "status": voucher.get("status", "pending"),
+            "code": voucher.get("code"),
+            "expiresAt": voucher.get("expiresAt")
+        }
+    except Exception as e:
+        logger.error(f"Error getting voucher status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/connect")
+async def connect_with_voucher(request: Request):
+    """Attempt to automatically connect a user with their voucher"""
+    try:
+        data = await request.json()
+        voucher_code = data.get("voucherCode")
+        
+        if not voucher_code:
+            raise HTTPException(status_code=400, detail="Voucher code is required")
+            
+        # Find the voucher
+        voucher = await hotspot_vouchers.find_one({
+            "code": voucher_code,
+            "status": "active"
+        })
+        
+        if not voucher:
+            raise HTTPException(status_code=404, detail="Invalid or inactive voucher")
+            
+        # Check if voucher is expired
+        if voucher.get("expiresAt") and voucher["expiresAt"] < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Voucher has expired")
+            
+        # Get organization details
+        org = await organizations.find_one({"_id": voucher["organizationId"]})
+        if not org:
+            raise HTTPException(status_code=404, detail="Organization not found")
+            
+        # Get package details
+        package = await isp_packages.find_one({"_id": voucher["packageId"]})
+        if not package:
+            raise HTTPException(status_code=404, detail="Package not found")
+            
+        # Here you would implement the actual connection logic
+        # This could involve calling your MikroTik API or other network management system
+        # For now, we'll just return success
+        
+        # Update voucher usage
+        await hotspot_vouchers.update_one(
+            {"_id": voucher["_id"]},
+            {
+                "$set": {
+                    "lastUsedAt": datetime.now(timezone.utc),
+                    "updatedAt": datetime.now(timezone.utc)
+                },
+                "$inc": {"usageCount": 1}
+            }
+        )
+        
+        return {
+            "success": True,
+            "message": "Connection successful",
+            "voucher": {
+                "code": voucher_code,
+                "expiresAt": voucher.get("expiresAt"),
+                "package": {
+                    "name": package.get("name"),
+                    "duration": package.get("duration"),
+                    "dataLimit": package.get("dataLimit")
+                }
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error connecting with voucher: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 

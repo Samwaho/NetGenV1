@@ -19,7 +19,7 @@
         function getApiUrl() {
             // If running locally, use the devtunnel URL
             if (window.location.protocol === 'file:') {
-                return 'https://w06z1rvh-80.inc1.devtunnels.ms';
+                return 'https://ispinnacle.co.ke';
             }
             // Otherwise use relative URL
             return '';
@@ -165,15 +165,80 @@
                     return;
                 }
                 const data = await response.json();
+                
+                // Show payment pending screen
                 document.getElementById('mpesa-payment').style.display = 'none';
                 document.getElementById('voucher-result').style.display = 'block';
                 document.getElementById('voucher-code').textContent = 'Waiting for payment confirmation...';
                 document.getElementById('voucher-expiry').textContent = 'Please check your phone to complete the Mpesa payment.';
+                
+                // Start polling for payment status
+                pollPaymentStatus(data.voucherId, data.voucherCode);
             } catch (error) {
                 loadingDiv.style.display = 'none';
                 errorDiv.textContent = 'Network error. Please try again.';
                 console.error('Purchase error:', error);
             }
+        }
+
+        // Add polling function for payment status
+        async function pollPaymentStatus(voucherId, voucherCode) {
+            const maxAttempts = 30; // 5 minutes total (10 seconds * 30)
+            let attempts = 0;
+            
+            const poll = async () => {
+                try {
+                    const response = await fetch(`${getApiUrl()}/api/hotspot/voucher-status/${voucherId}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'active') {
+                        // Payment successful, attempt automatic connection
+                        document.getElementById('voucher-code').textContent = voucherCode;
+                        document.getElementById('voucher-expiry').textContent = 'Payment successful! Attempting to connect...';
+                        
+                        // Try automatic connection
+                        try {
+                            const connectResponse = await fetch(`${getApiUrl()}/api/hotspot/connect`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    voucherCode: voucherCode
+                                })
+                            });
+                            
+                            if (connectResponse.ok) {
+                                // Connection successful, redirect to success page
+                                window.location.href = 'alogin.html';
+                            } else {
+                                // Connection failed, show manual connection option
+                                document.getElementById('voucher-expiry').textContent = 'Connection failed. Please use the voucher code below to connect manually.';
+                                document.getElementById('connect-manually').style.display = 'block';
+                            }
+                        } catch (error) {
+                            console.error('Connection error:', error);
+                            document.getElementById('voucher-expiry').textContent = 'Connection failed. Please use the voucher code below to connect manually.';
+                            document.getElementById('connect-manually').style.display = 'block';
+                        }
+                        return;
+                    }
+                    
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        setTimeout(poll, 10000); // Poll every 10 seconds
+                    } else {
+                        document.getElementById('voucher-expiry').textContent = 'Payment confirmation timeout. Please check your phone for the voucher code.';
+                        document.getElementById('connect-manually').style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    document.getElementById('voucher-expiry').textContent = 'Error checking payment status. Please use the voucher code below to connect manually.';
+                    document.getElementById('connect-manually').style.display = 'block';
+                }
+            };
+            
+            poll();
         }
 
         // Show voucher entry form
@@ -294,10 +359,16 @@
                 <div id="package-selection">
                     <h2>Select an Internet Package</h2>
                     <div id="packages-container">
-                        <p>Loading packages...</p>
+                        <div class="loading-spinner">
+                            <div class="spinner"></div>
+                            <p>Loading packages...</p>
+                        </div>
                     </div>
                     <p class="info">
-                        <button id="have-voucher-btn">I already have a voucher</button>
+                        <button id="have-voucher-btn" class="secondary-btn">
+                            <span class="icon">🎟️</span>
+                            I already have a voucher
+                        </button>
                     </p>
                 </div>
                 
@@ -305,14 +376,28 @@
                 <div id="mpesa-payment" style="display: none;">
                     <h2>Pay with Mpesa</h2>
                     <div class="mpesa-form">
-                        <label for="mpesa-phone">Mpesa Phone Number:</label>
-                        <input type="tel" id="mpesa-phone" placeholder="e.g. 07XXXXXXXX or 2547XXXXXXXX" maxlength="13" />
-                        <button onclick="purchaseVoucherMpesa()">Pay &amp; Get Voucher</button>
-                        <div id="mpesa-loading" style="display:none; color: #888;">Processing payment, please wait...</div>
-                        <div id="mpesa-error" style="color: red;"></div>
+                        <div class="form-group">
+                            <label for="mpesa-phone">Mpesa Phone Number:</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon">📱</span>
+                                <input type="tel" id="mpesa-phone" placeholder="e.g. 07XXXXXXXX or 2547XXXXXXXX" maxlength="13" />
+                            </div>
+                        </div>
+                        <button onclick="purchaseVoucherMpesa()" class="primary-btn">
+                            <span class="icon">💳</span>
+                            Pay & Get Voucher
+                        </button>
+                        <div id="mpesa-loading" class="loading-spinner" style="display:none;">
+                            <div class="spinner"></div>
+                            <p>Processing payment, please wait...</p>
+                        </div>
+                        <div id="mpesa-error" class="error-message"></div>
                     </div>
                     <p class="info">
-                        <button type="button" onclick="document.getElementById('package-selection').style.display='block';document.getElementById('mpesa-payment').style.display='none';">Back</button>
+                        <button type="button" class="back-btn" onclick="document.getElementById('package-selection').style.display='block';document.getElementById('mpesa-payment').style.display='none';">
+                            <span class="icon">←</span>
+                            Back to Packages
+                        </button>
                     </p>
                 </div>
                 
@@ -320,31 +405,49 @@
                 <div id="voucher-result" style="display: none;">
                     <h2>Your Voucher</h2>
                     <div class="voucher-details">
-                        <p>Voucher Code: <strong id="voucher-code">CODE123</strong></p>
-                        <p>Expires: <span id="voucher-expiry">2023-12-31</span></p>
+                        <div class="voucher-box">
+                            <p class="voucher-label">Voucher Code</p>
+                            <p class="voucher-code" id="voucher-code">CODE123</p>
+                            <p class="voucher-expiry" id="voucher-expiry">2023-12-31</p>
+                        </div>
                     </div>
-                    <button onclick="loginWithVoucher()">Connect Now</button>
+                    <div id="connect-manually" style="display: none;">
+                        <button onclick="loginWithVoucher()" class="primary-btn">
+                            <span class="icon">🔌</span>
+                            Connect Manually
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Voucher Entry Section -->
                 <div id="voucher-entry" style="display: none;">
                     <h2>Enter Your Voucher</h2>
-                    <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onSubmit="return doLogin()" $(endif)>
+                    <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onSubmit="return doLogin()" $(endif) class="voucher-form">
                         <input type="hidden" name="dst" value="$(link-orig)" />
                         <input type="hidden" name="popup" value="true" />
                         
-                        <label>
-                            <img class="ico" src="img/user.svg" alt="#" />
-                            <input name="username" type="text" value="$(username)" placeholder="Voucher Code" />
-                        </label>
+                        <div class="form-group">
+                            <label>
+                                <span class="input-icon">🎟️</span>
+                                <input name="username" type="text" value="$(username)" placeholder="Voucher Code" />
+                            </label>
+                        </div>
 
-                        <label>
-                            <img class="ico" src="img/password.svg" alt="#" />
-                            <input name="password" type="password" placeholder="Voucher Code (same as above)" />
-                        </label>
+                        <div class="form-group">
+                            <label>
+                                <span class="input-icon">🔑</span>
+                                <input name="password" type="password" placeholder="Voucher Code (same as above)" />
+                            </label>
+                        </div>
 
-                        <input type="submit" value="Connect" />
-                        <button type="button" onclick="document.getElementById('package-selection').style.display='block';document.getElementById('voucher-entry').style.display='none';">Back</button>
+                        <button type="submit" class="primary-btn">
+                            <span class="icon">🔌</span>
+                            Connect
+                        </button>
+                        <button type="button" class="back-btn" onclick="document.getElementById('package-selection').style.display='block';document.getElementById('voucher-entry').style.display='none';">
+                            <span class="icon">←</span>
+                            Back to Packages
+                        </button>
                     </form>
                 </div>
                 
