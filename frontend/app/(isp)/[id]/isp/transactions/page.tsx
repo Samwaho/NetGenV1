@@ -220,14 +220,13 @@ export default function TransactionsPage() {
   const { user, loading: userLoading } = useUser();
   const { organization, loading: orgLoading } = useOrganization(organizationId);
 
-  // URL params handling with defaults
+  // Initialize filter options
   const [filterOptions, setFilterOptions] = useState<TransactionFilterOptions>({
-    page: parseInt(searchParams.get("page") || "1"),
-    pageSize: parseInt(searchParams.get("pageSize") || "10"),
-    sortBy: searchParams.get("sortBy") || "createdAt",
-    sortDirection: (searchParams.get("sortDirection") || "desc") as "asc" | "desc",
-    search: searchParams.get("search") || undefined,
-    transactionType: searchParams.get("transactionType") || "all",
+    page: 1,
+    pageSize: 10,
+    sortBy: "createdAt",
+    sortDirection: "desc",
+    transactionType: "all"
   });
 
   // Memoized filter change handler
@@ -257,6 +256,8 @@ export default function TransactionsPage() {
       variables: {
         organizationId,
         ...filterOptions,
+        // Don't send transactionType if it's "all"
+        transactionType: filterOptions.transactionType === "all" ? undefined : filterOptions.transactionType
       },
       skip: !organization || !user,
       fetchPolicy: "cache-and-network",

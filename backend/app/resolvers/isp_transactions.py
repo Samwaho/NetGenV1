@@ -161,7 +161,7 @@ class ISPTransactionResolver:
             query_filter = {"organizationId": org_object_id}
             
             # Add transaction type filter if specified
-            if transaction_type:
+            if transaction_type and transaction_type != "all":
                 query_filter["transactionType"] = transaction_type
                 logger.info(f"Filtering by transaction type: {transaction_type}")
             
