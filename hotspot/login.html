@@ -206,8 +206,37 @@
                             });
                             
                             if (connectResponse.ok) {
-                                // Connection successful, redirect to success page
-                                window.location.href = 'alogin.html';
+                                // Instead of redirecting directly, submit the form to MikroTik's hotspot system
+                                const form = document.createElement('form');
+                                form.method = 'POST';
+                                form.action = '$(link-login-only)';
+                                
+                                // Add required fields for MikroTik authentication
+                                const fields = {
+                                    'username': voucherCode,
+                                    'password': voucherCode,
+                                    'dst': '$(link-orig)',
+                                    'popup': 'true'
+                                };
+                                
+                                // Add CHAP fields if present
+                                if ('$(chap-id)' && '$(chap-challenge)') {
+                                    fields['chap-id'] = '$(chap-id)';
+                                    fields['chap-challenge'] = '$(chap-challenge)';
+                                }
+                                
+                                // Create and append form fields
+                                for (const [name, value] of Object.entries(fields)) {
+                                    const input = document.createElement('input');
+                                    input.type = 'hidden';
+                                    input.name = name;
+                                    input.value = value;
+                                    form.appendChild(input);
+                                }
+                                
+                                // Add form to document and submit
+                                document.body.appendChild(form);
+                                form.submit();
                             } else {
                                 // Connection failed, show manual connection option
                                 document.getElementById('voucher-expiry').textContent = 'Connection failed. Please use the voucher code below to connect manually.';
@@ -328,8 +357,37 @@
                 });
                 
                 if (response.ok) {
-                    // Connection successful, redirect to success page
-                    window.location.href = 'alogin.html';
+                    // Create and submit the form to MikroTik's hotspot system
+                    const hotspotForm = document.createElement('form');
+                    hotspotForm.method = 'POST';
+                    hotspotForm.action = '$(link-login-only)';
+                    
+                    // Add required fields for MikroTik authentication
+                    const fields = {
+                        'username': username,
+                        'password': password,
+                        'dst': '$(link-orig)',
+                        'popup': 'true'
+                    };
+                    
+                    // Add CHAP fields if present
+                    if ('$(chap-id)' && '$(chap-challenge)') {
+                        fields['chap-id'] = '$(chap-id)';
+                        fields['chap-challenge'] = '$(chap-challenge)';
+                    }
+                    
+                    // Create and append form fields
+                    for (const [name, value] of Object.entries(fields)) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = name;
+                        input.value = value;
+                        hotspotForm.appendChild(input);
+                    }
+                    
+                    // Add form to document and submit
+                    document.body.appendChild(hotspotForm);
+                    hotspotForm.submit();
                 } else {
                     const error = await response.json();
                     alert(error.detail || 'Failed to connect. Please check your voucher code.');
