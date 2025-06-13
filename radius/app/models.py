@@ -94,10 +94,11 @@ class RadiusProfile(BaseModel):
         threshold_down = self.format_speed(self.thresholdDownload) if self.thresholdDownload else download
         
         # Get burst time and priority
-        burst_time = self.burstTime or '0'
-        priority = self.priority or '8'
+        burst_time = str(self.burstTime) if self.burstTime is not None else '0'
+        priority = str(self.priority) if self.priority is not None else '8'
         
-        # Build rate limit string
+        # Build rate limit string in MikroTik format:
+        # <upload>/<download> <burst-upload>/<burst-download> <threshold-upload>/<threshold-download> <burst-time>/<burst-time> <priority>
         return f"{upload}/{download} {burst_up}/{burst_down} {threshold_up}/{threshold_down} {burst_time}/{burst_time} {priority}"
 
     def to_radius_attributes(self) -> List[RadiusAttribute]:
