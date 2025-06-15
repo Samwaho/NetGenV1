@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", None)
 
+    # Environment
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")  # development, staging, production
+
     class Config:
         case_sensitive = True
         env_file = ".env"

@@ -16,6 +16,7 @@ from app.config.settings import settings
 from app.config.utils import record_activity
 from app.schemas.enums import OrganizationPermission, IspManagerCustomerStatus
 from pydantic import BaseModel
+import ipaddress
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -41,6 +42,27 @@ class MpesaConfig:
         "shortcode": "174379",
         "passkey": "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
     }
+
+    # Safaricom IP whitelist for callbacks
+    SAFARICOM_IPS = [
+        "196.201.214.200",
+        "196.201.214.206",
+        "196.201.213.114",
+        "196.201.214.207",
+        "196.201.214.208",
+        "196.201.213.44",
+        "196.201.212.127",
+        "196.201.212.138",
+        "196.201.212.129",
+        "196.201.212.136",
+        "196.201.212.74",
+        "196.201.212.69"
+    ]
+
+    @staticmethod
+    def is_valid_safaricom_ip(ip_address: str) -> bool:
+        """Check if the IP address is in the Safaricom whitelist"""
+        return ip_address in MpesaConfig.SAFARICOM_IPS
 
     @staticmethod
     def get_urls(environment: str = "sandbox") -> Dict[str, str]:
@@ -663,10 +685,18 @@ class STKTransactionService:
 async def mpesa_callback(organization_id: str, callback_type: str, request: Request):
     """Universal callback handler for all Mpesa callback types"""
     try:
+        # Get client IP address
+        client_ip = request.client.host
         logger.info(f"=== MPESA CALLBACK RECEIVED ===")
+        logger.info(f"Client IP: {client_ip}")
         logger.info(f"Request Headers: {dict(request.headers)}")
         logger.info(f"Request Method: {request.method}")
         logger.info(f"Request URL: {request.url}")
+        
+        # Validate IP address in production environment
+        if settings.ENVIRONMENT == "production" and not MpesaConfig.is_valid_safaricom_ip(client_ip):
+            logger.warning(f"Rejected callback from unauthorized IP: {client_ip}")
+            return {"ResultCode": 1, "ResultDesc": "Unauthorized IP address"}
         
         # Verify organization exists
         org = await organizations.find_one({"_id": ObjectId(organization_id)})
@@ -1611,8 +1641,16 @@ async def initiate_stk_push(organization_id: str, request: Request):
 async def mpesa_validation(organization_id: str, request: Request):
     """Handle M-Pesa validation requests"""
     try:
+        # Get client IP address
+        client_ip = request.client.host
+        logger.info(f"Received Mpesa validation request from IP: {client_ip}")
+        
+        # Validate IP address in production environment
+        if settings.ENVIRONMENT == "production" and not MpesaConfig.is_valid_safaricom_ip(client_ip):
+            logger.warning(f"Rejected validation from unauthorized IP: {client_ip}")
+            return {"ResultCode": 1, "ResultDesc": "Unauthorized IP address"}
+            
         payload = await request.json()
-        logger.info(f"Received Mpesa validation request for organization {organization_id}")
         logger.info(f"Validation payload: {payload}")
         
         return {
@@ -1719,3 +1757,5 @@ async def test_callback(organization_id: str):
         logger.error(f"Error in test callback: {str(e)}")
         logger.exception("Full traceback:")
         return {"status": "error", "message": str(e)}
+
+
