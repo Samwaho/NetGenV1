@@ -198,6 +198,10 @@ Thumbs.db
 # Backend environment variables
 backend/.env
 
+# Celery beat schedule files
+backend/celery_data/
+celerybeat-schedule*
+
 
 
 
