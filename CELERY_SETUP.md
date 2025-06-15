@@ -41,10 +41,11 @@ The application uses Celery for:
 
 ### Non-Root User Execution
 - **Issue**: Celery was running with superuser privileges (root)
-- **Solution**: 
+- **Solution**:
   - Created `appuser` in Dockerfile
-  - Added `--uid=1000 --gid=1000` flags to Celery commands
+  - Set `USER appuser` in Dockerfile to run container as non-root
   - Changed ownership of app directory to `appuser`
+  - Removed `--uid` and `--gid` flags (not needed when container runs as non-root)
 
 ### Deprecation Warning Fix
 - **Issue**: `broker_connection_retry` deprecation warning for Celery 6.0+
@@ -78,10 +79,10 @@ docker-compose logs -f celery_worker celery_beat
 ### Manual Commands (for development)
 ```bash
 # Worker
-celery -A app.tasks.scheduler worker --loglevel=info --uid=1000 --gid=1000
+celery -A app.tasks.scheduler worker --loglevel=info
 
 # Beat (scheduler)
-celery -A app.tasks.scheduler beat --loglevel=info --uid=1000 --gid=1000
+celery -A app.tasks.scheduler beat --loglevel=info
 
 # Monitor tasks
 celery -A app.tasks.scheduler flower
