@@ -65,7 +65,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.tasks.scheduler worker --loglevel=info
+    command: celery -A app.tasks.scheduler worker --loglevel=info --uid=1000 --gid=1000
     depends_on:
       - backend
       - redis
@@ -85,7 +85,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.tasks.scheduler beat --loglevel=info
+    command: celery -A app.tasks.scheduler beat --loglevel=info --uid=1000 --gid=1000
     depends_on:
       - backend
       - redis

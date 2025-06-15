@@ -1,31 +1,14 @@
-from celery import Celery
 import logging
+import asyncio
 from datetime import datetime, timezone, timedelta
 from app.config.database import isp_customers
 from app.schemas.enums import IspManagerCustomerStatus
-from app.config.utils import record_activity
-from bson.objectid import ObjectId
-from pymongo import MongoClient
-import asyncio
 from app.services.sms.template import SmsTemplateService
 from app.services.sms.utils import send_sms_for_organization
 from app.schemas.sms_template import TemplateCategory
+from app.config.celery_config import celery_app
 
 logger = logging.getLogger(__name__)
-
-# If you have a celery app elsewhere, import it. Otherwise, define here:
-celery_app = Celery(
-    'scheduler',
-    broker='redis://redis:6379/0',  # Use service name 'redis'
-    backend='redis://redis:6379/0'
-)
-
-celery_app.conf.beat_schedule = {
-    'send-payment-reminder-sms': {
-        'task': 'app.tasks.scheduler.send_payment_reminder_sms',
-        'schedule': 86400,  # once a day (in seconds)
-    },
-}
 
 @celery_app.task
 def send_payment_reminder_sms():
