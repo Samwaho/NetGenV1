@@ -17,7 +17,7 @@ from app.services.sms.template import SmsTemplateService
 from app.services.sms.utils import send_sms_for_organization
 from app.schemas.sms_template import TemplateCategory
 from app.config.database import isp_mpesa_transactions
-from app.schemas.isp_transaction import TransactionType, TransactionStatus
+from app.schemas.isp_transactions import TransactionType, TransactionStatus
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
