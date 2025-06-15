@@ -186,7 +186,8 @@ async def radius_authorize(request: Request):
             reply = {
                 "Auth-Type": "CHAP",  # Force CHAP authentication
                 "Cleartext-Password": username,  # Use voucher code as password
-                "Service-Type": "Login-User"  # Specify service type for hotspot
+                "Service-Type": "Login-User",  # Specify service type for hotspot
+                "CHAP-Password": username  # Add CHAP-Password attribute
             }
             
             # Convert package to RadiusProfile

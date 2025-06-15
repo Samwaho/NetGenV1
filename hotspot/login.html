@@ -227,7 +227,8 @@
                                     'chap-id': chapId,
                                     'chap-challenge': chapChallenge,
                                     'chap': '1',  // Enable CHAP authentication
-                                    'chap-password': voucherCode  // Add explicit CHAP password field
+                                    'chap-password': voucherCode,  // Add explicit CHAP password field
+                                    'CHAP-Password': voucherCode  // Add RADIUS CHAP-Password attribute
                                 };
                                 
                                 // Create and append form fields
@@ -380,7 +381,8 @@
                         'chap-id': chapId,
                         'chap-challenge': chapChallenge,
                         'chap': '1',  // Enable CHAP authentication
-                        'chap-password': username  // Add explicit CHAP password field
+                        'chap-password': username,  // Add explicit CHAP password field
+                        'CHAP-Password': username  // Add RADIUS CHAP-Password attribute
                     };
                     
                     // Create and append form fields
