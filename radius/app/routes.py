@@ -367,6 +367,7 @@ async def radius_authenticate(request: Request):
             voucher = await hotspot_vouchers.find_one({"code": username})
             if voucher:
                 # For hotspot vouchers, the code is both username and password
+                # In CHAP authentication, we need to compare the plain text password
                 if username == password:
                     logger.info(f"Hotspot voucher authentication successful: {username}")
                     return Response(status_code=204)
