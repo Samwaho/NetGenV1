@@ -29,7 +29,7 @@ def create_celery_app() -> Celery:
         enable_utc=True,
 
         # Beat scheduler settings
-        beat_schedule_filename='/app/celery_data/celerybeat-schedule',  # Use dedicated directory
+        beat_schedule_filename='/app/celery_data/celerybeat-schedule',
 
         # Task routing and execution settings
         task_routes={
@@ -56,3 +56,4 @@ def create_celery_app() -> Celery:
 
 # Create the Celery app instance
 celery_app = create_celery_app()
+
