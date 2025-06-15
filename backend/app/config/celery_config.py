@@ -57,3 +57,4 @@ def create_celery_app() -> Celery:
 # Create the Celery app instance
 celery_app = create_celery_app()
 
+

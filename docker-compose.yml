@@ -76,6 +76,9 @@ services:
       - ALGORITHM=${ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
       - FRONTEND_URL=https://ispinnacle.co.ke
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
     volumes:
       - ./backend:/app
     networks:
@@ -111,4 +114,5 @@ networks:
 
 volumes:
   celery_data:
+
 
