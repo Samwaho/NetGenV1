@@ -138,7 +138,8 @@ export const columns: ColumnDef<ISPTransaction>[] = [
       <DataTableColumnHeader column={column} title="Voucher Code" />
     ),
     cell: ({ row }) => {
-      if (row.original.transactionType === "hotspot_voucher") {
+      // Check for voucher code in any transaction type with hotspot_voucher callbackType
+      if (row.original.voucherCode || row.original.callbackType === "hotspot_voucher") {
         return <div>{row.original.voucherCode || "-"}</div>;
       }
       return <div>-</div>;
@@ -150,7 +151,8 @@ export const columns: ColumnDef<ISPTransaction>[] = [
       <DataTableColumnHeader column={column} title="Package" />
     ),
     cell: ({ row }) => {
-      if (row.original.transactionType === "hotspot_voucher") {
+      // Check for package name in any transaction type with hotspot_voucher callbackType
+      if (row.original.packageName || row.original.callbackType === "hotspot_voucher") {
         return <div>{row.original.packageName || "-"}</div>;
       }
       return <div>-</div>;
@@ -171,3 +173,4 @@ export const columns: ColumnDef<ISPTransaction>[] = [
     },
   },
 ];
+
