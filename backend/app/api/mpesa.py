@@ -530,6 +530,42 @@ class TransactionReconciliationService:
             logger.error(f"Error cleaning up duplicate transactions: {str(e)}")
             return 0
 
+    @staticmethod
+    async def cleanup_orphaned_transactions(organization_id: str) -> int:
+        """Clean up transactions that have no corresponding vouchers"""
+        try:
+            # Find STK Push transactions that have no corresponding vouchers
+            stk_transactions = await isp_mpesa_transactions.find({
+                "organizationId": ObjectId(organization_id),
+                "transactionType": TransactionType.STK_PUSH.value,
+                "status": TransactionStatus.PENDING.value,
+                "accountReference": {"$exists": True}
+            }).to_list(None)
+
+            cleaned_count = 0
+            for transaction in stk_transactions:
+                account_reference = transaction.get("accountReference")
+                if account_reference:
+                    # Check if corresponding voucher exists
+                    voucher = await hotspot_vouchers.find_one({
+                        "organizationId": ObjectId(organization_id),
+                        "code": account_reference
+                    })
+
+                    if not voucher:
+                        # Check if transaction is old enough to be considered orphaned (older than 10 minutes)
+                        created_at = transaction.get("createdAt")
+                        if created_at and datetime.now(timezone.utc) - created_at > timedelta(minutes=10):
+                            await isp_mpesa_transactions.delete_one({"_id": transaction["_id"]})
+                            cleaned_count += 1
+                            logger.info(f"Removed orphaned transaction: {transaction['_id']}")
+
+            return cleaned_count
+
+        except Exception as e:
+            logger.error(f"Error cleaning up orphaned transactions: {str(e)}")
+            return 0
+
 class STKTransactionService:
     @staticmethod
     async def process_transaction(organization_id: str, payload: Dict[str, Any]) -> bool:
@@ -1415,12 +1451,13 @@ async def initiate_stk_push(organization_id: str, request: Request):
                 }
 
         # Additional check for recent duplicate requests (same phone, amount, organization)
-        recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+        # Only check for PENDING transactions to allow legitimate new purchases after completion
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=2)  # Reduced from 5 to 2 minutes
         recent_transaction = await isp_mpesa_transactions.find_one({
             "organizationId": ObjectId(organization_id),
             "phoneNumber": phone_number,
             "amount": float(amount),
-            "status": TransactionStatus.PENDING.value,
+            "status": TransactionStatus.PENDING.value,  # Only check pending transactions
             "createdAt": {"$gte": recent_cutoff}
         })
 
@@ -1428,7 +1465,7 @@ async def initiate_stk_push(organization_id: str, request: Request):
             logger.info(f"Found recent pending transaction for same parameters")
             return {
                 "success": True,
-                "message": "Recent transaction already pending",
+                "message": "Recent transaction already pending. Please complete the current transaction first.",
                 "merchantRequestId": recent_transaction.get("merchantRequestId"),
                 "checkoutRequestId": recent_transaction.get("checkoutRequestId"),
                 "existingTransaction": True
@@ -1598,6 +1635,9 @@ async def reconcile_transactions(organization_id: str, request: Request):
         # Clean up duplicate transactions
         cleaned_count = await TransactionReconciliationService.cleanup_duplicate_transactions(organization_id)
 
+        # Clean up orphaned transactions
+        orphaned_count = await TransactionReconciliationService.cleanup_orphaned_transactions(organization_id)
+
         # Find and reconcile pending transactions
         pending_transactions = await isp_mpesa_transactions.find({
             "organizationId": ObjectId(organization_id),
@@ -1619,14 +1659,15 @@ async def reconcile_transactions(organization_id: str, request: Request):
         await record_activity(
             user.id,
             ObjectId(organization_id),
-            f"Reconciled {reconciled_count} transactions and cleaned {cleaned_count} duplicates"
+            f"Reconciled {reconciled_count} transactions, cleaned {cleaned_count} duplicates, and {orphaned_count} orphaned transactions"
         )
 
         return {
             "success": True,
             "message": "Transaction reconciliation completed",
             "reconciledCount": reconciled_count,
-            "cleanedDuplicates": cleaned_count
+            "cleanedDuplicates": cleaned_count,
+            "cleanedOrphaned": orphaned_count
         }
 
     except HTTPException:

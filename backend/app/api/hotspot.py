@@ -356,16 +356,18 @@ async def purchase_voucher_with_mpesa(request: Request):
             raise HTTPException(status_code=500, detail="Invalid STK Push response - missing identifiers")
 
         # Check if transaction already exists (idempotency check)
+        # Only check for PENDING transactions to avoid blocking legitimate new purchases
         existing_transaction = await isp_mpesa_transactions.find_one({
             "organizationId": ObjectId(organization_id),
             "merchantRequestId": merchant_request_id,
-            "checkoutRequestId": checkout_request_id
+            "checkoutRequestId": checkout_request_id,
+            "status": TransactionStatus.PENDING.value  # Only check pending transactions
         })
 
         if existing_transaction:
-            # Clean up the duplicate voucher
+            # Clean up the duplicate voucher since we have a pending transaction
             await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
-            logger.info(f"STK Push transaction already exists: {merchant_request_id}")
+            logger.info(f"Found pending STK Push transaction: {merchant_request_id}")
 
             # Find the existing voucher for this transaction
             existing_voucher = await hotspot_vouchers.find_one({
@@ -382,6 +384,44 @@ async def purchase_voucher_with_mpesa(request: Request):
                     "voucherCode": existing_voucher["code"],
                     "merchantRequestId": merchant_request_id,
                     "checkoutRequestId": checkout_request_id,
+                    "existingTransaction": True
+                }
+            else:
+                # If no existing voucher found, clean up and allow new transaction
+                logger.warning(f"Pending transaction found but no voucher exists, cleaning up transaction: {merchant_request_id}")
+                await isp_mpesa_transactions.delete_one({"_id": existing_transaction["_id"]})
+
+        # Additional check for recent duplicate requests (same phone, amount, organization)
+        # This prevents rapid-fire duplicate requests but allows legitimate new purchases
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=2)  # Reduced from 5 to 2 minutes
+        recent_transaction = await isp_mpesa_transactions.find_one({
+            "organizationId": ObjectId(organization_id),
+            "phoneNumber": phone_number,
+            "amount": float(package["price"]),
+            "status": TransactionStatus.PENDING.value,
+            "createdAt": {"$gte": recent_cutoff}
+        })
+
+        if recent_transaction:
+            # Clean up the duplicate voucher
+            await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
+            logger.info(f"Found recent pending transaction for same parameters")
+
+            # Find the existing voucher for this transaction
+            existing_voucher = await hotspot_vouchers.find_one({
+                "organizationId": ObjectId(organization_id),
+                "code": recent_transaction.get("accountReference"),
+                "status": "pending"
+            })
+
+            if existing_voucher:
+                return {
+                    "success": True,
+                    "message": "Recent transaction already pending. Please check your phone to complete the transaction.",
+                    "voucherId": str(existing_voucher["_id"]),
+                    "voucherCode": existing_voucher["code"],
+                    "merchantRequestId": recent_transaction.get("merchantRequestId"),
+                    "checkoutRequestId": recent_transaction.get("checkoutRequestId"),
                     "existingTransaction": True
                 }
 
