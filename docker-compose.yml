@@ -47,8 +47,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
       - ./backend:/app
+      - celery_data:/app/celery_data
     networks:
       - app-network
     depends_on:
@@ -57,15 +59,18 @@ services:
   redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - app-network
+    command: redis-server --bind 127.0.0.1 --protected-mode yes --requirepass ${REDIS_PASSWORD}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
 
   celery_worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.tasks.scheduler worker --loglevel=info
+    command: bash -c "mkdir -p /app/celery_data && chmod 777 /app/celery_data && celery -A app.tasks.scheduler worker --loglevel=info"
     depends_on:
       - backend
       - redis
@@ -79,8 +84,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
       - ./backend:/app
+      - celery_data:/app/celery_data
     networks:
       - app-network
 
@@ -102,6 +109,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
       - ./backend:/app
       - celery_data:/app/celery_data
