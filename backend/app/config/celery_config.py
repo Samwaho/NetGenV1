@@ -4,8 +4,11 @@ from app.config.settings import settings
 def create_celery_app() -> Celery:
     """Create and configure Celery application."""
 
-    # Build Redis URLs properly
-    redis_url = f'redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}'
+    # Build Redis URLs properly with password
+    if settings.REDIS_PASSWORD:
+        redis_url = f'redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}'
+    else:
+        redis_url = f'redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}'
 
     # Create Celery app
     celery_app = Celery(
