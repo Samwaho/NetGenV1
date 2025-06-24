@@ -385,8 +385,8 @@ export default function EditCustomerPage() {
                 title="Service Configuration"
                 description="Manage the customer&apos;s service package and connection details"
               >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="min-w-0">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="w-full lg:w-1/2 min-w-0">
                     <FormField
                       control={form.control}
                       name="packageId"
@@ -418,7 +418,7 @@ export default function EditCustomerPage() {
                       )}
                     />
                   </div>
-                  <div className="min-w-0">
+                  <div className="w-full lg:w-1/2 min-w-0">
                     <FormField
                       control={form.control}
                       name="stationId"
@@ -450,31 +450,31 @@ export default function EditCustomerPage() {
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="expirationDate"
-                    render={({ field }) => (
-                      <FormItem className="col-span-2 min-w-0">
-                        <FormLabel>Service Expiration Date</FormLabel>
-                        <FormControl>
-                          <div className="relative w-full">
-                            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
-                            <div className="pl-9 w-full">
-                              <DateTimePicker
-                                date={field.value}
-                                setDate={field.onChange}
-                              />
-                            </div>
-                          </div>
-                        </FormControl>
-                        <FormDescription>
-                          When the customer&apos;s service subscription will expire
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="expirationDate"
+                  render={({ field }) => (
+                    <FormItem className="min-w-0 mt-6">
+                      <FormLabel>Service Expiration Date</FormLabel>
+                      <FormControl>
+                        <div className="relative w-full">
+                          <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
+                          <div className="pl-9 w-full">
+                            <DateTimePicker
+                              date={field.value}
+                              setDate={field.onChange}
+                            />
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        When the customer&apos;s service subscription will expire
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </FormSection>
 
               <div className="flex justify-end space-x-4 pt-6 border-t">

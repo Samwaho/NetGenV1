@@ -355,8 +355,8 @@ export default function CreateCustomerPage() {
                 title="Service Configuration"
                 description="Configure the customer&apos;s service package and connection details"
               >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="min-w-0">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="w-full lg:w-1/2 min-w-0">
                     <FormField
                       control={form.control}
                       name="packageId"
@@ -388,7 +388,7 @@ export default function CreateCustomerPage() {
                       )}
                     />
                   </div>
-                  <div className="min-w-0">
+                  <div className="w-full lg:w-1/2 min-w-0">
                     <FormField
                       control={form.control}
                       name="stationId"
@@ -420,57 +420,57 @@ export default function CreateCustomerPage() {
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="initialAmount"
-                    render={({ field }) => (
-                      <FormItem className="col-span-2 min-w-0">
-                        <FormLabel>Initial Amount</FormLabel>
-                        <FormControl>
-                          <div className="relative w-full">
-                            <Input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              className="pl-4 w-full"
-                              {...field}
-                              value={field.value ?? ''}
-                              onChange={e => field.onChange(Number(e.target.value))}
+                </div>
+                <FormField
+                  control={form.control}
+                  name="initialAmount"
+                  render={({ field }) => (
+                    <FormItem className="min-w-0 mt-6">
+                      <FormLabel>Initial Amount</FormLabel>
+                      <FormControl>
+                        <div className="relative w-full">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className="pl-4 w-full"
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        This amount is prefilled with the package price. You can add to this amount if needed.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="expirationDate"
+                  render={({ field }) => (
+                    <FormItem className="min-w-0 mt-6">
+                      <FormLabel>Service Expiration Date</FormLabel>
+                      <FormControl>
+                        <div className="relative w-full">
+                          <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <div className="pl-9 w-full">
+                            <DateTimePicker
+                              date={field.value ?? null}
+                              setDate={field.onChange}
                             />
                           </div>
-                        </FormControl>
-                        <FormDescription>
-                          This amount is prefilled with the package price. You can add to this amount if needed.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="expirationDate"
-                    render={({ field }) => (
-                      <FormItem className="col-span-2 min-w-0">
-                        <FormLabel>Service Expiration Date</FormLabel>
-                        <FormControl>
-                          <div className="relative w-full">
-                            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <div className="pl-9 w-full">
-                              <DateTimePicker
-                                date={field.value ?? null}
-                                setDate={field.onChange}
-                              />
-                            </div>
-                          </div>
-                        </FormControl>
-                        <FormDescription>
-                          When the customer&apos;s service subscription will expire
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        When the customer&apos;s service subscription will expire
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </FormSection>
 
               <div className="flex justify-end space-x-4 pt-6 border-t">
