@@ -23,26 +23,26 @@ const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
   serviceType: z.enum(["PPPOE", "HOTSPOT", "STATIC", "DHCP"]),
-  downloadSpeed: z.number().min(0, "Download speed must be positive"),
-  uploadSpeed: z.number().min(0, "Upload speed must be positive"),
-  burstDownload: z.number().optional(),
-  burstUpload: z.number().optional(),
-  thresholdDownload: z.number().optional(),
-  thresholdUpload: z.number().optional(),
-  burstTime: z.number().optional(),
+  downloadSpeed: z.preprocess(val => val === "" ? undefined : Number(val), z.number().min(0, "Download speed must be positive")),
+  uploadSpeed: z.preprocess(val => val === "" ? undefined : Number(val), z.number().min(0, "Upload speed must be positive")),
+  burstDownload: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
+  burstUpload: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
+  thresholdDownload: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
+  thresholdUpload: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
+  burstTime: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
   addressPool: z.string().optional(),
-  price: z.number().min(0, "Price must be positive"),
+  price: z.preprocess(val => val === "" ? undefined : Number(val), z.number().min(0, "Price must be positive")),
   // Session management
-  sessionTimeout: z.number().optional(),
-  idleTimeout: z.number().optional(),
+  sessionTimeout: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
+  idleTimeout: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
   // QoS and VLAN
-  priority: z.number().optional(),
-  vlanId: z.number().optional(),
+  priority: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
+  vlanId: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
   // Hotspot specific fields
   showInHotspot: z.boolean().optional(),
-  duration: z.number().optional(),
+  duration: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
   durationUnit: z.string().optional(),
-  dataLimit: z.number().optional(),
+  dataLimit: z.preprocess(val => val === "" ? undefined : Number(val), z.number().optional()),
   dataLimitUnit: z.string().optional(),
 });
 
@@ -74,37 +74,37 @@ export default function CreatePackagePage() {
     name: "",
     description: "",
     serviceType: "PPPOE" as "PPPOE" | "HOTSPOT" | "STATIC" | "DHCP",
-    downloadSpeed: 0,
-    uploadSpeed: 0,
-    burstDownload: undefined,
-    burstUpload: undefined,
-    thresholdDownload: undefined,
-    thresholdUpload: undefined,
-    burstTime: undefined,
+    downloadSpeed: "",
+    uploadSpeed: "",
+    burstDownload: "",
+    burstUpload: "",
+    thresholdDownload: "",
+    thresholdUpload: "",
+    burstTime: "",
     addressPool: "",
-    price: 0,
+    price: "",
     // Session management
-    sessionTimeout: undefined,
-    idleTimeout: undefined,
+    sessionTimeout: "",
+    idleTimeout: "",
     // QoS and VLAN
-    priority: undefined,
-    vlanId: undefined,
+    priority: "",
+    vlanId: "",
     // Hotspot specific fields
     showInHotspot: false,
-    duration: undefined,
+    duration: "",
     durationUnit: "days",
-    dataLimit: undefined,
+    dataLimit: "",
     dataLimitUnit: "MB",
   }), []);
 
   // Initialize form with memoized resolver and default values
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<any>({
     resolver: zodResolver(formSchema),
     defaultValues,
   });
 
   // Memoize submit handler to prevent recreating on each render
-  const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = useCallback(async (values: any) => {
     setIsSubmitting(true);
     try {
       await createPackage({
@@ -196,7 +196,7 @@ export default function CreatePackagePage() {
                             type="number" 
                             step="0.01" 
                             {...field} 
-                            onChange={e => field.onChange(Number(e.target.value))} 
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -272,7 +272,7 @@ export default function CreatePackagePage() {
                           <Input 
                             type="number" 
                             {...field} 
-                            onChange={e => field.onChange(Number(e.target.value))} 
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -290,7 +290,7 @@ export default function CreatePackagePage() {
                           <Input 
                             type="number" 
                             {...field} 
-                            onChange={e => field.onChange(Number(e.target.value))} 
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -307,8 +307,8 @@ export default function CreatePackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -325,8 +325,8 @@ export default function CreatePackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -343,8 +343,8 @@ export default function CreatePackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -361,8 +361,8 @@ export default function CreatePackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -379,8 +379,8 @@ export default function CreatePackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -407,8 +407,8 @@ export default function CreatePackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -425,8 +425,8 @@ export default function CreatePackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -445,8 +445,8 @@ export default function CreatePackagePage() {
                             type="number" 
                             min={1}
                             max={8}
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -463,8 +463,8 @@ export default function CreatePackagePage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                            value={field.value ?? ""}
+                            onChange={e => field.onChange(e.target.value)} 
                           />
                         </FormControl>
                         <FormMessage />
@@ -513,8 +513,8 @@ export default function CreatePackagePage() {
                           <FormControl>
                             <Input 
                               type="number" 
-                              value={field.value ?? ''}
-                              onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                              value={field.value ?? ""}
+                              onChange={e => field.onChange(e.target.value)} 
                             />
                           </FormControl>
                           <FormMessage />
@@ -558,8 +558,8 @@ export default function CreatePackagePage() {
                           <FormControl>
                             <Input 
                               type="number" 
-                              value={field.value ?? ''}
-                              onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} 
+                              value={field.value ?? ""}
+                              onChange={e => field.onChange(e.target.value)} 
                             />
                           </FormControl>
                           <FormMessage />
