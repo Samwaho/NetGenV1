@@ -179,12 +179,30 @@ export const columns = (canManageCustomers: boolean): ColumnDef<ISPCustomer>[] =
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
+      const expirationDate = row.original.expirationDate;
+      let displayStatus = "";
+      let badgeVariant: "default" | "destructive" | "secondary" = "default";
+      let badgeClass = "capitalize text-xs sm:text-sm";
+
+      if (status === "ACTIVE") {
+        if (expirationDate && new Date(expirationDate) < new Date()) {
+          displayStatus = "Expired";
+          badgeVariant = "destructive";
+        } else {
+          displayStatus = "Active";
+          badgeVariant = "default";
+        }
+      } else {
+        displayStatus = "Inactive";
+        badgeVariant = "secondary";
+      }
+
       return (
         <Badge
-          variant={status === "ACTIVE" ? "default" : "destructive"}
-          className="capitalize text-xs sm:text-sm"
+          variant={badgeVariant}
+          className={badgeClass}
         >
-          {status.toLowerCase()}
+          {displayStatus}
         </Badge>
       );
     },
