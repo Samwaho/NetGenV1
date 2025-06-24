@@ -385,7 +385,7 @@ export default function EditCustomerPage() {
                 title="Service Configuration"
                 description="Manage the customer&apos;s service package and connection details"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="min-w-0">
                     <FormField
                       control={form.control}
