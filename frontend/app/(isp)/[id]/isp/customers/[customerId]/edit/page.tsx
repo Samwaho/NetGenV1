@@ -386,76 +386,80 @@ export default function EditCustomerPage() {
                 description="Manage the customer&apos;s service package and connection details"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="packageId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Internet Package</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <div className="relative">
-                              <Package2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
-                              <SelectTrigger className="pl-9">
-                                <SelectValue placeholder="Select a package" />
-                              </SelectTrigger>
-                            </div>
-                          </FormControl>
-                          <SelectContent>
-                            {packages.map((pkg) => (
-                              <SelectItem key={pkg.id} value={pkg.id}>
-                                {pkg.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Current package: {currentPackage?.name}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="stationId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Connection Station</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <div className="relative">
-                              <Radio className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
-                              <SelectTrigger className="pl-9">
-                                <SelectValue placeholder="Select a station" />
-                              </SelectTrigger>
-                            </div>
-                          </FormControl>
-                          <SelectContent>
-                            {stations.map((station) => (
-                              <SelectItem key={station.id} value={station.id}>
-                                {station.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Current station: {currentStation?.name}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="min-w-0">
+                    <FormField
+                      control={form.control}
+                      name="packageId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Internet Package</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <div className="relative w-full">
+                                <Package2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
+                                <SelectTrigger className="pl-9 w-full">
+                                  <SelectValue placeholder="Select a package" />
+                                </SelectTrigger>
+                              </div>
+                            </FormControl>
+                            <SelectContent>
+                              {packages.map((pkg) => (
+                                <SelectItem key={pkg.id} value={pkg.id}>
+                                  {pkg.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Current package: {currentPackage?.name}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <FormField
+                      control={form.control}
+                      name="stationId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Connection Station</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <div className="relative w-full">
+                                <Radio className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
+                                <SelectTrigger className="pl-9 w-full">
+                                  <SelectValue placeholder="Select a station" />
+                                </SelectTrigger>
+                              </div>
+                            </FormControl>
+                            <SelectContent>
+                              {stations.map((station) => (
+                                <SelectItem key={station.id} value={station.id}>
+                                  {station.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Current station: {currentStation?.name}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <FormField
                     control={form.control}
                     name="expirationDate"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem className="col-span-2 min-w-0">
                         <FormLabel>Service Expiration Date</FormLabel>
                         <FormControl>
-                          <div className="relative">
+                          <div className="relative w-full">
                             <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-50" />
-                            <div className="pl-9">
+                            <div className="pl-9 w-full">
                               <DateTimePicker
                                 date={field.value}
                                 setDate={field.onChange}
