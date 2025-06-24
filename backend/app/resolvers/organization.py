@@ -25,7 +25,6 @@ from app.config.deps import Context
 from bson.objectid import ObjectId
 from app.config.utils import record_activity
 from app.api.mpesa import register_c2b_urls, get_mpesa_access_token
-from app.config.redis import redis
 import json
 from app.services.sms.template import SmsTemplateService
 from app.services.sms.default_templates import DEFAULT_SMS_TEMPLATES
@@ -33,19 +32,11 @@ from app.schemas.sms_template import TemplateCategory
 
 logger = logging.getLogger(__name__)
 
-CACHE_TTL = 300  # 5 minutes
-
 def organization_cache_key(org_id: str) -> str:
     return f"organization:{org_id}"
 
 def organizations_cache_key(user_id: str) -> str:
     return f"organizations:{user_id}"
-
-def serialize(obj):
-    return json.dumps(obj, default=str)
-
-def deserialize(s):
-    return json.loads(s)
 
 @strawberry.type
 class OrganizationResolver:
@@ -55,18 +46,10 @@ class OrganizationResolver:
         context : Context = info.context
         current_user = await context.authenticate()
 
-        cache_key = organization_cache_key(id)
-        cached = await redis.get(cache_key)
-        if cached:
-            data = deserialize(cached)
-            data = parse_organization_datetimes(data)
-            return await Organization.from_db(data)
-
         """Get organization by ID"""
         organization = await organizations.find_one({"_id": ObjectId(id)})
         if not organization:
             raise HTTPException(status_code=404, detail="Organization not found")
-        await redis.set(cache_key, serialize(organization), ex=CACHE_TTL)
         return await Organization.from_db(organization)
 
     @strawberry.field
@@ -77,23 +60,11 @@ class OrganizationResolver:
         if not current_user:
             raise HTTPException(status_code=401, detail="Not authenticated")
 
-        cache_key = organizations_cache_key(current_user.id)
-        cached = await redis.get(cache_key)
-        if cached:
-            data = deserialize(cached)
-            orgs = [await Organization.from_db(parse_organization_datetimes(org)) for org in data["organizations"]]
-            return OrganizationsResponse(
-                success=True,
-                message="Organizations retrieved successfully (cache)",
-                organizations=orgs
-            )
-
         user_orgs = await organizations.find({"members.userId": current_user.id}).to_list(None)
         orgs = []
         for org in user_orgs:
             orgs.append(await Organization.from_db(org))
 
-        await redis.set(cache_key, serialize({"organizations": user_orgs}), ex=CACHE_TTL)
         return OrganizationsResponse(
             success=True,
             message="Organizations retrieved successfully",
@@ -238,9 +209,6 @@ class OrganizationResolver:
             f"created organization '{input.name}'"
         )
 
-        # Invalidate all organizations:* cache keys for this user
-        await redis.delete(organizations_cache_key(current_user.id))
-
         return OrganizationResponse(
             success=True,
             message="Organization created successfully",
@@ -286,10 +254,6 @@ class OrganizationResolver:
             f"updated organization to '{input.name}'"
         )
 
-        # Invalidate cache for this organization and all organizations lists for this user
-        await redis.delete(organization_cache_key(id))
-        await redis.delete(organizations_cache_key(current_user.id))
-
         updated_org = await organizations.find_one({"_id": ObjectId(id)})
         return OrganizationResponse(
             success=True,
@@ -321,10 +285,6 @@ class OrganizationResolver:
             {"_id": {"$in": member_ids}},
             {"$pull": {"organizations": id}}
         )
-
-        # Invalidate cache for this organization and all organizations lists for this user
-        await redis.delete(organization_cache_key(id))
-        await redis.delete(organizations_cache_key(current_user.id))
 
         return OrganizationResponse(
             success=True,

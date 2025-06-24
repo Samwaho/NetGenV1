@@ -20,7 +20,6 @@ from functools import lru_cache
 from app.services.sms.template import SmsTemplateService
 from app.services.sms.utils import send_sms_for_organization
 from app.schemas.sms_template import TemplateCategory
-from app.config.redis import redis
 import json
 
 logger = logging.getLogger(__name__)
@@ -28,29 +27,6 @@ logger = logging.getLogger(__name__)
 # Constants for pagination
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
-
-CACHE_TTL = 300  # 5 minutes
-
-def customer_cache_key(customer_id: str) -> str:
-    return f"isp_customer:{customer_id}"
-
-def customers_cache_key(user_id: str, org_id: str, page: int, page_size: int, sort_by: str, sort_direction: str, filter_status: str, search: str) -> str:
-    return f"isp_customers:{user_id}:{org_id}:{page}:{page_size}:{sort_by}:{sort_direction}:{filter_status or 'all'}:{search or 'none'}"
-
-def serialize(obj):
-    return json.dumps(obj, default=str)
-
-def deserialize(s):
-    return json.loads(s)
-
-def parse_customer_datetimes(customer_dict):
-    for field in ["createdAt", "updatedAt", "expirationDate"]:
-        if field in customer_dict and isinstance(customer_dict[field], str):
-            try:
-                customer_dict[field] = datetime.fromisoformat(customer_dict[field])
-            except Exception:
-                pass
-    return customer_dict
 
 @lru_cache(maxsize=128)
 def validate_pppoe_credentials(username: str, password: str) -> None:
@@ -101,13 +77,6 @@ class ISPCustomerResolver:
         context: Context = info.context
         current_user = await context.authenticate()
 
-        cache_key = customer_cache_key(id)
-        cached = await redis.get(cache_key)
-        if cached:
-            data = deserialize(cached)
-            data = parse_customer_datetimes(data)
-            return await ISPCustomer.from_db(data)
-
         try:
             object_id = ObjectId(id)
         except:
@@ -116,8 +85,7 @@ class ISPCustomerResolver:
         customer = await isp_customers.find_one({"_id": object_id})
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
-            
-        await redis.set(cache_key, serialize(customer), ex=CACHE_TTL)
+        
         return await ISPCustomer.from_db(customer)
 
     @strawberry.field
@@ -150,18 +118,6 @@ class ISPCustomerResolver:
         """
         context: Context = info.context
         current_user = await context.authenticate()
-
-        cache_key = customers_cache_key(current_user.id, organization_id, page, page_size, sort_by, sort_direction, filter_status, search)
-        cached = await redis.get(cache_key)
-        if cached:
-            data = deserialize(cached)
-            customer_list = [await ISPCustomer.from_db(parse_customer_datetimes(c)) for c in data["customers"]]
-            return ISPCustomersResponse(
-                success=True,
-                message="Customers retrieved successfully (cache)",
-                customers=customer_list,
-                total_count=data["total_count"]
-            )
 
         # Validate parameters
         try:
@@ -220,7 +176,6 @@ class ISPCustomerResolver:
         for customer in all_customers:
             customer_list.append(await ISPCustomer.from_db(customer))
 
-        await redis.set(cache_key, serialize({"customers": all_customers, "total_count": total_count}), ex=CACHE_TTL)
         return ISPCustomersResponse(
             success=True,
             message="Customers retrieved successfully",
@@ -385,8 +340,6 @@ class ISPCustomerResolver:
             activity_message
         )
 
-        # Invalidate all isp_customers:* cache keys for this org (wildcard delete)
-        await redis.delete(*[key async for key in redis.scan_iter(f"isp_customers:*{input.organizationId}*")])
         return ISPCustomerResponse(
             success=True,
             message="Customer created successfully",
@@ -504,9 +457,6 @@ class ISPCustomerResolver:
         # Fetch the updated customer
         updated_customer = await isp_customers.find_one({"_id": customer_id})
 
-        # Invalidate cache for this customer and all customers lists for this org
-        await redis.delete(customer_cache_key(id))
-        await redis.delete(*[key async for key in redis.scan_iter(f"isp_customers:*{organization['_id']}*")])
         return ISPCustomerResponse(
             success=True,
             message="Customer updated successfully",
@@ -568,9 +518,6 @@ class ISPCustomerResolver:
             logger.error(f"Database error when deleting customer: {str(e)}")
             raise HTTPException(status_code=500, detail="Database error occurred")
 
-        # Invalidate cache for this customer and all customers lists for this org
-        await redis.delete(customer_cache_key(id))
-        await redis.delete(*[key async for key in redis.scan_iter(f"isp_customers:*{customer['organizationId']}*")])
         return ISPCustomerResponse(
             success=True,
             message="Customer deleted successfully",

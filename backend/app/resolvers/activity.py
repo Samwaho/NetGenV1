@@ -11,33 +11,14 @@ from app.schemas.activity import (
 from app.config.deps import Context
 from bson.objectid import ObjectId
 import logging
-from app.config.redis import redis
-import json
 
 logger = logging.getLogger(__name__)
-
-CACHE_TTL = 300  # 5 minutes
 
 def activity_cache_key(activity_id: str) -> str:
     return f"activity:{activity_id}"
 
 def activities_cache_key(user_id: str, org_id: str, limit: int, skip: int) -> str:
     return f"activities:{user_id}:{org_id or 'all'}:{limit}:{skip}"
-
-def serialize(obj):
-    return json.dumps(obj, default=str)
-
-def deserialize(s):
-    return json.loads(s)
-
-def parse_activity_datetimes(activity_dict):
-    for field in ["createdAt", "updatedAt"]:
-        if field in activity_dict and isinstance(activity_dict[field], str):
-            try:
-                activity_dict[field] = datetime.fromisoformat(activity_dict[field])
-            except Exception:
-                pass
-    return activity_dict
 
 @strawberry.type
 class ActivityResolver:
@@ -47,18 +28,6 @@ class ActivityResolver:
         """Get activity by ID"""
         context: Context = info.context
         current_user = await context.authenticate()
-
-        cache_key = activity_cache_key(id)
-        cached = await redis.get(cache_key)
-        if cached:
-            data = deserialize(cached)
-            data = parse_activity_datetimes(data)
-            # Optionally, check user access here if needed
-            return ActivityResponse(
-                success=True,
-                message="Activity retrieved successfully (cache)",
-                activity=await Activity.from_db(data)
-            )
 
         activity = await activities.find_one({"_id": ObjectId(id)})
         if not activity:
@@ -72,8 +41,6 @@ class ActivityResolver:
         
         if not org:
             raise HTTPException(status_code=403, detail="Not authorized to access this activity")
-
-        await redis.set(cache_key, serialize(activity), ex=CACHE_TTL)
 
         return ActivityResponse(
             success=True,
@@ -92,20 +59,6 @@ class ActivityResolver:
         """Get activities with optional filtering by organization"""
         context: Context = info.context
         current_user = await context.authenticate()
-
-        cache_key = activities_cache_key(current_user.id, organization_id, limit, skip)
-        cached = await redis.get(cache_key)
-        if cached:
-            data = deserialize(cached)
-            data = parse_activity_datetimes(data)
-            # Reconstruct Activity objects from cached data
-            activity_list = [await Activity.from_db(parse_activity_datetimes(a)) for a in data["activities"]]
-            return ActivitiesResponse(
-                success=True,
-                message="Activities retrieved successfully (cache)",
-                activities=activity_list,
-                totalCount=data["totalCount"]
-            )
 
         # If organization_id is provided, verify access
         if organization_id:
@@ -151,9 +104,6 @@ class ActivityResolver:
         for activity in all_activities:
             org_obj = org_map.get(activity.get("organizationId"))
             activity_list.append(await Activity.from_db(activity, organization=org_obj))
-
-        # Cache the raw MongoDB activity dicts and totalCount
-        await redis.set(cache_key, serialize({"activities": all_activities, "totalCount": total_count}), ex=CACHE_TTL)
 
         return ActivitiesResponse(
             success=True,
@@ -203,9 +153,6 @@ class ActivityResolver:
         result = await activities.insert_one(activity_data)
         activity_data["_id"] = result.inserted_id
 
-        # Invalidate all activities:* cache keys for this user/org (wildcard delete)
-        await redis.delete(*[key async for key in redis.scan_iter(f"activities:{current_user.id}:*")])
-
         return ActivityResponse(
             success=True,
             message="Activity created successfully",
@@ -228,10 +175,6 @@ class ActivityResolver:
 
         await activities.delete_one({"_id": ObjectId(id)})
 
-        # Invalidate cache for this activity and all activities lists
-        await redis.delete(activity_cache_key(id))
-        await redis.delete(*[key async for key in redis.scan_iter("activities:*")])
-
         return ActivityResponse(
             success=True,
             message="Activity deleted successfully",
@@ -250,10 +193,6 @@ class ActivityResolver:
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         result = await activities.delete_many({"createdAt": {"$lt": cutoff}})
-
-        # Invalidate all activities:* and activity:* cache keys
-        await redis.delete(*[key async for key in redis.scan_iter("activities:*")])
-        await redis.delete(*[key async for key in redis.scan_iter("activity:*")])
 
         return ActivityResponse(
             success=True,

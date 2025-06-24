@@ -17,7 +17,6 @@ from app.config.utils import record_activity
 import logging
 from pymongo import ASCENDING, DESCENDING
 from functools import lru_cache
-from app.config.redis import redis
 import json
 
 logger = logging.getLogger(__name__)
@@ -25,8 +24,6 @@ logger = logging.getLogger(__name__)
 # Constants for pagination
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
-
-CACHE_TTL = 300  # 5 minutes
 
 def ticket_cache_key(ticket_id: str) -> str:
     return f"isp_ticket:{ticket_id}"
@@ -112,18 +109,6 @@ class ISPTicketResolver:
         context: Context = info.context
         current_user = await context.authenticate()
 
-        cache_key = tickets_cache_key(current_user.id, organization_id, page, page_size, sort_by, sort_direction, status, category, search)
-        cached = await redis.get(cache_key)
-        if cached:
-            data = deserialize(cached)
-            ticket_list = [await ISPTicket.from_db(parse_ticket_datetimes(t)) for t in data["tickets"]]
-            return ISPTicketsResponse(
-                success=True,
-                message="Tickets retrieved successfully (cache)",
-                tickets=ticket_list,
-                total_count=data["total_count"]
-            )
-
         try:
             org_id = ObjectId(organization_id)
         except:
@@ -178,7 +163,6 @@ class ISPTicketResolver:
             .limit(page_size)\
             .to_list(None)
 
-        await redis.set(cache_key, serialize({"tickets": all_tickets, "total_count": total_count}), ex=CACHE_TTL)
         tickets = [await ISPTicket.from_db(ticket) for ticket in all_tickets]
 
         return ISPTicketsResponse(
@@ -268,9 +252,6 @@ class ISPTicketResolver:
             org_id,
             action=f"created ticket '{input.title}'"
         )
-        
-        # Invalidate all isp_tickets:* cache keys for this org
-        await redis.delete(*[key async for key in redis.scan_iter(f"isp_tickets:*{input.organizationId}*")])
         
         # Get the created ticket
         ticket = await isp_tickets.find_one({"_id": result.inserted_id})
@@ -368,10 +349,6 @@ class ISPTicketResolver:
 
         updated_ticket = await isp_tickets.find_one({"_id": ticket_id})
 
-        # Invalidate cache for this ticket and all tickets lists for this org
-        await redis.delete(ticket_cache_key(input.id))
-        await redis.delete(*[key async for key in redis.scan_iter(f"isp_tickets:*{ticket['organizationId']}*")])
-
         return ISPTicketResponse(
             success=True,
             message="Ticket updated successfully",
@@ -431,10 +408,6 @@ class ISPTicketResolver:
             logger.error(f"Database error when deleting ticket: {str(e)}")
             raise HTTPException(status_code=500, detail="Database error occurred")
 
-        # Invalidate cache for this ticket and all tickets lists for this org
-        await redis.delete(ticket_cache_key(id))
-        await redis.delete(*[key async for key in redis.scan_iter(f"isp_tickets:*{ticket['organizationId']}*")])
-
         return True
 
     @strawberry.mutation
@@ -492,10 +465,6 @@ class ISPTicketResolver:
         )
 
         updated_ticket = await isp_tickets.find_one({"_id": object_id})
-
-        # Invalidate cache for this ticket and all tickets lists for this org
-        await redis.delete(ticket_cache_key(ticket_id))
-        await redis.delete(*[key async for key in redis.scan_iter(f"isp_tickets:*{ticket['organizationId']}*")])
 
         return ISPTicketResponse(
             success=True,
