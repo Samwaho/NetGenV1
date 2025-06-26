@@ -30,7 +30,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ArrowLeft, Loader2, UserPlus, Mail, Phone, User, Lock, Package2, Radio, Calendar } from "lucide-react";
+import { ArrowLeft, Loader2, UserPlus, Mail, Phone, User, Lock, Package2, Radio, Calendar, Eye, EyeOff } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { memo, useState, useEffect } from "react";
 
@@ -61,7 +61,7 @@ interface StationsResponse {
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
@@ -106,6 +106,7 @@ export default function CreateCustomerPage() {
   const organizationId = params.id as string;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [packagePriceMap, setPackagePriceMap] = useState<Record<string, number>>({});
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -182,6 +183,7 @@ export default function CreateCustomerPage() {
         ...data,
         organizationId,
         expirationDate: data.expirationDate.toISOString(),
+        email: data.email || undefined,
       };
       
       await createCustomer({
@@ -333,11 +335,24 @@ export default function CreateCustomerPage() {
                           <div className="relative">
                             <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input 
-                              className="pl-9" 
+                              className="pl-9 pr-9" 
                               placeholder="password" 
-                              type="password"
+                              type={showPassword ? "text" : "password"}
                               {...field} 
                             />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
                           </div>
                         </FormControl>
                         <FormDescription>

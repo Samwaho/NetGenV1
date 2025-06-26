@@ -33,7 +33,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ISPPackage } from "@/types/isp_package";
 import { ISPStation } from "@/types/isp_station";
 import React, { memo, useState } from "react";
-import { ArrowLeft, X, Save, Loader2, Mail, Phone, User, Lock, Package2, Radio, Calendar } from "lucide-react";
+import { ArrowLeft, X, Save, Loader2, Mail, Phone, User, Lock, Package2, Radio, Calendar, Eye, EyeOff } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 // Interface for API responses
@@ -45,7 +45,7 @@ interface CustomerResponse {
     email: string;
     phone: string;
     username: string;
-    password?: string;
+    password: string;
     package: {
       id: string;
       name: string;
@@ -73,7 +73,7 @@ interface StationsResponse {
 const formSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
   username: z.string().min(1, "Username is required"),
   password: z.string().optional(),
@@ -115,6 +115,7 @@ export default function EditCustomerPage() {
   const organizationId = params.id as string;
   const customerId = params.customerId as string;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { data: customerData, loading: customerLoading } = useQuery<CustomerResponse>(
     GET_ISP_CUSTOMER, 
@@ -180,7 +181,7 @@ export default function EditCustomerPage() {
         email: customer.email,
         phone: customer.phone,
         username: customer.username,
-        password: "",
+        password: customer.password,
         packageId: customer.package.id,
         stationId: customer.station.id,
         expirationDate: new Date(customer.expirationDate),
@@ -194,6 +195,7 @@ export default function EditCustomerPage() {
       const submissionData = {
         ...data,
         expirationDate: data.expirationDate.toISOString(),
+        email: data.email || undefined,
       };
       
       if (!submissionData.password) {
@@ -363,15 +365,28 @@ export default function EditCustomerPage() {
                           <div className="relative">
                             <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input 
-                              className="pl-9" 
-                              type="password"
-                              placeholder="Leave blank to keep current password" 
+                              className="pl-9 pr-9" 
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Current PPPoE password" 
                               {...field} 
                             />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
                           </div>
                         </FormControl>
                         <FormDescription>
-                          Leave empty to keep the current password
+                          Current PPPoE password. Change to update the password.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

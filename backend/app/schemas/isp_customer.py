@@ -164,7 +164,7 @@ class CreateISPCustomerInput:
     """Input type for creating a new ISP customer. Added initialAmount and isNew."""
     firstName: str
     lastName: str
-    email: str
+    email: Optional[str] = None
     phone: str
     username: str
     password: str

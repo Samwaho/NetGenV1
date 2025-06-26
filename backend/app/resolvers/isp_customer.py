@@ -149,12 +149,14 @@ class ISPCustomerResolver:
         # Add search filter if provided
         if search:
             search_regex = {"$regex": f".*{re.escape(search)}.*", "$options": "i"}
-            query_filter["$or"] = [
+            search_conditions = [
                 {"username": search_regex},
                 {"firstName": search_regex},
-                {"lastName": search_regex},
-                {"email": search_regex}
+                {"lastName": search_regex}
             ]
+            # Only add email search if email field exists and is not null
+            search_conditions.append({"email": search_regex})
+            query_filter["$or"] = search_conditions
         
         # Determine sort order
         sort_order = DESCENDING if sort_direction.lower() == "desc" else ASCENDING
@@ -236,7 +238,7 @@ class ISPCustomerResolver:
         existing_customer = await isp_customers.find_one({
             "$or": [
                 {"username": {"$regex": f"^{re.escape(input.username)}$", "$options": "i"}},
-                {"email": input.email.lower()}
+                {"email": input.email.lower()} if input.email else {"email": {"$exists": False}}
             ]
         })
         if existing_customer:
@@ -247,7 +249,7 @@ class ISPCustomerResolver:
         customer_data = {
             "firstName": input.firstName,
             "lastName": input.lastName,
-            "email": input.email.lower(),
+            "email": input.email.lower() if input.email else None,
             "phone": input.phone,
             "username": input.username,
             "password": input.password,
