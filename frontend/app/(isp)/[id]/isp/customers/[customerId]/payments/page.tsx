@@ -11,7 +11,12 @@ import { formatKESCurrency, formatDateToNowInTimezone } from "@/lib/utils";
 import { DataTable } from "./components/PaymentsTable";
 import { columns } from "./components/columns";
 import { memo } from "react";
-import { ISPCustomerPayment } from "@/types/isp";
+import { ISPCustomerPayment } from "@/types/isp_customer_payment";
+import { ManualPaymentModal } from "@/app/(isp)/[id]/isp/customers/components/ManualPaymentModal";
+import { useUser } from "@/hooks/useUser";
+import { useOrganization } from "@/hooks/useOrganization";
+import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { OrganizationPermissions } from "@/lib/permissions";
 
 // Stats card component
 interface StatsCardProps {
@@ -107,6 +112,8 @@ export default function CustomerPaymentsPage() {
   const router = useRouter();
   const organizationId = params.id as string;
   const customerId = params.customerId as string;
+  const { user, loading: userLoading } = useUser();
+  const { organization, loading: orgLoading } = useOrganization(organizationId);
 
   const { data: customerData, loading: customerLoading } = useQuery(
     GET_ISP_CUSTOMER,
@@ -127,12 +134,18 @@ export default function CustomerPaymentsPage() {
     }
   );
 
-  if (customerLoading || paymentsLoading) {
+  if (customerLoading || paymentsLoading || userLoading || orgLoading) {
     return <LoadingState />;
   }
 
   const customer = customerData?.customer;
   const payments = paymentsData?.customerPayments?.payments || [];
+
+  const canManageCustomers = organization && user && hasOrganizationPermissions(
+    organization,
+    user.id,
+    OrganizationPermissions.MANAGE_ISP_MANAGER_CUSTOMERS
+  );
 
   const stats = {
     totalPaid: payments.reduce(
@@ -161,16 +174,27 @@ export default function CustomerPaymentsPage() {
             {customer.firstName} {customer.lastName} ({customer.username})
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() =>
-            router.push(`/${organizationId}/isp/customers`)
-          }
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Customers
-        </Button>
+        <div className="flex gap-2">
+          {canManageCustomers && (
+            <ManualPaymentModal 
+              customer={customer} 
+              onPaymentProcessed={() => {
+                // Refetch payments data after successful payment
+                window.location.reload();
+              }}
+            />
+          )}
+          <Button
+            variant="outline"
+            onClick={() =>
+              router.push(`/${organizationId}/isp/customers`)
+            }
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Customers
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}

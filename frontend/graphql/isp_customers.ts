@@ -136,6 +136,31 @@ export const DELETE_ISP_CUSTOMER = gql`
   }
 `;
 
+export const PROCESS_MANUAL_PAYMENT = gql`
+  mutation ProcessManualPayment(
+    $customerId: String!,
+    $amount: Float!,
+    $paymentMethod: String = "manual",
+    $transactionId: String = null,
+    $phoneNumber: String = null
+  ) {
+    processManualPayment(
+      customerId: $customerId,
+      amount: $amount,
+      paymentMethod: $paymentMethod,
+      transactionId: $transactionId,
+      phoneNumber: $phoneNumber
+    ) {
+      success
+      message
+      customer {
+        ...CompleteCustomerFields
+      }
+    }
+  }
+  ${COMPLETE_CUSTOMER_FIELDS}
+`;
+
 // Types for better TypeScript integration
 export interface ISPCustomerInput {
   firstName: string;

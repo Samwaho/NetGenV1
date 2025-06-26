@@ -2,7 +2,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ISPCustomer } from "@/types/isp_customer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Loader2 } from "lucide-react";
+import { MoreHorizontal, Loader2, CreditCard } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import { useMutation } from "@apollo/client";
 import { DELETE_ISP_CUSTOMER } from "@/graphql/isp_customers";
 import { toast } from "sonner";
 import { useState, memo } from "react";
+import { ManualPaymentModal } from "./ManualPaymentModal";
 
 // Separate component for actions cell
 const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCustomer; canManageCustomers: boolean }) => {
@@ -23,6 +24,7 @@ const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCusto
   const params = useParams();
   const organizationId = params.id as string;
   const [isDeleting, setIsDeleting] = useState(false);
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
   
   const [deleteCustomer] = useMutation(DELETE_ISP_CUSTOMER, {
     update: (cache) => {
@@ -63,51 +65,67 @@ const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCusto
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
-          <span className="sr-only">Open menu</span>
-          {isDeleting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <MoreHorizontal className="h-4 w-4" />
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
+            <span className="sr-only">Open menu</span>
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MoreHorizontal className="h-4 w-4" />
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}`)}
+            onMouseEnter={prefetchDetails}
+          >
+            View Details
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/payments`)}
+            onMouseEnter={prefetchDetails}
+          >
+            View Payment History
+          </DropdownMenuItem>
+          {canManageCustomers && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setManualPaymentOpen(true)}
+                className="gap-2"
+              >
+                <CreditCard className="h-4 w-4" />
+                Manual Payment
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/edit`)}
+                onMouseEnter={prefetchEdit}
+              >
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </DropdownMenuItem>
+            </>
           )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem
-          onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}`)}
-          onMouseEnter={prefetchDetails}
-        >
-          View Details
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/payments`)}
-          onMouseEnter={prefetchDetails}
-        >
-          View Payment History
-        </DropdownMenuItem>
-        {canManageCustomers && (
-          <>
-            <DropdownMenuItem
-              onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/edit`)}
-              onMouseEnter={prefetchEdit}
-            >
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-red-600"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
+      <ManualPaymentModal 
+        customer={customer} 
+        open={manualPaymentOpen}
+        onOpenChange={setManualPaymentOpen}
+      />
+    </>
   );
 });
 ActionsCell.displayName = "ActionsCell";

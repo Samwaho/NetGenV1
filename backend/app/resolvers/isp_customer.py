@@ -21,6 +21,7 @@ from app.services.sms.template import SmsTemplateService
 from app.services.sms.utils import send_sms_for_organization
 from app.schemas.sms_template import TemplateCategory
 import json
+from app.api.mpesa import process_customer_payment
 
 logger = logging.getLogger(__name__)
 
@@ -522,6 +523,103 @@ class ISPCustomerResolver:
             success=True,
             message="Customer deleted successfully",
             customer=customer_data
+        )
+
+    @strawberry.mutation
+    async def process_manual_payment(
+        self, 
+        customer_id: str, 
+        amount: float, 
+        info: strawberry.Info,
+        payment_method: str = "manual",
+        transaction_id: Optional[str] = None,
+        phone_number: Optional[str] = None
+    ) -> ISPCustomerResponse:
+        """
+        Process a manual payment for a customer.
+        
+        Args:
+            customer_id: Customer ID to process payment for
+            amount: Payment amount
+            info: GraphQL info object
+            payment_method: Method of payment (default: "manual")
+            transaction_id: Optional transaction ID
+            phone_number: Optional phone number
+            
+        Returns:
+            ISPCustomerResponse: The updated customer
+        """
+        context: Context = info.context
+        current_user = await context.authenticate()
+
+        try:
+            customer_object_id = ObjectId(customer_id)
+        except:
+            raise HTTPException(status_code=400, detail="Invalid customer ID format")
+
+        customer = await isp_customers.find_one({"_id": customer_object_id})
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+
+        # Verify user has permission to process payments for this customer
+        organization = await organizations.find_one({"_id": customer["organizationId"]})
+        if not organization:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
+        if not user_member:
+            raise HTTPException(status_code=403, detail="Not authorized to process payments for this customer")
+
+        # Validate amount
+        if amount <= 0:
+            raise HTTPException(status_code=400, detail="Payment amount must be greater than 0")
+
+        # Check if customer is active
+        if customer.get("status") != "ACTIVE":
+            logger.warning(f"Processing payment for inactive customer {customer['username']}")
+
+        # Get package information for validation
+        package = await isp_packages.find_one({"_id": customer.get("packageId")})
+        if package:
+            package_price = package.get("price", 0)
+            if package_price > 0:
+                # Validate that amount is reasonable (at least 1 day worth)
+                min_amount = package_price / 30  # 1 day worth
+                if amount < min_amount:
+                    logger.warning(f"Payment amount {amount} is less than minimum daily rate {min_amount} for customer {customer['username']}")
+
+        # Generate transaction ID if not provided
+        if not transaction_id:
+            import uuid
+            transaction_id = f"MANUAL_{uuid.uuid4().hex[:8].upper()}"
+
+        # Process the payment using the existing function
+        success = await process_customer_payment(
+            organization_id=str(customer["organizationId"]),
+            username=customer["username"],
+            amount=amount,
+            phone=phone_number or customer.get("phone"),
+            transaction_id=transaction_id
+        )
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to process payment")
+
+        # Record activity
+        activity_message = f"processed manual payment of {amount} for customer {customer['username']}"
+        await record_activity(
+            current_user.id,
+            customer["organizationId"],
+            activity_message
+        )
+
+        # Fetch the updated customer
+        updated_customer = await isp_customers.find_one({"_id": customer_object_id})
+
+        return ISPCustomerResponse(
+            success=True,
+            message=f"Manual payment of {amount} processed successfully",
+            customer=await ISPCustomer.from_db(updated_customer)
         )
 
 
