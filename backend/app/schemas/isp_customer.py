@@ -17,7 +17,7 @@ class ISPCustomer:
     id: str
     firstName: str
     lastName: str
-    email: str
+    email: Optional[str] = None
     phone: str
     username: str
     password: str

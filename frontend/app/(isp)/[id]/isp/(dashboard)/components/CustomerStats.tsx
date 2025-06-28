@@ -8,7 +8,7 @@ interface ISPCustomer {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   phone: string;
   username: string;
   status: string;

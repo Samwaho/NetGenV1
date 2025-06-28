@@ -42,7 +42,7 @@ interface CustomerResponse {
     id: string;
     firstName: string;
     lastName: string;
-    email: string;
+    email?: string;
     phone: string;
     username: string;
     password: string;

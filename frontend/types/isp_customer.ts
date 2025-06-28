@@ -2,7 +2,7 @@ export interface ISPCustomer {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   phone: string;
   username: string;
   organization: {
@@ -41,7 +41,7 @@ export interface CustomerResponse {
     username: string;
     status: string;
     expirationDate: string;
-    email: string;
+    email?: string;
     phone: string;
     organization: {
       id: string;
@@ -64,7 +64,7 @@ export interface CustomerResponse {
 export interface CreateISPCustomerInput {
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   phone: string;
   username: string;
   password: string;
