@@ -85,21 +85,35 @@ class RadiusProfile(BaseModel):
         upload = self.format_speed(self.uploadSpeed)
         download = self.format_speed(self.downloadSpeed)
         
-        # Format burst speeds (use base speeds if not specified)
-        burst_up = self.format_speed(self.burstUpload) if self.burstUpload else upload
-        burst_down = self.format_speed(self.burstDownload) if self.burstDownload else download
+        # Check if we have burst settings
+        has_burst_settings = (
+            self.burstUpload is not None or 
+            self.burstDownload is not None or 
+            self.thresholdUpload is not None or 
+            self.thresholdDownload is not None or 
+            self.burstTime is not None
+        )
         
-        # Format threshold speeds (use base speeds if not specified)
-        threshold_up = self.format_speed(self.thresholdUpload) if self.thresholdUpload else upload
-        threshold_down = self.format_speed(self.thresholdDownload) if self.thresholdDownload else download
-        
-        # Get burst time and priority
-        burst_time = str(self.burstTime) if self.burstTime is not None else '0'
-        priority = str(self.priority) if self.priority is not None else '8'
-        
-        # Build rate limit string in MikroTik format:
-        # <upload>/<download> <burst-upload>/<burst-download> <threshold-upload>/<threshold-download> <burst-time>/<burst-time> <priority>
-        return f"{upload}/{download} {burst_up}/{burst_down} {threshold_up}/{threshold_down} {burst_time}/{burst_time} {priority}"
+        if has_burst_settings:
+            # Format burst speeds (use base speeds if not specified)
+            burst_up = self.format_speed(self.burstUpload) if self.burstUpload else upload
+            burst_down = self.format_speed(self.burstDownload) if self.burstDownload else download
+            
+            # Format threshold speeds (use base speeds if not specified)
+            threshold_up = self.format_speed(self.thresholdUpload) if self.thresholdUpload else upload
+            threshold_down = self.format_speed(self.thresholdDownload) if self.thresholdDownload else download
+            
+            # Get burst time - use 10 seconds as default if not specified but other burst settings exist
+            burst_time = str(self.burstTime) if self.burstTime is not None else '10'
+            priority = str(self.priority) if self.priority is not None else '8'
+            
+            # Build rate limit string in MikroTik format with burst:
+            # <upload>/<download> <burst-upload>/<burst-download> <threshold-upload>/<threshold-download> <burst-time>/<burst-time> <priority>
+            return f"{upload}/{download} {burst_up}/{burst_down} {threshold_up}/{threshold_down} {burst_time}/{burst_time} {priority}"
+        else:
+            # Simple rate limit without burst settings
+            # <upload>/<download>
+            return f"{upload}/{download}"
 
     def to_radius_attributes(self) -> List[RadiusAttribute]:
         attributes = []
