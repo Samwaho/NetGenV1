@@ -126,7 +126,7 @@ export const columns = (canManagePackages: boolean): ColumnDef<ISPPackage>[] => 
     ),
     cell: ({ row }) => {
       const price = row.getValue("price") as number;
-      return <div className="font-medium">${price.toFixed(2)}</div>;
+      return <div className="font-medium">Ksh {price.toFixed(2)}</div>;
     },
   },
   {

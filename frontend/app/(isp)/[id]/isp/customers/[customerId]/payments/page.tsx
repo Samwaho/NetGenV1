@@ -32,20 +32,21 @@ const StatsCard = memo(function StatsCard({
   value,
   icon,
   description,
+  className,
 }: StatsCardProps) {
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between space-x-4">
-          <div className="flex items-center space-x-4">
+    <Card className={className}>
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex items-center justify-between space-x-2 sm:space-x-4 min-w-0 flex-wrap">
+          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
             {icon}
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">{title}</p>
-              <h3 className="text-2xl font-bold">{value}</h3>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{title}</p>
+              <h3 className="text-lg sm:text-2xl font-bold truncate">{value}</h3>
             </div>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground mt-4">{description}</p>
+        <p className="text-xs text-muted-foreground mt-2 sm:mt-4 break-words">{description}</p>
       </CardContent>
     </Card>
   );
@@ -163,18 +164,18 @@ export default function CustomerPaymentsPage() {
   };
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 space-y-6">
+    <div className="container mx-auto px-1 sm:px-4 py-4 sm:py-8 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gradient-custom">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-gradient-custom truncate">
             Customer Payments
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
+          <p className="text-xs sm:text-sm md:text-base text-muted-foreground truncate">
             {customer.firstName} {customer.lastName} ({customer.username})
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap w-full sm:w-auto">
           {canManageCustomers && (
             <ManualPaymentModal 
               customer={customer} 
@@ -189,7 +190,7 @@ export default function CustomerPaymentsPage() {
             onClick={() =>
               router.push(`/${organizationId}/isp/customers`)
             }
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Customers
@@ -198,7 +199,7 @@ export default function CustomerPaymentsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Paid"
           value={formatKESCurrency(stats.totalPaid)}
@@ -232,7 +233,7 @@ export default function CustomerPaymentsPage() {
       {/* Payments Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Payment History</CardTitle>
+          <CardTitle className="truncate">Payment History</CardTitle>
         </CardHeader>
         <CardContent>
           {paymentsLoading ? (
@@ -244,7 +245,9 @@ export default function CustomerPaymentsPage() {
               No payments found
             </div>
           ) : (
-            <DataTable columns={columns} data={payments} />
+            <div className="overflow-x-auto">
+              <DataTable columns={columns} data={payments} />
+            </div>
           )}
         </CardContent>
       </Card>
