@@ -39,12 +39,12 @@ export const columns: ColumnDef<ISPCustomerAccounting>[] = [
   {
     accessorKey: "totalInputBytes",
     header: "Download",
-    cell: ({ row }) => formatBytes(row.getValue("totalInputBytes")),
+    cell: ({ row }) => formatBytes(Number(row.getValue("totalInputBytes"))),
   },
   {
     accessorKey: "totalOutputBytes",
     header: "Upload",
-    cell: ({ row }) => formatBytes(row.getValue("totalOutputBytes")),
+    cell: ({ row }) => formatBytes(Number(row.getValue("totalOutputBytes"))),
   },
   {
     accessorKey: "framedIpAddress",

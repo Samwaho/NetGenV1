@@ -24,7 +24,7 @@ export function BandwidthChart({ data }: BandwidthChartProps) {
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value: number) => formatBytes(value)}
+          tickFormatter={(value: number | string) => formatBytes(Number(value))}
         />
         <Tooltip
           content={({ active, payload }: TooltipProps<number, string>) => {
@@ -39,7 +39,7 @@ export function BandwidthChart({ data }: BandwidthChartProps) {
                         Download
                       </span>
                       <span className="font-bold text-green-500">
-                        {formatBytes(downloadValue)}
+                        {formatBytes(Number(downloadValue))}
                       </span>
                     </div>
                     <div className="flex flex-col">
@@ -47,7 +47,7 @@ export function BandwidthChart({ data }: BandwidthChartProps) {
                         Upload
                       </span>
                       <span className="font-bold text-blue-500">
-                        {formatBytes(uploadValue)}
+                        {formatBytes(Number(uploadValue))}
                       </span>
                     </div>
                   </div>

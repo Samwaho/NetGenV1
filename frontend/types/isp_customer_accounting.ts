@@ -16,8 +16,8 @@ export interface AccountingSession {
   startTime: string;
   endTime: string;
   duration: number;
-  inputBytes: number;
-  outputBytes: number;
+  inputBytes: string;
+  outputBytes: string;
   framedIp?: string;
   terminateCause?: string;
   nasIpAddress?: string;
@@ -48,9 +48,9 @@ export interface ISPCustomerAccounting {
   
   // Session data
   sessionTime?: number;
-  totalInputBytes?: number;
-  totalOutputBytes?: number;
-  totalBytes?: number;
+  totalInputBytes?: string;
+  totalOutputBytes?: string;
+  totalBytes?: string;
   framedIpAddress?: string;
   nasIpAddress?: string;
   terminateCause?: string;
@@ -63,8 +63,8 @@ export interface ISPCustomerAccounting {
   callingStationId?: string;
   
   // Delta values
-  deltaInputBytes?: number;
-  deltaOutputBytes?: number;
+  deltaInputBytes?: string;
+  deltaOutputBytes?: string;
   deltaSessionTime?: number;
   startTime?: string;
   

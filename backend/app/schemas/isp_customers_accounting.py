@@ -6,6 +6,17 @@ from app.schemas.organization import Organization
 from app.schemas.isp_customer import ISPCustomer
 from enum import Enum
 
+# Add BigInt scalar
+@strawberry.scalar(description="Big integer as string")
+class BigInt:
+    @staticmethod
+    def serialize(value):
+        return str(value) if value is not None else None
+
+    @staticmethod
+    def parse_value(value):
+        return int(value) if value is not None else None
+
 
 @strawberry.enum
 class AccountingStatusType(str, Enum):
@@ -23,8 +34,8 @@ class AccountingSession:
     startTime: datetime
     endTime: datetime
     duration: int
-    inputBytes: int
-    outputBytes: int
+    inputBytes: Optional[BigInt] = None
+    outputBytes: Optional[BigInt] = None
     framedIp: Optional[str] = None
     terminateCause: Optional[str] = None
     nasIpAddress: Optional[str] = None
@@ -51,9 +62,9 @@ class ISPCustomerAccounting:
     
     # Session data (for non-summary records)
     sessionTime: Optional[int] = None
-    totalInputBytes: Optional[int] = None
-    totalOutputBytes: Optional[int] = None
-    totalBytes: Optional[int] = None
+    totalInputBytes: Optional[BigInt] = None
+    totalOutputBytes: Optional[BigInt] = None
+    totalBytes: Optional[BigInt] = None
     framedIpAddress: Optional[str] = None
     nasIpAddress: Optional[str] = None
     terminateCause: Optional[str] = None
@@ -66,8 +77,8 @@ class ISPCustomerAccounting:
     callingStationId: Optional[str] = None
     
     # Delta values (incremental changes)
-    deltaInputBytes: Optional[int] = None
-    deltaOutputBytes: Optional[int] = None
+    deltaInputBytes: Optional[BigInt] = None
+    deltaOutputBytes: Optional[BigInt] = None
     deltaSessionTime: Optional[int] = None
     startTime: Optional[datetime] = None
     
@@ -225,9 +236,9 @@ class AccountingStatsPeriod(str, Enum):
 class BandwidthStats:
     """Statistics about bandwidth usage for a specific time period"""
     period: str
-    download: int
-    upload: int
-    total: int
+    download: BigInt
+    upload: BigInt
+    total: BigInt
 
 
 @strawberry.type
