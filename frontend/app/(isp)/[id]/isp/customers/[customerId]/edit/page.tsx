@@ -178,7 +178,7 @@ export default function EditCustomerPage() {
       form.reset({
         firstName: customer.firstName,
         lastName: customer.lastName,
-        email: customer.email,
+        email: customer.email ?? "",
         phone: customer.phone,
         username: customer.username,
         password: customer.password,
