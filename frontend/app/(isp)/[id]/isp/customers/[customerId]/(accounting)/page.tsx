@@ -198,7 +198,7 @@ export default function CustomerAccountingPage() {
         />
         <StatsCard
           title="Total Traffic"
-          value={formatBytes((latestSession?.totalInputBytes ?? 0) + (latestSession?.totalOutputBytes ?? 0))}
+          value={formatBytes(Number(latestSession?.totalInputBytes ?? 0) + Number(latestSession?.totalOutputBytes ?? 0))}
           icon={<Activity className="h-4 w-4 text-purple-500" />}
           description="Combined traffic"
         />
