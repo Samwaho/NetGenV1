@@ -592,17 +592,12 @@ async def process_hotspot_voucher_payment(organization_id: str, voucher_code: st
                         expiry_str = "N/A"
                         
                     # Prepare SMS variables
-                    sms_vars = {
-                        "firstName": "Customer",  # Since we don't have customer name for hotspot users
-                        "voucherCode": voucher_code,
-                        "organizationName": org.get("name", "Provider"),
-                        "packageName": package.get("name", ""),
-                        "expirationDate": expiry_str,
-                        "amountPaid": amount,
-                        "dataLimit": package.get("dataLimit", "Unlimited"),
-                        "duration": f"{package.get('duration', 0)} days"
-                    }
-                    
+                    sms_vars = SmsTemplateService.build_sms_vars([
+                        voucher,
+                        org or {},
+                        package or {},
+                        {"firstName": "Customer", "voucherCode": voucher_code, "expirationDate": expiry_str, "amountPaid": amount, "dataLimit": package.get("dataLimit", "Unlimited") if package else "Unlimited", "duration": f"{package.get('duration', 0)} days" if package else ""}
+                    ])
                     logger.info(f"SMS Variables: {json.dumps(sms_vars, default=str)}")
                     
                     # Render and send SMS

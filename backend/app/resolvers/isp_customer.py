@@ -285,14 +285,10 @@ class ISPCustomerResolver:
             if template_result.get("success") and template_result.get("templates"):
                 template_doc = template_result["templates"][0]
             if template_doc:
-                # Prepare variables for template rendering
-                org_name = organization.get("name", "Provider")
-                sms_vars = {
-                    "firstName": input.firstName,
-                    "lastName": input.lastName,
-                    "username": input.username,
-                    "organizationName": org_name
-                }
+                # Prepare variables for template rendering (dynamic)
+                sms_vars = SmsTemplateService.build_sms_vars([
+                    input, organization
+                ])
                 message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
                 await send_sms_for_organization(
                     organization_id=input.organizationId,
@@ -318,14 +314,9 @@ class ISPCustomerResolver:
                 if organization.get("mpesaConfig"):
                     paybill_number = organization["mpesaConfig"].get("shortCode")
                 amount_due = input.initialAmount
-                invoice_vars = {
-                    "firstName": input.firstName,
-                    "lastName": input.lastName,
-                    "username": input.username,
-                    "organizationName": org_name,
-                    "amountDue": amount_due,
-                    "paybillNumber": paybill_number or ""
-                }
+                invoice_vars = SmsTemplateService.build_sms_vars([
+                    input, organization, {"amountDue": amount_due, "paybillNumber": paybill_number or ""}
+                ])
                 invoice_message = SmsTemplateService.render_template(invoice_template_doc["content"], invoice_vars)
                 await send_sms_for_organization(
                     organization_id=input.organizationId,

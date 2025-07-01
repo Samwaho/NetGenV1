@@ -1221,15 +1221,11 @@ async def process_customer_payment(organization_id: str, username: str, amount: 
                 logger.error("No active payment confirmation template found")
                 
             if template_doc:
-                sms_vars = {
-                    "firstName": customer.get("firstName", ""),
-                    "lastName": customer.get("lastName", ""),
-                    "username": customer.get("username", ""),
-                    "organizationName": org_name,
-                    "amountPaid": amount,
-                    "paybillNumber": paybill_number or "",
-                    "expirationDate": new_expiry.strftime("%Y-%m-%d")
-                }
+                sms_vars = SmsTemplateService.build_sms_vars([
+                    customer,
+                    org or {},
+                    {"amountPaid": amount, "paybillNumber": paybill_number or "", "expirationDate": new_expiry.strftime("%Y-%m-%d")}
+                ])
                 logger.info(f"SMS Variables: {json.dumps(sms_vars, default=str)}")
                 
                 message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
@@ -1387,16 +1383,12 @@ async def process_hotspot_voucher_payment(organization_id: str, voucher_code: st
                         expiry_str = "N/A"
                         
                     # Prepare SMS variables
-                    sms_vars = {
-                        "firstName": "Customer",  # Since we don't have customer name for hotspot users
-                        "voucherCode": voucher_code,
-                        "organizationName": org.get("name", "Provider"),
-                        "packageName": package.get("name", ""),
-                        "expirationDate": expiry_str,
-                        "amountPaid": amount,
-                        "dataLimit": package.get("dataLimit", "Unlimited"),
-                        "duration": f"{package.get('duration', 0)} days"
-                    }
+                    sms_vars = SmsTemplateService.build_sms_vars([
+                        voucher,
+                        org or {},
+                        package or {},
+                        {"firstName": "Customer", "voucherCode": voucher_code, "expirationDate": expiry_str, "amountPaid": amount, "dataLimit": package.get("dataLimit", "Unlimited") if package else "Unlimited", "duration": f"{package.get('duration', 0)} days" if package else ""}
+                    ])
                     
                     logger.info(f"SMS Variables: {json.dumps(sms_vars, default=str)}")
                     

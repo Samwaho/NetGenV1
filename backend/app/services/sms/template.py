@@ -7,6 +7,22 @@ from app.schemas.sms_template import TemplateCategory
 
 logger = logging.getLogger(__name__)
 
+# Common variables that can be used in any SMS template
+COMMON_VARIABLES = [
+    "firstName",
+    "lastName",
+    "organizationName",
+    "expirationDate",
+    "packageName",
+    "phoneNumber",
+    "supportEmail",
+    "amountDue",
+    "dueDate",
+    "paybillNumber",
+    "username",
+    "voucherCode",
+]
+
 class SmsTemplateService:
     """Service for managing SMS templates"""
     
@@ -254,3 +270,25 @@ class SmsTemplateService:
         
         # Return unique variable names
         return list(set(matches))
+    
+    @staticmethod
+    def build_sms_vars(context_sources: list) -> dict:
+        """
+        Dynamically build the variables dictionary for an SMS template using COMMON_VARIABLES.
+        Args:
+            context_sources: List of dict-like objects to search for variable values (in order of priority)
+        Returns:
+            Dict of variable names to values (missing variables get empty string)
+        """
+        result = {}
+        for var in COMMON_VARIABLES:
+            value = None
+            for source in context_sources:
+                if isinstance(source, dict) and var in source:
+                    value = source[var]
+                    break
+                elif hasattr(source, var):
+                    value = getattr(source, var)
+                    break
+            result[var] = value if value is not None else ""
+        return result

@@ -63,6 +63,7 @@ export default function SmsTemplateForm({
   const loading = creating || updating;
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [customVar, setCustomVar] = useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -184,13 +185,39 @@ export default function SmsTemplateForm({
             <PopoverTrigger asChild>
               <Button type="button" size="sm" variant="outline">Insert Variable</Button>
             </PopoverTrigger>
-            <PopoverContent className="p-2 w-48">
+            <PopoverContent className="p-2 w-64">
               <div className="flex flex-col gap-1">
                 {COMMON_VARIABLES.map(v => (
                   <Button key={v} type="button" variant="ghost" className="justify-start" onClick={() => insertVariable(v)}>
                     {`{{${v}}}`}
                   </Button>
                 ))}
+                <div className="flex items-center gap-1 mt-2">
+                  <Input
+                    placeholder="Custom variable"
+                    value={customVar}
+                    onChange={e => setCustomVar(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={!customVar.match(/^[a-zA-Z0-9_]+$/)}
+                    onClick={() => {
+                      if (customVar.match(/^[a-zA-Z0-9_]+$/)) {
+                        insertVariable(customVar);
+                        setCustomVar("");
+                      }
+                    }}
+                  >
+                    Insert
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  You can use any variable name in double curly braces, e.g. <code>{"{{customField}}"}</code>.<br/>
+                  Variables will be replaced if data is available when sending the SMS.
+                </div>
               </div>
             </PopoverContent>
           </Popover>

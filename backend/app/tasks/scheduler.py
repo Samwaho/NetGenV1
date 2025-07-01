@@ -26,12 +26,10 @@ def send_payment_reminder_sms():
             }).to_list(None)
             logger.info(f"[SMS Scheduler] Days to expire: {days} | Customers found: {len(customers)}")
             for customer in customers:
-                sms_vars = {
-                    "firstName": customer.get("firstName", ""),
-                    "lastName": customer.get("lastName", ""),
-                    "daysToExpire": days,
-                    "expirationDate": customer["expirationDate"].strftime("%Y-%m-%d")
-                }
+                sms_vars = SmsTemplateService.build_sms_vars([
+                    customer,
+                    {"daysToExpire": days, "expirationDate": customer["expirationDate"].strftime("%Y-%m-%d")}
+                ])
                 try:
                     template_result = await SmsTemplateService.list_templates(
                         organization_id=str(customer["organizationId"]),
