@@ -7,6 +7,7 @@ from app.services.sms.template import SmsTemplateService
 from app.services.sms.utils import send_sms_for_organization
 from app.schemas.sms_template import TemplateCategory
 from app.config.celery_config import celery_app
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,26 @@ def send_payment_reminder_sms():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
+    if loop.is_running():
+        asyncio.ensure_future(main())
+    else:
+        loop.run_until_complete(main())
+
+@celery_app.task
+def mark_stale_sessions_offline():
+    """Mark customers as offline if their lastSeen is older than the configured threshold (default 10 minutes)."""
+    async def main():
+        threshold = datetime.utcnow() - timedelta(minutes=settings.OFFLINE_THRESHOLD_MINUTES)
+        result = await isp_customers.update_many(
+            {"online": True, "lastSeen": {"$lt": threshold}},
+            {"$set": {"online": False}}
+        )
+        logger.info(f"[Session Cleanup] Marked {result.modified_count} stale sessions as offline (threshold: {settings.OFFLINE_THRESHOLD_MINUTES} min).")
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     if loop.is_running():
         asyncio.ensure_future(main())
     else:

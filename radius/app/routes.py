@@ -582,11 +582,14 @@ async def radius_accounting(request: Request):
             if customer:
                 now = datetime.utcnow()
                 
-                if acct_status_type.lower() == "start":
-                    # Set customer status to online
+                if acct_status_type.lower() in ["start", "interim-update"]:
+                    # Set customer status to online and update lastSeen
                     await update_customer_online_status(customer["_id"], True)
-                    logger.info(f"Set customer {username} status to online")
-                
+                    await isp_customers.update_one(
+                        {"_id": customer["_id"]},
+                        {"$set": {"lastSeen": now}}
+                    )
+                    logger.info(f"Set customer {username} status to online (lastSeen updated)")
                 elif acct_status_type.lower() == "stop":
                     # Set customer status to offline
                     await update_customer_online_status(customer["_id"], False)

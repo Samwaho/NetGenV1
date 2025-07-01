@@ -52,6 +52,10 @@ def create_celery_app() -> Celery:
                 'task': 'app.tasks.scheduler.send_payment_reminder_sms',
                 'schedule': 86400,  # once a day (in seconds)
             },
+            'mark-stale-sessions-offline': {
+                'task': 'app.tasks.scheduler.mark_stale_sessions_offline',
+                'schedule': 60,  # every minute
+            },
         },
     )
     

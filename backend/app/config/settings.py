@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")  # development, staging, production
 
+    # Session Cleanup Settings
+    OFFLINE_THRESHOLD_MINUTES: int = int(os.getenv("OFFLINE_THRESHOLD_MINUTES", "10"))
+
     class Config:
         case_sensitive = True
         env_file = ".env"
