@@ -159,7 +159,12 @@ export default function EditInventoryPage({ params }: EditInventoryPageProps) {
   );
 
   const [updateInventory] = useMutation(UPDATE_ISP_INVENTORY, {
-    refetchQueries: ["GetISPInventories"],
+    refetchQueries: [
+      {
+        query: require("@/graphql/isp_inventory").GET_ISP_INVENTORIES,
+        variables: { organizationId },
+      },
+    ],
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -168,7 +173,11 @@ export default function EditInventoryPage({ params }: EditInventoryPageProps) {
       await updateInventory({
         variables: {
           id: inventoryId,
-          input: values,
+          input: {
+            ...values,
+            warrantyExpirationDate: values.warrantyExpirationDate || null,
+            purchaseDate: values.purchaseDate || null,
+          },
         },
       });
       toast.success("Inventory item updated successfully");

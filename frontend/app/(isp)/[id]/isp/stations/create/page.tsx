@@ -32,7 +32,12 @@ export default function CreateStationPage() {
   const organizationId = params.id as string;
   
   const [createStation] = useMutation(CREATE_ISP_STATION, {
-    refetchQueries: ["GetISPStations"],
+    refetchQueries: [
+      {
+        query: require("@/graphql/isp_stations").GET_ISP_STATIONS,
+        variables: { organizationId },
+      },
+    ],
     onError: (error) => {
       toast.error(error.message || "Failed to create station");
     },

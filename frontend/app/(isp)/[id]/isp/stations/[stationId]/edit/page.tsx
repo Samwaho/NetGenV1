@@ -51,7 +51,12 @@ export default function EditStationPage() {
   });
 
   const [updateStation] = useMutation(UPDATE_ISP_STATION, {
-    refetchQueries: ["GetISPStations"],
+    refetchQueries: [
+      {
+        query: require("@/graphql/isp_stations").GET_ISP_STATIONS,
+        variables: { organizationId },
+      },
+    ],
     onError: (error) => {
       toast.error(error.message || "Failed to update station");
     }

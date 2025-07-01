@@ -71,7 +71,12 @@ export default function CreateInventoryPage({ params }: CreateInventoryPageProps
   });
 
   const [createInventory] = useMutation(CREATE_ISP_INVENTORY, {
-    refetchQueries: ["GetISPInventories"],
+    refetchQueries: [
+      {
+        query: require("@/graphql/isp_inventory").GET_ISP_INVENTORIES,
+        variables: { organizationId },
+      },
+    ],
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -81,6 +86,8 @@ export default function CreateInventoryPage({ params }: CreateInventoryPageProps
         variables: {
           input: {
             ...values,
+            warrantyExpirationDate: values.warrantyExpirationDate || null,
+            purchaseDate: values.purchaseDate || null,
             organizationId,
           },
         },

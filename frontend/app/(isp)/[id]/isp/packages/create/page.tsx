@@ -55,7 +55,12 @@ export default function CreatePackagePage() {
 
   // Configure mutation with optimized caching
   const [createPackage] = useMutation(CREATE_ISP_PACKAGE, {
-    refetchQueries: ["GetISPPackages"],
+    refetchQueries: [
+      {
+        query: require("@/graphql/isp_packages").GET_ISP_PACKAGES,
+        variables: { organizationId },
+      },
+    ],
     onError: (error) => {
       toast.error(error.message || "Failed to create package");
       setIsSubmitting(false);
