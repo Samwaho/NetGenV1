@@ -67,7 +67,7 @@ export default function CreateStationPage() {
         },
       });
       toast.success("Station created successfully");
-      router.push(`/${organizationId}/isp/stations`);
+      router.push(`/${organizationId}/isp/stations?refresh=1`);
     } catch {
       // Error is handled by the mutation's onError callback
     } finally {

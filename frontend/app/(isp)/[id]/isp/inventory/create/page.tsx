@@ -93,7 +93,7 @@ export default function CreateInventoryPage({ params }: CreateInventoryPageProps
         },
       });
       toast.success("Inventory item created successfully");
-      router.push(`/${organizationId}/isp/inventory`);
+      router.push(`/${organizationId}/isp/inventory?refresh=1`);
     } catch (error) {
       console.error("Error creating inventory item:", error);
       toast.error("Failed to create inventory item");

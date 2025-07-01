@@ -15,7 +15,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 import { OrganizationPermissions } from "@/lib/permissions";
 import Link from "next/link";
-import { useMemo, useCallback, useEffect, memo, useState } from "react";
+import { useMemo, useCallback, useEffect, memo, useState, useRef } from "react";
 
 // Define types
 interface StatCardProps {
@@ -114,7 +114,7 @@ export default function PackagesPage() {
   }, []);
 
   // Query with pagination, sorting and filtering
-  const { data, loading: dataLoading, error } = useQuery<PackagesQueryResponse>(
+  const { data, loading: dataLoading, error, refetch } = useQuery<PackagesQueryResponse>(
     GET_ISP_PACKAGES,
     { 
       variables: { 
@@ -131,6 +131,16 @@ export default function PackagesPage() {
       notifyOnNetworkStatusChange: true, // Show loading state on refetch
     }
   );
+
+  // Refetch if ?refresh=1 is present in the URL
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('refresh') === '1') {
+      refetch();
+      url.searchParams.delete('refresh');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  }, [refetch]);
 
   const packages = useMemo(() => data?.packages.packages || [], [data?.packages.packages]);
   const totalCount = data?.packages.totalCount || 0;

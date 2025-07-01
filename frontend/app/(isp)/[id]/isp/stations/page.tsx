@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
+import { useState, useMemo, memo, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@apollo/client";
@@ -107,7 +107,7 @@ export default function StationsPage() {
   }, [organization, user]);
 
   // 3. Query hook after permissions
-  const { data, loading: dataLoading } = useQuery(GET_ISP_STATIONS, {
+  const { data, loading: dataLoading, refetch } = useQuery(GET_ISP_STATIONS, {
     variables: {
       organizationId,
       ...filterOptions,
@@ -127,6 +127,16 @@ export default function StationsPage() {
       }
     },
   });
+
+  // Refetch if ?refresh=1 is present in the URL
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('refresh') === '1') {
+      refetch();
+      url.searchParams.delete('refresh');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  }, [refetch]);
 
   // 4. Derived state calculations
   const stations = useMemo(() => data?.stations?.stations || [], [data?.stations?.stations]);

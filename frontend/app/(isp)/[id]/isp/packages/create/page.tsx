@@ -67,7 +67,7 @@ export default function CreatePackagePage() {
     },
     onCompleted: () => {
       toast.success("Package created successfully");
-      router.push(`/${organizationId}/isp/packages`);
+      router.push(`/${organizationId}/isp/packages?refresh=1`);
       setIsSubmitting(false);
     },
     // Use fetch policy to improve caching

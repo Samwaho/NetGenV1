@@ -181,7 +181,7 @@ export default function EditInventoryPage({ params }: EditInventoryPageProps) {
         },
       });
       toast.success("Inventory item updated successfully");
-      router.push(`/${organizationId}/isp/inventory`);
+      router.push(`/${organizationId}/isp/inventory?refresh=1`);
     } catch (error) {
       console.error("Error updating inventory item:", error);
       toast.error("Failed to update inventory item");

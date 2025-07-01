@@ -62,8 +62,12 @@ export default function EditPackagePage() {
   const { organization, loading: orgLoading } = useOrganization(organizationId);
 
   // Memoize navigation handler
-  const navigateBack = useCallback(() => {
-    router.push(`/${organizationId}/isp/packages`);
+  const navigateBack = useCallback((refresh = false) => {
+    if (refresh) {
+      router.push(`/${organizationId}/isp/packages?refresh=1`);
+    } else {
+      router.push(`/${organizationId}/isp/packages`);
+    }
   }, [router, organizationId]);
 
   // Query package data with optimized caching
@@ -91,7 +95,7 @@ export default function EditPackagePage() {
     },
     onCompleted: () => {
       toast.success("Package updated successfully");
-      navigateBack();
+      navigateBack(true);
       setIsSubmitting(false);
     },
     fetchPolicy: "no-cache"
@@ -210,7 +214,7 @@ export default function EditPackagePage() {
           <p className="text-muted-foreground">{error.message}</p>
           <Button
             variant="outline"
-            onClick={navigateBack}
+            onClick={() => navigateBack()}
             className="mt-4"
           >
             Back to Packages
@@ -235,7 +239,7 @@ export default function EditPackagePage() {
         </div>
         <Button
           variant="outline"
-          onClick={navigateBack}
+          onClick={() => navigateBack()}
           className="gap-2"
         >
           <ArrowLeft className="size-4" />
@@ -698,7 +702,7 @@ export default function EditPackagePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={navigateBack}
+                  onClick={() => navigateBack()}
                   disabled={isSubmitting}
                   className="gap-2"
                 >

@@ -120,7 +120,7 @@ export default function EditStationPage() {
         },
       });
       toast.success("Station updated successfully");
-      router.push(`/${organizationId}/isp/stations`);
+      router.push(`/${organizationId}/isp/stations?refresh=1`);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // Error is handled by mutation onError

@@ -151,7 +151,7 @@ export default function InventoryPage() {
   }, []);
 
   // Query with pagination and filters
-  const { data, loading: dataLoading, error } = useQuery<InventoryQueryResponse>(
+  const { data, loading: dataLoading, error, refetch } = useQuery<InventoryQueryResponse>(
     GET_ISP_INVENTORIES,
     { 
       variables: { 
@@ -170,6 +170,16 @@ export default function InventoryPage() {
       notifyOnNetworkStatusChange: true, // Show loading state on refetch
     }
   );
+
+  // Refetch if ?refresh=1 is present in the URL
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('refresh') === '1') {
+      refetch();
+      url.searchParams.delete('refresh');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  }, [refetch]);
 
   const inventoryItems = useMemo(() => data?.inventories.inventories || [], [data?.inventories.inventories]);
   const totalCount = data?.inventories.total_count || 0;
