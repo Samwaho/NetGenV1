@@ -436,19 +436,8 @@ async def radius_accounting(request: Request):
         
         if voucher:
             # This is a hotspot voucher
-            if acct_status_type.lower() == "start":
-                # Session start - update voucher status if needed
-                if voucher.get("status") == "active":
-                    await hotspot_vouchers.update_one(
-                        {"_id": voucher["_id"]},
-                        {"$set": {"status": "in_use", "usedAt": datetime.utcnow()}}
-                    )
-                    logger.info(f"Marked voucher {username} as in_use")
-            
-            # Find existing accounting record for this session
             existing_record = await hotspot_vouchers_accounting.find_one({
-                "voucherId": voucher["_id"],
-                "sessionId": session_id
+                "code": username
             })
             
             now = datetime.utcnow()
@@ -459,8 +448,10 @@ async def radius_accounting(request: Request):
                 delta_output = output_bytes - existing_record.get("totalOutputBytes", 0)
                 delta_time = session_time - existing_record.get("sessionTime", 0)
                 
-                # Update existing record
                 update_data = {
+                    "voucherId": voucher["_id"],
+                    "code": username,
+                    "sessionId": session_id,
                     "acctStatusType": acct_status_type,
                     "sessionTime": session_time,
                     "totalInputBytes": input_bytes,
@@ -482,18 +473,15 @@ async def radius_accounting(request: Request):
                     "lastUpdate": now,
                     "timestamp": now
                 }
-                
-                # For start status, set startTime
                 if acct_status_type.lower() == "start":
                     update_data["startTime"] = now
-                
                 await hotspot_vouchers_accounting.update_one(
-                    {"_id": existing_record["_id"]},
-                    {"$set": update_data}
+                    {"code": username},
+                    {"$set": update_data},
+                    upsert=True
                 )
-                logger.info(f"Updated accounting record for voucher {username}, session {session_id}")
+                logger.info(f"Upserted accounting record for voucher {username}")
             else:
-                # Create new record
                 accounting_data = {
                     "voucherId": voucher["_id"],
                     "code": username,
@@ -520,9 +508,12 @@ async def radius_accounting(request: Request):
                     "timestamp": now,
                     "lastUpdate": now
                 }
-                
-                await hotspot_vouchers_accounting.insert_one(accounting_data)
-                logger.info(f"Created new accounting record for voucher {username}, session {session_id}")
+                await hotspot_vouchers_accounting.update_one(
+                    {"code": username},
+                    {"$set": accounting_data},
+                    upsert=True
+                )
+                logger.info(f"Created new accounting record for voucher {username}")
             
             # Update voucher usage data
             if acct_status_type.lower() in ["stop", "interim-update"]:
@@ -581,7 +572,10 @@ async def radius_accounting(request: Request):
             
             if customer:
                 now = datetime.utcnow()
-                
+                # Check if account is expired
+                if is_expired(customer.get("expirationDate")):
+                    await update_customer_online_status(customer["_id"], False)
+                    logger.info(f"Customer {username} expired during session, set to offline")
                 if acct_status_type.lower() in ["start", "interim-update"]:
                     # Set customer status to online and update lastSeen
                     await update_customer_online_status(customer["_id"], True)
@@ -595,20 +589,19 @@ async def radius_accounting(request: Request):
                     await update_customer_online_status(customer["_id"], False)
                     logger.info(f"Set customer {username} status to offline")
                 
-                # Find existing accounting record for this session
                 existing_record = await isp_customers_accounting.find_one({
-                    "customerId": customer["_id"],
-                    "sessionId": session_id
+                    "username": username
                 })
                 
                 if existing_record:
-                    # Calculate delta values
                     delta_input = input_bytes - existing_record.get("totalInputBytes", 0)
                     delta_output = output_bytes - existing_record.get("totalOutputBytes", 0)
                     delta_time = session_time - existing_record.get("sessionTime", 0)
                     
-                    # Update existing record
                     update_data = {
+                        "customerId": customer["_id"],
+                        "username": username,
+                        "sessionId": session_id,
                         "acctStatusType": acct_status_type,
                         "sessionTime": session_time,
                         "totalInputBytes": input_bytes,
@@ -630,18 +623,15 @@ async def radius_accounting(request: Request):
                         "lastUpdate": now,
                         "timestamp": now
                     }
-                    
-                    # For start status, set startTime
                     if acct_status_type.lower() == "start":
                         update_data["startTime"] = now
-                    
                     await isp_customers_accounting.update_one(
-                        {"_id": existing_record["_id"]},
-                        {"$set": update_data}
+                        {"username": username},
+                        {"$set": update_data},
+                        upsert=True
                     )
-                    logger.info(f"Updated accounting record for customer {username}, session {session_id}")
+                    logger.info(f"Upserted accounting record for customer {username}")
                 else:
-                    # Create new record
                     accounting_data = {
                         "customerId": customer["_id"],
                         "username": username,
@@ -668,9 +658,12 @@ async def radius_accounting(request: Request):
                         "timestamp": now,
                         "lastUpdate": now
                     }
-                    
-                    await isp_customers_accounting.insert_one(accounting_data)
-                    logger.info(f"Created new accounting record for customer {username}, session {session_id}")
+                    await isp_customers_accounting.update_one(
+                        {"username": username},
+                        {"$set": accounting_data},
+                        upsert=True
+                    )
+                    logger.info(f"Created new accounting record for customer {username}")
         
         # Return success
         return Response(status_code=204)
