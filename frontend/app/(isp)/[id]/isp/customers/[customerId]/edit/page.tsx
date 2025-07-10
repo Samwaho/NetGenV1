@@ -194,7 +194,7 @@ export default function EditCustomerPage() {
       setIsSubmitting(true);
       const submissionData = {
         ...data,
-        expirationDate: data.expirationDate.toISOString(),
+        expirationDate: data.expirationDate.toISOString(), // Store in UTC
         email: data.email || undefined,
       };
       

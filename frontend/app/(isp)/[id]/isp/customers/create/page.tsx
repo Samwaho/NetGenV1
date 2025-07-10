@@ -182,7 +182,7 @@ export default function CreateCustomerPage() {
       const submissionData = {
         ...data,
         organizationId,
-        expirationDate: data.expirationDate.toISOString(),
+        expirationDate: data.expirationDate.toISOString(), // Store in UTC
         email: data.email || undefined,
       };
       

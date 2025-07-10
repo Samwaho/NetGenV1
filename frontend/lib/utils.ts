@@ -105,12 +105,14 @@ export const formatNumber = (value: number): string => {
 
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', {
+  if (isNaN(date.getTime())) return 'Invalid date';
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-  }).format(date);
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 // Add KES currency formatter
@@ -123,32 +125,21 @@ export const formatKESCurrency = (value: number): string => {
   }).format(value);
 };
 
-export function formatExpirationDate(date: string | Date | null | undefined, timezone: string = "Africa/Nairobi"): string {
+export function formatExpirationDate(date: string | Date | null | undefined): string {
   if (!date) return 'No expiration date';
-  
   try {
-    // Parse the input date and explicitly handle it as UTC
     const utcDate = typeof date === 'string' 
-      ? new Date(date + 'Z')  // Append Z to ensure UTC parsing
+      ? new Date(date)
       : date;
-      
     if (isNaN(utcDate.getTime())) {
       return 'Invalid date';
     }
-    
-    // Convert to target timezone
-    const tzDate = toZonedTime(utcDate, timezone);
-    const now = new Date();
-    
-    // If the date has already passed, show "Expired"
-    if (tzDate < now) {
-      return 'Expired';
-    }
-    
-    // Otherwise show relative time
-    return formatDistanceToNow(tzDate, { 
-      addSuffix: true,
-      locale: enUS
+    return utcDate.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   } catch (error) {
     console.error('Error formatting expiration date:', error);
