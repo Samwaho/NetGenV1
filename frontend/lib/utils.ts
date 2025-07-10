@@ -123,4 +123,37 @@ export const formatKESCurrency = (value: number): string => {
   }).format(value);
 };
 
+export function formatExpirationDate(date: string | Date | null | undefined, timezone: string = "Africa/Nairobi"): string {
+  if (!date) return 'No expiration date';
+  
+  try {
+    // Parse the input date and explicitly handle it as UTC
+    const utcDate = typeof date === 'string' 
+      ? new Date(date + 'Z')  // Append Z to ensure UTC parsing
+      : date;
+      
+    if (isNaN(utcDate.getTime())) {
+      return 'Invalid date';
+    }
+    
+    // Convert to target timezone
+    const tzDate = toZonedTime(utcDate, timezone);
+    const now = new Date();
+    
+    // If the date has already passed, show "Expired"
+    if (tzDate < now) {
+      return 'Expired';
+    }
+    
+    // Otherwise show relative time
+    return formatDistanceToNow(tzDate, { 
+      addSuffix: true,
+      locale: enUS
+    });
+  } catch (error) {
+    console.error('Error formatting expiration date:', error);
+    return 'Invalid date';
+  }
+}
+
 

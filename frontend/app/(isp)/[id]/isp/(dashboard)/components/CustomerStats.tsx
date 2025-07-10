@@ -48,11 +48,17 @@ export function CustomerStats({ customers }: CustomerStatsProps) {
   const onlineCustomers = customers.filter(c => c.online).length;
   const activePercentage = ((activeCustomers / totalCustomers) * 100).toFixed(1);
 
+  // Calculate expired customers
+  const expiredCustomers = customers.filter(c => c.expirationDate && new Date(c.expirationDate) < new Date()).length;
+
   // Calculate customers expiring in the next 7 days
   const today = new Date();
   const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
   const expiringNextWeek = customers.filter(
-    c => c.expirationDate && new Date(c.expirationDate) <= nextWeek && new Date(c.expirationDate) > today
+    c => c.expirationDate && 
+         new Date(c.expirationDate) <= nextWeek && 
+         new Date(c.expirationDate) > today &&
+         c.status === "ACTIVE" // Only count active customers
   ).length;
 
   // Get customers by package type
@@ -117,6 +123,15 @@ export function CustomerStats({ customers }: CustomerStatsProps) {
           <div className="min-w-0">
             <p className="text-xs font-medium text-foreground">Offline</p>
             <p className="text-xs text-muted-foreground truncate">{totalCustomers - onlineCustomers} users</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 p-2 border rounded-lg bg-card">
+          <div className="p-1.5 bg-destructive/20 rounded-full">
+            <Signal className="h-3.5 w-3.5 text-destructive" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-foreground">Expired</p>
+            <p className="text-xs text-muted-foreground truncate">{expiredCustomers} users</p>
           </div>
         </div>
       </div>

@@ -18,7 +18,7 @@ import {
   Signal,
   Timer
 } from "lucide-react";
-import { formatBytes, formatDuration, formatDateToNowInTimezone } from "@/lib/utils";
+import { formatBytes, formatDuration, formatDateToNowInTimezone, formatExpirationDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Clock as ClockIcon } from "lucide-react";
@@ -160,7 +160,7 @@ export default function CustomerAccountingPage() {
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <ClockIcon className="h-4 w-4" />
                 <span>
-                  Expires {formatDateToNowInTimezone(customer.expirationDate)}
+                  {formatExpirationDate(customer.expirationDate)}
                 </span>
               </div>
             </div>
