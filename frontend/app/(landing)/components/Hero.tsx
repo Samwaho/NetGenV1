@@ -85,7 +85,7 @@ export function Hero() {
               transition={{ delay: 0.6, duration: 0.8 }}
               className="flex flex-wrap items-center justify-center gap-4 mt-8"
             >
-              <Link href="/sign-up" className="rounded-xl bg-gradient-custom px-8 py-4 text-base font-semibold text-white hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20 focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background focus:outline-none">
+              <Link href="/organizations" className="rounded-xl bg-gradient-custom px-8 py-4 text-base font-semibold text-white hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20 focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background focus:outline-none">
                 Get Started
               </Link>
               <Link href="/pricing" className="rounded-xl glass-effect px-8 py-4 text-base font-semibold text-foreground transition-all duration-300 hover:scale-105 hover:bg-accent hover:shadow-xl focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:outline-none">

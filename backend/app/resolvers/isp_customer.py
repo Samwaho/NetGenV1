@@ -29,6 +29,15 @@ logger = logging.getLogger(__name__)
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
 
+def ensure_utc(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware and in UTC."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # Assume naive datetimes are in local time, convert to UTC
+        return dt.astimezone(timezone.utc)
+    return dt.astimezone(timezone.utc)
+
 @lru_cache(maxsize=128)
 def validate_pppoe_credentials(username: str, password: str) -> None:
     """
@@ -256,7 +265,7 @@ class ISPCustomerResolver:
             "organizationId": org_id,
             "packageId": package_id,
             "stationId": station_id,
-            "expirationDate": input.expirationDate,
+            "expirationDate": ensure_utc(input.expirationDate),
             "status": "ACTIVE",
             "online": False,
             "createdAt": current_time,
@@ -424,7 +433,7 @@ class ISPCustomerResolver:
                 "password": input.password,
                 "packageId": ObjectId(input.packageId) if input.packageId else None,
                 "stationId": ObjectId(input.stationId) if input.stationId else None,
-                "expirationDate": input.expirationDate,
+                "expirationDate": ensure_utc(input.expirationDate),
                 "status": input.status,
                 "updatedAt": datetime.now(timezone.utc)
             }.items() if value is not None
