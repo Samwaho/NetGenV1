@@ -486,6 +486,12 @@ export default function EditCustomerPage() {
                       <FormDescription>
                         When the customer&apos;s service subscription will expire
                       </FormDescription>
+                      {/* Show the current expiration date in the user's local time */}
+                      {field.value && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Local time: {field.value.toLocaleString()}
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
