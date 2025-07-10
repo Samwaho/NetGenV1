@@ -7,6 +7,7 @@ from .config.database import isp_customers, isp_customers_accounting, isp_packag
 import logging
 import json
 from fastapi.responses import JSONResponse
+import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -34,6 +35,9 @@ class AccountingStatusType:
     ACCOUNTING_ON = "Accounting-On"
     ACCOUNTING_OFF = "Accounting-Off"
 
+# Store active sessions for monitoring
+active_sessions = {}
+
 def format_radius_response(data: Dict) -> Dict:
     """Format response according to FreeRADIUS REST module specs"""
     response = {}
@@ -44,6 +48,15 @@ def format_radius_response(data: Dict) -> Dict:
             response[f"{prefix}{key}"] = value
         else:
             response[f"{prefix}{key}"] = {"value": [str(value)], "op": ":="}
+    
+    return response
+
+def format_coa_response(data: Dict) -> Dict:
+    """Format CoA (Change of Authorization) response"""
+    response = {}
+    
+    for key, value in data.items():
+        response[key] = {"value": [str(value)], "op": ":="}
     
     return response
 
@@ -138,6 +151,160 @@ def convert_to_bytes(value, unit="MB"):
     }
     
     return int(float(value) * multipliers.get(unit, multipliers["MB"]))
+
+async def check_and_terminate_expired_sessions():
+    """Background task to check for expired sessions and terminate them"""
+    while True:
+        try:
+            # Check for expired customers with active sessions
+            expired_customers = await isp_customers.find({
+                "online": True,
+                "expirationDate": {"$lt": datetime.utcnow()}
+            }).to_list(length=None)
+            
+            for customer in expired_customers:
+                username = customer.get("username")
+                if username and username in active_sessions:
+                    logger.warning(f"Terminating expired session for customer: {username}")
+                    
+                    # Update customer status
+                    await update_customer_online_status(customer["_id"], False)
+                    
+                    # Remove from active sessions
+                    if username in active_sessions:
+                        del active_sessions[username]
+                    
+                    # Log the termination
+                    logger.info(f"Session terminated for expired customer: {username}")
+            
+            # Check for expired vouchers with active sessions
+            expired_vouchers = await hotspot_vouchers.find({
+                "status": "in_use",
+                "$or": [
+                    {"expiresAt": {"$lt": datetime.utcnow()}},
+                    {"sessionEnd": {"$lt": datetime.utcnow()}}
+                ]
+            }).to_list(length=None)
+            
+            for voucher in expired_vouchers:
+                code = voucher.get("code")
+                if code and code in active_sessions:
+                    logger.warning(f"Terminating expired session for voucher: {code}")
+                    
+                    # Update voucher status
+                    await hotspot_vouchers.update_one(
+                        {"_id": voucher["_id"]},
+                        {"$set": {"status": "expired"}}
+                    )
+                    
+                    # Remove from active sessions
+                    if code in active_sessions:
+                        del active_sessions[code]
+                    
+                    # Log the termination
+                    logger.info(f"Session terminated for expired voucher: {code}")
+            
+            # Sleep for 30 seconds before next check
+            await asyncio.sleep(30)
+            
+        except Exception as e:
+            logger.error(f"Error in session termination check: {str(e)}")
+            await asyncio.sleep(60)  # Wait longer on error
+
+# Background task for session monitoring
+_session_monitor_task = None
+
+async def start_session_monitor():
+    """Start the session monitoring task"""
+    global _session_monitor_task
+    if _session_monitor_task is None or _session_monitor_task.done():
+        _session_monitor_task = asyncio.create_task(check_and_terminate_expired_sessions())
+        logger.info("Session monitoring task started")
+
+# Start the background task when the module loads
+@router.on_event("startup")
+async def startup_event():
+    """Startup event handler"""
+    await start_session_monitor()
+
+@router.on_event("shutdown")
+async def shutdown_event():
+    """Shutdown event handler"""
+    global _session_monitor_task
+    if _session_monitor_task and not _session_monitor_task.done():
+        _session_monitor_task.cancel()
+        try:
+            await _session_monitor_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Session monitoring task stopped")
+
+@router.post("/coa")
+async def radius_coa(request: Request):
+    """RADIUS CoA (Change of Authorization) endpoint for session termination"""
+    try:
+        body = await get_request_data(request)
+        username = body.get("username", body.get("User-Name", ""))
+        session_id = body.get("session_id", body.get("Acct-Session-Id", ""))
+        
+        logger.info(f"CoA request for user: {username}, session: {session_id}")
+        
+        # Check if user exists and is expired
+        customer = await get_customer(username)
+        if customer and is_expired(customer.get("expirationDate")):
+            logger.warning(f"CoA: Terminating expired customer session: {username}")
+            
+            # Update customer status
+            await update_customer_online_status(customer["_id"], False)
+            
+            # Remove from active sessions
+            if username in active_sessions:
+                del active_sessions[username]
+            
+            # Return CoA response to terminate session
+            coa_response = {
+                "Session-Timeout": "0",
+                "Acct-Terminate-Cause": "User-Request"
+            }
+            
+            return format_coa_response(coa_response)
+        
+        # Check if voucher is expired
+        voucher = await hotspot_vouchers.find_one({"code": username})
+        if voucher:
+            is_voucher_expired = (
+                is_expired(voucher.get("expiresAt")) or
+                (voucher.get("sessionEnd") and datetime.utcnow() > voucher.get("sessionEnd")) or
+                voucher.get("status") in ["expired", "depleted"]
+            )
+            
+            if is_voucher_expired:
+                logger.warning(f"CoA: Terminating expired voucher session: {username}")
+                
+                # Update voucher status
+                await hotspot_vouchers.update_one(
+                    {"_id": voucher["_id"]},
+                    {"$set": {"status": "expired"}}
+                )
+                
+                # Remove from active sessions
+                if username in active_sessions:
+                    del active_sessions[username]
+                
+                # Return CoA response to terminate session
+                coa_response = {
+                    "Session-Timeout": "0",
+                    "Acct-Terminate-Cause": "User-Request"
+                }
+                
+                return format_coa_response(coa_response)
+        
+        # If not expired, return success
+        return Response(status_code=204)
+        
+    except Exception as e:
+        logger.error(f"Error processing CoA request: {str(e)}")
+        return Response(status_code=204)
 
 @router.post("/authorize")
 async def radius_authorize(request: Request):
@@ -442,6 +609,43 @@ async def radius_accounting(request: Request):
             
             now = datetime.utcnow()
             
+            # Track active sessions
+            if acct_status_type.lower() == "start":
+                active_sessions[username] = {
+                    "session_id": session_id,
+                    "start_time": now,
+                    "type": "voucher"
+                }
+            elif acct_status_type.lower() == "stop":
+                if username in active_sessions:
+                    del active_sessions[username]
+            
+            # Check if voucher is expired during interim updates
+            if acct_status_type.lower() == "interim-update":
+                is_voucher_expired = (
+                    is_expired(voucher.get("expiresAt")) or
+                    (voucher.get("sessionEnd") and datetime.utcnow() > voucher.get("sessionEnd")) or
+                    voucher.get("status") in ["expired", "depleted"]
+                )
+                
+                if is_voucher_expired:
+                    logger.warning(f"Voucher {username} expired during session, marking for termination")
+                    # Update voucher status
+                    await hotspot_vouchers.update_one(
+                        {"_id": voucher["_id"]},
+                        {"$set": {"status": "expired"}}
+                    )
+                    # Remove from active sessions
+                    if username in active_sessions:
+                        del active_sessions[username]
+                    
+                    # Return response to terminate session immediately
+                    terminate_response = {
+                        "Session-Timeout": "0",
+                        "Acct-Terminate-Cause": "User-Request"
+                    }
+                    return format_radius_response(terminate_response)
+            
             if existing_record:
                 # Calculate delta values
                 delta_input = input_bytes - existing_record.get("totalInputBytes", 0)
@@ -572,10 +776,34 @@ async def radius_accounting(request: Request):
             
             if customer:
                 now = datetime.utcnow()
-                # Check if account is expired
-                if is_expired(customer.get("expirationDate")):
-                    await update_customer_online_status(customer["_id"], False)
-                    logger.info(f"Customer {username} expired during session, set to offline")
+                
+                # Track active sessions
+                if acct_status_type.lower() == "start":
+                    active_sessions[username] = {
+                        "session_id": session_id,
+                        "start_time": now,
+                        "type": "customer"
+                    }
+                elif acct_status_type.lower() == "stop":
+                    if username in active_sessions:
+                        del active_sessions[username]
+                
+                # Check if account is expired during interim updates
+                if acct_status_type.lower() == "interim-update":
+                    if is_expired(customer.get("expirationDate")):
+                        logger.warning(f"Customer {username} expired during session, marking for termination")
+                        await update_customer_online_status(customer["_id"], False)
+                        # Remove from active sessions
+                        if username in active_sessions:
+                            del active_sessions[username]
+                        
+                        # Return response to terminate session immediately
+                        terminate_response = {
+                            "Session-Timeout": "0",
+                            "Acct-Terminate-Cause": "User-Request"
+                        }
+                        return format_radius_response(terminate_response)
+                
                 if acct_status_type.lower() in ["start", "interim-update"]:
                     # Set customer status to online and update lastSeen
                     await update_customer_online_status(customer["_id"], True)
@@ -682,7 +910,76 @@ async def radius_post_auth(request: Request):
         return Response(status_code=204)
     except Exception as e:
         logger.error(f"Error processing post-auth request: {str(e)}")
-        return Response(status_code=204)  # Return success to avoid FreeRADIUS retries 
+        return Response(status_code=204)  # Return success to avoid FreeRADIUS retries
+
+@router.post("/terminate-session")
+async def terminate_user_session(request: Request):
+    """Manually terminate a user session"""
+    try:
+        body = await get_request_data(request)
+        username = body.get("username")
+        
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required")
+        
+        logger.info(f"Manual session termination requested for user: {username}")
+        
+        # Check if user is a customer
+        customer = await get_customer(username)
+        if customer:
+            # Update customer status
+            await update_customer_online_status(customer["_id"], False)
+            
+            # Remove from active sessions
+            if username in active_sessions:
+                del active_sessions[username]
+            
+            logger.info(f"Session terminated for customer: {username}")
+            return {"message": f"Session terminated for customer: {username}"}
+        
+        # Check if user is a voucher
+        voucher = await hotspot_vouchers.find_one({"code": username})
+        if voucher:
+            # Update voucher status
+            await hotspot_vouchers.update_one(
+                {"_id": voucher["_id"]},
+                {"$set": {"status": "expired"}}
+            )
+            
+            # Remove from active sessions
+            if username in active_sessions:
+                del active_sessions[username]
+            
+            logger.info(f"Session terminated for voucher: {username}")
+            return {"message": f"Session terminated for voucher: {username}"}
+        
+        # User not found
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error terminating session: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/active-sessions")
+async def get_active_sessions():
+    """Get list of active sessions"""
+    try:
+        sessions = []
+        for username, session_data in active_sessions.items():
+            sessions.append({
+                "username": username,
+                "session_id": session_data.get("session_id"),
+                "start_time": session_data.get("start_time").isoformat() if session_data.get("start_time") else None,
+                "type": session_data.get("type")
+            })
+        
+        return {"active_sessions": sessions, "count": len(sessions)}
+        
+    except Exception as e:
+        logger.error(f"Error getting active sessions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error") 
 
 
 

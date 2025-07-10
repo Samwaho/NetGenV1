@@ -63,39 +63,21 @@ def send_payment_reminder_sms():
     else:
         loop.run_until_complete(main())
 
-@celery_app.task
-def mark_stale_sessions_offline():
-    """Mark customers as offline if their lastSeen is older than the configured threshold (default 10 minutes)."""
-    async def main():
-        threshold = datetime.utcnow() - timedelta(minutes=settings.OFFLINE_THRESHOLD_MINUTES)
-        result = await isp_customers.update_many(
-            {"online": True, "lastSeen": {"$lt": threshold}},
-            {"$set": {"online": False}}
-        )
-        logger.info(f"[Session Cleanup] Marked {result.modified_count} stale sessions as offline (threshold: {settings.OFFLINE_THRESHOLD_MINUTES} min).")
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    if loop.is_running():
-        asyncio.ensure_future(main())
-    else:
-        loop.run_until_complete(main())
+
 
 # To schedule these tasks periodically, use Celery Beat.
 # Example celery beat schedule (add to your celery config):
 # CELERY_BEAT_SCHEDULE = {
-#     'check-expired-subscriptions': {
-#         'task': 'app.tasks.scheduler.check_expired_subscriptions',
-#         'schedule': 3600,  # every hour
-#     },
-#     'send-expiration-reminders': {
-#         'task': 'app.tasks.scheduler.send_expiration_reminders',
+#     'send-payment-reminder-sms': {
+#         'task': 'app.tasks.scheduler.send_payment_reminder_sms',
 #         'schedule': 3600,  # every hour
 #     },
 # }
 
-# Remove asyncio and start_scheduler logic. Run celery worker and beat instead.
+# Note: Session management (online/offline status) is now handled by the RADIUS server
+# in radius/app/routes.py, which provides real-time session tracking and automatic
+# termination of expired users.
+
+# Run celery worker and beat instead.
 # celery -A app.tasks.scheduler worker --loglevel=info
 # celery -A app.tasks.scheduler beat --loglevel=info 
