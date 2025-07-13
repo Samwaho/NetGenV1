@@ -33,6 +33,32 @@ export const ORGANIZATION_FRAGMENT = gql`
       isSystemRole
     }
     status
+    contact {
+      email
+      phone
+      website
+      address
+      city
+      state
+      country
+      postalCode
+      timezone
+    }
+
+    business {
+      legalName
+      taxId
+      registrationNumber
+      industry
+      businessType
+      foundedDate
+      employeeCount
+      annualRevenue
+      logo
+      banner
+      socialMedia
+    }
+
     mpesaConfig {
       shortCode
       businessName
@@ -70,6 +96,9 @@ export const ORGANIZATION_FRAGMENT = gql`
       createdAt
       updatedAt
     }
+    tags
+    customFields
+    metadata
     createdAt
     updatedAt
   }
@@ -112,6 +141,30 @@ export const GET_ORGANIZATIONS = gql`
           permissions
           isSystemRole
         }
+        contact {
+          email
+          phone
+          website
+          address
+          city
+          state
+          country
+          postalCode
+          timezone
+        }
+        business {
+          legalName
+          taxId
+          registrationNumber
+          industry
+          businessType
+          foundedDate
+          employeeCount
+          annualRevenue
+          logo
+          banner
+          socialMedia
+        }
         mpesaConfig {
           shortCode
           businessName
@@ -132,6 +185,9 @@ export const GET_ORGANIZATIONS = gql`
           createdAt
           updatedAt
         }
+        tags
+        customFields
+        metadata
         status
         createdAt
         updatedAt
@@ -183,6 +239,33 @@ export const CREATE_ORGANIZATION = gql`
           permissions
           isSystemRole
         }
+        contact {
+          email
+          phone
+          website
+          address
+          city
+          state
+          country
+          postalCode
+          timezone
+        }
+        business {
+          legalName
+          taxId
+          registrationNumber
+          industry
+          businessType
+          foundedDate
+          employeeCount
+          annualRevenue
+          logo
+          banner
+          socialMedia
+        }
+        tags
+        customFields
+        metadata
         status
         createdAt
         updatedAt
@@ -226,6 +309,33 @@ export const UPDATE_ORGANIZATION = gql`
           permissions
           isSystemRole
         }
+        contact {
+          email
+          phone
+          website
+          address
+          city
+          state
+          country
+          postalCode
+          timezone
+        }
+        business {
+          legalName
+          taxId
+          registrationNumber
+          industry
+          businessType
+          foundedDate
+          employeeCount
+          annualRevenue
+          logo
+          banner
+          socialMedia
+        }
+        tags
+        customFields
+        metadata
         status
         createdAt
         updatedAt

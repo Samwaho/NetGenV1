@@ -176,6 +176,35 @@ class OrganizationResolver:
                 "createdAt": datetime.now(timezone.utc),
                 "updatedAt": datetime.now(timezone.utc)
             },
+            # New robust fields
+            "contact": {
+                "email": input.contact.email if input.contact else None,
+                "phone": input.contact.phone if input.contact else None,
+                "website": input.contact.website if input.contact else None,
+                "address": input.contact.address if input.contact else None,
+                "city": input.contact.city if input.contact else None,
+                "state": input.contact.state if input.contact else None,
+                "country": input.contact.country if input.contact else None,
+                "postalCode": input.contact.postalCode if input.contact else None,
+                "timezone": input.contact.timezone if input.contact else None,
+            } if input.contact else None,
+            "business": {
+                "legalName": input.business.legalName if input.business else None,
+                "taxId": input.business.taxId if input.business else None,
+                "registrationNumber": input.business.registrationNumber if input.business else None,
+                "industry": input.business.industry if input.business else None,
+                "businessType": input.business.businessType if input.business else None,
+                "foundedDate": input.business.foundedDate if input.business else None,
+                "employeeCount": input.business.employeeCount if input.business else None,
+                "annualRevenue": input.business.annualRevenue if input.business else None,
+                "logo": input.business.logo if input.business else None,
+                "banner": input.business.banner if input.business else None,
+                "socialMedia": input.business.socialMedia if input.business else None,
+            } if input.business else None,
+
+            "tags": input.tags or [],
+            "customFields": {},
+            "metadata": {},
             "createdAt": datetime.now(timezone.utc),
             "updatedAt": datetime.now(timezone.utc)
         }
@@ -241,6 +270,40 @@ class OrganizationResolver:
             "description": input.description,
             "updatedAt": datetime.now(timezone.utc)
         }
+
+        # Update contact information if provided
+        if input.contact:
+            update_data["contact"] = {
+                "email": input.contact.email,
+                "phone": input.contact.phone,
+                "website": input.contact.website,
+                "address": input.contact.address,
+                "city": input.contact.city,
+                "state": input.contact.state,
+                "country": input.contact.country,
+                "postalCode": input.contact.postalCode,
+                "timezone": input.contact.timezone,
+            }
+
+        # Update business information if provided
+        if input.business:
+            update_data["business"] = {
+                "legalName": input.business.legalName,
+                "taxId": input.business.taxId,
+                "registrationNumber": input.business.registrationNumber,
+                "industry": input.business.industry,
+                "businessType": input.business.businessType,
+                "foundedDate": input.business.foundedDate,
+                "employeeCount": input.business.employeeCount,
+                "annualRevenue": input.business.annualRevenue,
+                "logo": input.business.logo,
+                "banner": input.business.banner,
+                "socialMedia": input.business.socialMedia,
+            }
+
+        # Update tags if provided
+        if input.tags is not None:
+            update_data["tags"] = input.tags
 
         await organizations.update_one(
             {"_id": ObjectId(id)},

@@ -44,6 +44,32 @@ export interface SmsConfig {
   updatedAt?: string;
 }
 
+export interface OrganizationContact {
+  email?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  timezone?: string;
+}
+
+export interface OrganizationBusiness {
+  legalName?: string;
+  taxId?: string;
+  registrationNumber?: string;
+  industry?: string;
+  businessType?: string;
+  foundedDate?: string;
+  employeeCount?: number;
+  annualRevenue?: string;
+  logo?: string;
+  banner?: string;
+  socialMedia?: Record<string, any>;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -76,6 +102,16 @@ export interface Organization {
   status: string;
   mpesaConfig?: MpesaConfig;
   smsConfig?: SmsConfig;
+  
+  // New robust fields
+  contact?: OrganizationContact;
+  business?: OrganizationBusiness;
+  
+  // Additional metadata
+  tags?: string[];
+  customFields?: Record<string, any>;
+  metadata?: Record<string, any>;
+  
   createdAt: string;
   updatedAt: string;
 }

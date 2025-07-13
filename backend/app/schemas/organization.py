@@ -1,4 +1,5 @@
 import strawberry
+import json
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import field
@@ -71,6 +72,34 @@ class OrganizationMember:
         )
 
 @strawberry.type
+class OrganizationContact:
+    """Contact information for the organization"""
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    postalCode: Optional[str] = None
+    timezone: Optional[str] = None
+
+@strawberry.type
+class OrganizationBusiness:
+    """Business information for the organization"""
+    legalName: Optional[str] = None
+    taxId: Optional[str] = None
+    registrationNumber: Optional[str] = None
+    industry: Optional[str] = None
+    businessType: Optional[str] = None  # e.g., "LLC", "Corporation", "Sole Proprietorship"
+    foundedDate: Optional[datetime] = None
+    employeeCount: Optional[int] = None
+    annualRevenue: Optional[str] = None
+    logo: Optional[str] = None  # URL to logo image
+    banner: Optional[str] = None  # URL to banner image
+    socialMedia: Optional[str] = None  # JSON string with social media links
+
+@strawberry.type
 class MpesaConfiguration:
     shortCode: Optional[str] = None  # Paybill or till number
     businessName: Optional[str] = None
@@ -137,6 +166,16 @@ class Organization:
     status: OrganizationStatus
     mpesaConfig: Optional[MpesaConfiguration] = None
     smsConfig: Optional[SmsConfiguration] = None
+    
+    # New robust fields
+    contact: Optional[OrganizationContact] = None
+    business: Optional[OrganizationBusiness] = None
+    
+    # Additional metadata
+    tags: List[str] = field(default_factory=list)  # For categorization
+    customFields: Optional[str] = None  # JSON string for custom data
+    metadata: Optional[str] = None  # Additional metadata as JSON string
+    
     createdAt: datetime
     updatedAt: datetime
 
@@ -157,6 +196,11 @@ class Organization:
             updated_at = organization.get("updatedAt")
             mpesa_config = organization.get("mpesaConfig")
             sms_config = organization.get("smsConfig")
+            contact = organization.get("contact")
+            business = organization.get("business")
+            tags = organization.get("tags", [])
+            custom_fields = organization.get("customFields")
+            metadata = organization.get("metadata")
         else:
             org_id = organization._id
             owner_id = organization.ownerId
@@ -169,6 +213,11 @@ class Organization:
             updated_at = organization.updatedAt
             mpesa_config = getattr(organization, "mpesaConfig", None)
             sms_config = getattr(organization, "smsConfig", None)
+            contact = getattr(organization, "contact", None)
+            business = getattr(organization, "business", None)
+            tags = getattr(organization, "tags", [])
+            custom_fields = getattr(organization, "customFields", None)
+            metadata = getattr(organization, "metadata", None)
 
         # Fetch owner data - use skip_orgs=True to prevent infinite recursion
         if owner_id and not isinstance(owner_id, ObjectId):
@@ -245,6 +294,42 @@ class Organization:
                 updatedAt=sms_config.get("updatedAt")
             )
 
+        # Process contact information
+        contact_info = None
+        if contact:
+            contact_info = OrganizationContact(
+                email=contact.get("email"),
+                phone=contact.get("phone"),
+                website=contact.get("website"),
+                address=contact.get("address"),
+                city=contact.get("city"),
+                state=contact.get("state"),
+                country=contact.get("country"),
+                postalCode=contact.get("postalCode"),
+                timezone=contact.get("timezone")
+            )
+
+        # Process business information
+        business_info = None
+        if business:
+            social_media = business.get("socialMedia")
+            if isinstance(social_media, dict):
+                social_media = json.dumps(social_media)
+            
+            business_info = OrganizationBusiness(
+                legalName=business.get("legalName"),
+                taxId=business.get("taxId"),
+                registrationNumber=business.get("registrationNumber"),
+                industry=business.get("industry"),
+                businessType=business.get("businessType"),
+                foundedDate=business.get("foundedDate"),
+                employeeCount=business.get("employeeCount"),
+                annualRevenue=business.get("annualRevenue"),
+                logo=business.get("logo"),
+                banner=business.get("banner"),
+                socialMedia=social_media
+            )
+
         return cls(
             id=org_id,
             name=name,
@@ -255,6 +340,11 @@ class Organization:
             status=status,
             mpesaConfig=mpesa_configuration,
             smsConfig=sms_configuration,
+            contact=contact_info,
+            business=business_info,
+            tags=tags,
+            customFields=json.dumps(custom_fields) if custom_fields else None,
+            metadata=json.dumps(metadata) if metadata else None,
             createdAt=created_at,
             updatedAt=updated_at
         )
@@ -275,6 +365,38 @@ class OrganizationsResponse:
 class CreateOrganizationInput:
     name: str
     description: Optional[str] = None
+    # New fields for organization creation
+    contact: Optional["CreateOrganizationContactInput"] = None
+    business: Optional["CreateOrganizationBusinessInput"] = None
+    tags: Optional[List[str]] = None
+
+@strawberry.input
+class CreateOrganizationContactInput:
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    postalCode: Optional[str] = None
+    timezone: Optional[str] = None
+
+@strawberry.input
+class CreateOrganizationBusinessInput:
+    legalName: Optional[str] = None
+    taxId: Optional[str] = None
+    registrationNumber: Optional[str] = None
+    industry: Optional[str] = None
+    businessType: Optional[str] = None
+    foundedDate: Optional[datetime] = None
+    employeeCount: Optional[int] = None
+    annualRevenue: Optional[str] = None
+    logo: Optional[str] = None
+    banner: Optional[str] = None
+    socialMedia: Optional[str] = None
+
+
 
 @strawberry.input
 class MpesaConfigurationInput:
