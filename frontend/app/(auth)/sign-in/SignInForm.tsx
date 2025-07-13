@@ -16,21 +16,22 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { useSearchParams } from "next/navigation";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
-import React, { useEffect, Suspense } from "react";
+import React, { useEffect, Suspense, useState } from "react";
 import { setAuthToken } from "@/lib/auth-utils";
 
 const formSchema = z.object({
     email: z.string().email(),
-    password: z.string().min(8),
+    password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 const SignInFormContent = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const [showPassword, setShowPassword] = useState(false);
   const {
     getGoogleAuthUrl,
     handleGoogleCallback,
@@ -151,14 +152,28 @@ const SignInFormContent = () => {
                     <FormItem className="space-y-1.5">
                         <FormLabel className="text-sm sm:text-base">Password</FormLabel>
                         <FormControl>
-                            <Input 
-                              className="h-9 sm:h-10 px-3"
-                              type="password"
-                              placeholder="Enter your password"
-                              autoComplete="current-password"
-                              disabled={loading}
-                              {...field}
-                            />
+                            <div className="relative">
+                                <Input 
+                                  className="h-9 sm:h-10 px-3 pr-10"
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Enter your password"
+                                  autoComplete="current-password"
+                                  disabled={loading}
+                                  {...field}
+                                />
+                                <button
+                                  type="button"
+                                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  disabled={loading}
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </button>
+                            </div>
                         </FormControl>
                         <FormMessage className="text-xs sm:text-sm" />
                     </FormItem>

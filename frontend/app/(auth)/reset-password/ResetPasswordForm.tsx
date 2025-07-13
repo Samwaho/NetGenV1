@@ -19,14 +19,15 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 interface ResetPasswordFormProps {
   token: string | null;
 }
 
 const formSchema = z.object({
-  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
 }).refine(data => data.newPassword === data.confirmPassword, {
   message: "Passwords do not match",
@@ -35,6 +36,8 @@ const formSchema = z.object({
 
 const ResetPasswordForm = ({ token }: ResetPasswordFormProps) => {
   const router = useRouter();
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [resetPassword, { loading, data }] = useMutation(RESET_PASSWORD, {
     onCompleted: (data: ResetPasswordResponse) => {
@@ -98,12 +101,24 @@ const ResetPasswordForm = ({ token }: ResetPasswordFormProps) => {
                     <MdLockOutline className="h-5 w-5 text-gray-400" />
                   </div>
                   <Input
-                    type="password"
+                    type={showNewPassword ? "text" : "password"}
                     placeholder="Enter new password"
-                    className="h-9 sm:h-10 pl-10"
+                    className="h-9 sm:h-10 pl-10 pr-10"
                     disabled={loading}
                     {...field}
                   />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    disabled={loading}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </FormControl>
               <FormMessage className="text-xs sm:text-sm" />
@@ -123,12 +138,24 @@ const ResetPasswordForm = ({ token }: ResetPasswordFormProps) => {
                     <MdLockOutline className="h-5 w-5 text-gray-400" />
                   </div>
                   <Input
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm new password"
-                    className="h-9 sm:h-10 pl-10"
+                    className="h-9 sm:h-10 pl-10 pr-10"
                     disabled={loading}
                     {...field}
                   />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    disabled={loading}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </FormControl>
               <FormMessage className="text-xs sm:text-sm" />

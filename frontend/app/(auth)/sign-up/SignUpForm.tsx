@@ -16,11 +16,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { useSearchParams } from "next/navigation";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
-import React, { useEffect, Suspense } from "react";
+import React, { useEffect, Suspense, useState } from "react";
 import { setAuthToken } from "@/lib/auth-utils";
 
 const formSchema = z
@@ -29,12 +29,8 @@ const formSchema = z
     password: z
       .string()
       .min(1, "Password is required")
-      .min(8, "Password must be at least 8 characters")
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]+$/,
-        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
-      ),
-    confirmPassword: z.string().min(8),
+      .min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6),
     firstName: z.string().min(1),
     lastName: z.string().min(1),
     phone: z.string().min(10),
@@ -47,6 +43,8 @@ const formSchema = z
 const SignUpFormContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const {
     getGoogleAuthUrl,
     handleGoogleCallback,
@@ -241,14 +239,28 @@ const SignUpFormContent = () => {
               <FormItem className="space-y-1.5">
                 <FormLabel className="text-sm sm:text-base">Password</FormLabel>
                 <FormControl>
-                  <Input
-                    className="h-9 sm:h-10 px-3"
-                    type="password"
-                    placeholder="Enter your password"
-                    autoComplete="new-password"
-                    disabled={loading}
-                    {...field}
-                  />
+                  <div className="relative">
+                    <Input
+                      className="h-9 sm:h-10 px-3 pr-10"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      autoComplete="new-password"
+                      disabled={loading}
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={loading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormMessage className="text-xs sm:text-sm" />
               </FormItem>
@@ -263,14 +275,28 @@ const SignUpFormContent = () => {
                   Confirm Password
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    className="h-9 sm:h-10 px-3"
-                    type="password"
-                    placeholder="Confirm your password"
-                    autoComplete="new-password"
-                    disabled={loading}
-                    {...field}
-                  />
+                  <div className="relative">
+                    <Input
+                      className="h-9 sm:h-10 px-3 pr-10"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm your password"
+                      autoComplete="new-password"
+                      disabled={loading}
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={loading}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormMessage className="text-xs sm:text-sm" />
               </FormItem>
