@@ -31,10 +31,7 @@ class PlanResolver:
 
     @strawberry.field
     async def plans(self, info: strawberry.Info) -> PlansResponse:
-        """Get all plans"""
-        context: Context = info.context
-        current_user = await context.authenticate()
-
+        """Get all plans - accessible without authentication"""
         all_plans = await plans.find().to_list(None)
         plan_list = []
         for plan in all_plans:

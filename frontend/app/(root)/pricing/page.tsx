@@ -15,8 +15,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useQuery } from "@apollo/client";
 import { GET_PLANS } from "@/graphql/plan";
+import { CURRENT_USER } from "@/graphql/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 // Define the type based on the backend schema
 type Plan = {
@@ -42,7 +44,12 @@ const Page = () => {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
     "monthly"
   );
+  const router = useRouter();
   const { loading, error, data } = useQuery<PlansResponse>(GET_PLANS);
+  const { data: userData, loading: userLoading, error: userError } = useQuery(CURRENT_USER, {
+    fetchPolicy: 'network-only',
+  });
+  const currentUser = userData?.currentUser;
 
   // Calculate yearly price (20% discount)
   const getPrice = (price: number) => {
@@ -50,6 +57,17 @@ const Page = () => {
       return (price * 12 * 0.8).toFixed(2);
     }
     return price.toFixed(2);
+  };
+
+  // Handle Get Started button click
+  const handleGetStarted = () => {
+    if (currentUser) {
+      // User is authenticated, redirect to organizations
+      router.push("/organizations");
+    } else {
+      // User is not authenticated, redirect to sign in
+      router.push("/sign-in");
+    }
   };
 
   if (error) {
@@ -184,8 +202,10 @@ const Page = () => {
               <Button
                 variant={index === 1 ? "default" : "outline"}
                 className={`w-full text-white hover:text-white ${index === 1 ? 'bg-gradient-custom' : 'bg-gradient-custom2'}`}
+                onClick={handleGetStarted}
+                disabled={userLoading}
               >
-                Get Started
+                {userLoading ? "Loading..." : "Get Started"}
               </Button>
             </CardFooter>
           </Card>
