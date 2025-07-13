@@ -9,18 +9,55 @@ logger = logging.getLogger(__name__)
 
 # Common variables that can be used in any SMS template
 COMMON_VARIABLES = [
+    # Customer/User variables
     "firstName",
     "lastName",
-    "organizationName",
-    "expirationDate",
-    "packageName",
     "phoneNumber",
-    "supportEmail",
+    "username",
+    "email",
+    
+    # Organization basic info
+    "organizationName",
+    "organizationDescription",
+    
+    # Organization contact information
+    "orgEmail",
+    "orgPhone",
+    "orgWebsite",
+    "orgAddress",
+    "orgCity",
+    "orgState",
+    "orgCountry",
+    "orgPostalCode",
+    "orgTimezone",
+    
+    # Organization business information
+    "orgLegalName",
+    "orgTaxId",
+    "orgRegistrationNumber",
+    "orgIndustry",
+    "orgBusinessType",
+    "orgFoundedDate",
+    "orgEmployeeCount",
+    "orgAnnualRevenue",
+    
+    # Mpesa configuration
+    "paybillNumber",
+    "mpesaBusinessName",
+    "mpesaAccountReference",
+    "mpesaShortCode",
+    "mpesaStkPushShortCode",
+    
+    # Service/Package variables
+    "packageName",
+    "expirationDate",
     "amountDue",
     "dueDate",
-    "paybillNumber",
-    "username",
     "voucherCode",
+    
+    # Support/Contact variables
+    "supportEmail",
+    "supportPhone",
 ]
 
 class SmsTemplateService:
@@ -281,6 +318,8 @@ class SmsTemplateService:
             Dict of variable names to values (missing variables get empty string)
         """
         result = {}
+        
+        # First pass: collect all basic variables
         for var in COMMON_VARIABLES:
             value = None
             for source in context_sources:
@@ -291,4 +330,57 @@ class SmsTemplateService:
                     value = getattr(source, var)
                     break
             result[var] = value if value is not None else ""
+        
+        # Second pass: map organization data to specific variables
+        for source in context_sources:
+            if isinstance(source, dict):
+                # Map organization basic info
+                if "name" in source:
+                    result["organizationName"] = source["name"]
+                if "description" in source:
+                    result["organizationDescription"] = source["description"]
+                
+                # Map organization contact info
+                contact = source.get("contact", {})
+                if contact:
+                    result["orgEmail"] = contact.get("email", "")
+                    result["orgPhone"] = contact.get("phone", "")
+                    result["orgWebsite"] = contact.get("website", "")
+                    result["orgAddress"] = contact.get("address", "")
+                    result["orgCity"] = contact.get("city", "")
+                    result["orgState"] = contact.get("state", "")
+                    result["orgCountry"] = contact.get("country", "")
+                    result["orgPostalCode"] = contact.get("postalCode", "")
+                    result["orgTimezone"] = contact.get("timezone", "")
+                
+                # Map organization business info
+                business = source.get("business", {})
+                if business:
+                    result["orgLegalName"] = business.get("legalName", "")
+                    result["orgTaxId"] = business.get("taxId", "")
+                    result["orgRegistrationNumber"] = business.get("registrationNumber", "")
+                    result["orgIndustry"] = business.get("industry", "")
+                    result["orgBusinessType"] = business.get("businessType", "")
+                    result["orgFoundedDate"] = business.get("foundedDate", "")
+                    result["orgEmployeeCount"] = business.get("employeeCount", "")
+                    result["orgAnnualRevenue"] = business.get("annualRevenue", "")
+                
+                # Map Mpesa configuration
+                mpesa_config = source.get("mpesaConfig", {})
+                if mpesa_config:
+                    result["mpesaBusinessName"] = mpesa_config.get("businessName", "")
+                    result["mpesaAccountReference"] = mpesa_config.get("accountReference", "")
+                    result["mpesaShortCode"] = mpesa_config.get("shortCode", "")
+                    result["mpesaStkPushShortCode"] = mpesa_config.get("stkPushShortCode", "")
+                    # Also map to legacy paybillNumber for backward compatibility
+                    if "paybillNumber" not in result or not result["paybillNumber"]:
+                        result["paybillNumber"] = mpesa_config.get("shortCode", "")
+                
+                # Map SMS configuration for support contact
+                sms_config = source.get("smsConfig", {})
+                if sms_config:
+                    # Use senderId as support phone if available
+                    if "supportPhone" not in result or not result["supportPhone"]:
+                        result["supportPhone"] = sms_config.get("senderId", "")
+        
         return result

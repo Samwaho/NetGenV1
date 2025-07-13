@@ -26,18 +26,55 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 const COMMON_VARIABLES = [
+  // Customer/User variables
   "firstName",
   "lastName",
-  "organizationName",
-  "expirationDate",
-  "packageName",
   "phoneNumber",
-  "supportEmail",
+  "username",
+  "email",
+  
+  // Organization basic info
+  "organizationName",
+  "organizationDescription",
+  
+  // Organization contact information
+  "orgEmail",
+  "orgPhone",
+  "orgWebsite",
+  "orgAddress",
+  "orgCity",
+  "orgState",
+  "orgCountry",
+  "orgPostalCode",
+  "orgTimezone",
+  
+  // Organization business information
+  "orgLegalName",
+  "orgTaxId",
+  "orgRegistrationNumber",
+  "orgIndustry",
+  "orgBusinessType",
+  "orgFoundedDate",
+  "orgEmployeeCount",
+  "orgAnnualRevenue",
+  
+  // Mpesa configuration
+  "paybillNumber",
+  "mpesaBusinessName",
+  "mpesaAccountReference",
+  "mpesaShortCode",
+  "mpesaStkPushShortCode",
+  
+  // Service/Package variables
+  "packageName",
+  "expirationDate",
   "amountDue",
   "dueDate",
-  "paybillNumber",
-  "username",
   "voucherCode",
+  
+  // Support/Contact variables
+  "supportEmail",
+  "supportPhone",
 ];
 
 function extractVariables(content: string): string[] {
@@ -64,6 +101,7 @@ export default function SmsTemplateForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [customVar, setCustomVar] = useState("");
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -185,37 +223,131 @@ export default function SmsTemplateForm({
             <PopoverTrigger asChild>
               <Button type="button" size="sm" variant="outline">Insert Variable</Button>
             </PopoverTrigger>
-            <PopoverContent className="p-2 w-64">
-              <div className="flex flex-col gap-1">
-                {COMMON_VARIABLES.map(v => (
-                  <Button key={v} type="button" variant="ghost" className="justify-start" onClick={() => insertVariable(v)}>
-                    {`{{${v}}}`}
-                  </Button>
-                ))}
-                <div className="flex items-center gap-1 mt-2">
-                  <Input
-                    placeholder="Custom variable"
-                    value={customVar}
-                    onChange={e => setCustomVar(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={!customVar.match(/^[a-zA-Z0-9_]+$/)}
-                    onClick={() => {
-                      if (customVar.match(/^[a-zA-Z0-9_]+$/)) {
-                        insertVariable(customVar);
-                        setCustomVar("");
-                      }
-                    }}
-                  >
-                    Insert
-                  </Button>
+            <PopoverContent className="p-2 w-80 max-h-96">
+              <div 
+                ref={scrollContainerRef}
+                className="flex flex-col gap-2 overflow-y-auto max-h-80" 
+                style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db #f3f4f6' }}
+                onWheel={(e) => {
+                  e.stopPropagation();
+                  const container = scrollContainerRef.current;
+                  if (container) {
+                    container.scrollTop += e.deltaY;
+                  }
+                }}
+              >
+                {/* Customer/User Variables */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-1">Customer/User</h4>
+                  <div className="grid grid-cols-2 gap-1">
+                    {COMMON_VARIABLES.slice(0, 5).map(v => (
+                      <Button key={v} type="button" variant="ghost" size="sm" className="justify-start text-xs h-7" onClick={() => insertVariable(v)}>
+                        {`{{${v}}}`}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground mt-2">
-                  You can use any variable name in double curly braces, e.g. <code>{"{{customField}}"}</code>.<br/>
+                
+                {/* Organization Basic */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-1">Organization Basic</h4>
+                  <div className="grid grid-cols-2 gap-1">
+                    {COMMON_VARIABLES.slice(5, 7).map(v => (
+                      <Button key={v} type="button" variant="ghost" size="sm" className="justify-start text-xs h-7" onClick={() => insertVariable(v)}>
+                        {`{{${v}}}`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Organization Contact */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-1">Organization Contact</h4>
+                  <div className="grid grid-cols-2 gap-1">
+                    {COMMON_VARIABLES.slice(7, 16).map(v => (
+                      <Button key={v} type="button" variant="ghost" size="sm" className="justify-start text-xs h-7" onClick={() => insertVariable(v)}>
+                        {`{{${v}}}`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Organization Business */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-1">Organization Business</h4>
+                  <div className="grid grid-cols-2 gap-1">
+                    {COMMON_VARIABLES.slice(16, 24).map(v => (
+                      <Button key={v} type="button" variant="ghost" size="sm" className="justify-start text-xs h-7" onClick={() => insertVariable(v)}>
+                        {`{{${v}}}`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Mpesa Configuration */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-1">Mpesa Configuration</h4>
+                  <div className="grid grid-cols-2 gap-1">
+                    {COMMON_VARIABLES.slice(24, 29).map(v => (
+                      <Button key={v} type="button" variant="ghost" size="sm" className="justify-start text-xs h-7" onClick={() => insertVariable(v)}>
+                        {`{{${v}}}`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Service/Package */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-1">Service/Package</h4>
+                  <div className="grid grid-cols-2 gap-1">
+                    {COMMON_VARIABLES.slice(29, 34).map(v => (
+                      <Button key={v} type="button" variant="ghost" size="sm" className="justify-start text-xs h-7" onClick={() => insertVariable(v)}>
+                        {`{{${v}}}`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Support/Contact */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-1">Support/Contact</h4>
+                  <div className="grid grid-cols-2 gap-1">
+                    {COMMON_VARIABLES.slice(34, 36).map(v => (
+                      <Button key={v} type="button" variant="ghost" size="sm" className="justify-start text-xs h-7" onClick={() => insertVariable(v)}>
+                        {`{{${v}}}`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Custom Variable */}
+                <div className="border-t pt-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-1">Custom Variable</h4>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      placeholder="Custom variable"
+                      value={customVar}
+                      onChange={e => setCustomVar(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={!customVar.match(/^[a-zA-Z0-9_]+$/)}
+                      onClick={() => {
+                        if (customVar.match(/^[a-zA-Z0-9_]+$/)) {
+                          insertVariable(customVar);
+                          setCustomVar("");
+                        }
+                      }}
+                    >
+                      Insert
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-muted-foreground border-t pt-2 pb-2">
                   Variables will be replaced if data is available when sending the SMS.
                 </div>
               </div>
