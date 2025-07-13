@@ -23,6 +23,7 @@ import { CURRENT_USER } from "@/graphql/auth";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Organization } from "@/types/organization";
 import { OrganizationPermissions } from "@/lib/permissions";
+import AuthCheck from "@/components/auth/AuthCheck";
 
 type OrganizationsResponse = {
   organizations: {
@@ -158,6 +159,14 @@ const LoadingState = () => {
 };
 
 const Page = () => {
+  return (
+    <AuthCheck>
+      <OrganizationsContent />
+    </AuthCheck>
+  );
+};
+
+const OrganizationsContent = () => {
   const { data: userData, loading: userLoading } = useQuery(CURRENT_USER);
   const { loading, error, data } = useQuery<OrganizationsResponse>(GET_ORGANIZATIONS);
 

@@ -16,8 +16,17 @@ import { ActivityTab } from "./components/ActivityTab";
 import { DetailsTab } from "./components/DetailsTab";
 import { MpesaTab } from "./components/MpesaTab";
 import { SmsTab } from "./components/SmsTab";
+import AuthCheck from "@/components/auth/AuthCheck";
 
 const OrganizationPage = () => {
+  return (
+    <AuthCheck>
+      <OrganizationContent />
+    </AuthCheck>
+  );
+};
+
+const OrganizationContent = () => {
   const params = useParams();
   const organizationId = params?.id as string;
   
