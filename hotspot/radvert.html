@@ -53,23 +53,36 @@
             document.title = `${org.name} - Advertisement`;
         }
 
-        // Update logo area
+        // Update header
+        const header = document.querySelector('.header');
+        if (header) {
+            const headerLogo = header.querySelector('.header-logo');
+            if (headerLogo) {
+                let logoHtml = '';
+                
+                // Add organization logo if available
+                if (org.business && org.business.logo) {
+                    logoHtml += `<img src="${org.business.logo}" alt="${org.name}">`;
+                }
+                
+                // Add organization name
+                logoHtml += `<div class="org-name">${org.name || 'ISPinnacle Hotspot'}</div>`;
+                
+                headerLogo.innerHTML = logoHtml;
+            }
+        }
+
+        // Update logo area in main content
         const logoArea = document.querySelector('.logo-area');
         if (logoArea) {
             let logoHtml = '';
-            
-            // Add organization logo if available
-            if (org.business && org.business.logo) {
-                logoHtml += `<img src="${org.business.logo}" alt="${org.name}" class="org-logo">`;
-            }
             
             // Add organization banner if available
             if (org.business && org.business.banner) {
                 logoHtml += `<img src="${org.business.banner}" alt="${org.name}" class="org-banner">`;
             }
             
-            // Add organization name and description
-            logoHtml += `<div class="org-name">${org.name || 'ISPinnacle Hotspot'}</div>`;
+            // Add organization description
             if (org.description) {
                 logoHtml += `<div class="org-description">${org.description}</div>`;
             }
@@ -109,13 +122,45 @@
         setTimeout("openAd()", 1000);
     }
     
+    function toggleTheme() {
+        document.documentElement.classList.toggle('dark');
+        const isDark = document.documentElement.classList.contains('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        updateThemeIcon();
+    }
+
+    function updateThemeIcon() {
+        const isDark = document.documentElement.classList.contains('dark');
+        const themeIcon = document.getElementById('theme-icon');
+        if (themeIcon) {
+            themeIcon.textContent = isDark ? '☀️' : '🌙';
+        }
+    }
+    
     window.onload = function() {
+        // Theme initialization
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+        updateThemeIcon();
+        
         // Fetch organization details
         fetchOrganizationDetails();
     };
 </script>
 </head>
 <body onLoad="openAdvert()" class="advert-page">
+    <!-- Header with organization logo and theme toggle -->
+    <header class="header">
+        <div class="header-logo">
+            <div class="org-name">ISPinnacle Hotspot</div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span>
+        </button>
+    </header>
+    
     <div class="ie-fixMinHeight">
         <div class="main">
             <div class="wrap">

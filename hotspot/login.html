@@ -28,6 +28,8 @@
             const orgId = getOrgId();
             const apiUrl = `${getApiUrl()}/api/organizations/${orgId}`;
             
+            console.log('Fetching organization details from:', apiUrl);
+            
             try {
                 const response = await fetch(apiUrl, {
                     method: 'GET',
@@ -37,11 +39,22 @@
                     }
                 });
 
+                console.log('Organization API response status:', response.status);
+                console.log('Organization API response headers:', response.headers);
+
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Organization API response data:', data);
                     if (data.organization) {
+                        console.log('Organization found, updating branding...');
                         updateOrganizationBranding(data.organization);
+                    } else {
+                        console.log('No organization data in response');
                     }
+                } else {
+                    console.error('Organization API error:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
                 }
             } catch (error) {
                 console.error('Failed to fetch organization details:', error);
@@ -50,34 +63,59 @@
 
         // Update organization branding
         function updateOrganizationBranding(org) {
+            console.log('Updating organization branding with:', org);
+            
             // Update page title
             if (org.name) {
                 document.title = `${org.name} - Internet Hotspot`;
+                console.log('Updated page title to:', document.title);
             }
 
-            // Update logo area
+            // Update header
+            const header = document.querySelector('.header');
+            console.log('Header element found:', !!header);
+            if (header) {
+                const headerLogo = header.querySelector('.header-logo');
+                console.log('Header logo element found:', !!headerLogo);
+                if (headerLogo) {
+                    let logoHtml = '';
+                    
+                    // Add organization logo if available
+                    if (org.business && org.business.logo) {
+                        console.log('Adding organization logo:', org.business.logo);
+                        logoHtml += `<img src="${org.business.logo}" alt="${org.name}">`;
+                    }
+                    
+                    // Add organization name
+                    console.log('Adding organization name:', org.name);
+                    logoHtml += `<div class="org-name">${org.name || 'ISPinnacle Hotspot'}</div>`;
+                    
+                    console.log('Header logo HTML:', logoHtml);
+                    headerLogo.innerHTML = logoHtml;
+                }
+            }
+
+            // Update logo area in main content
             const logoArea = document.querySelector('.logo-area');
+            console.log('Logo area element found:', !!logoArea);
             if (logoArea) {
                 let logoHtml = '';
                 
-                // Add organization logo if available
-                if (org.business && org.business.logo) {
-                    logoHtml += `<img src="${org.business.logo}" alt="${org.name}" class="org-logo">`;
-                }
-                
                 // Add organization banner if available
                 if (org.business && org.business.banner) {
+                    console.log('Adding organization banner:', org.business.banner);
                     logoHtml += `<img src="${org.business.banner}" alt="${org.name}" class="org-banner">`;
                 }
                 
-                // Add organization name and description
-                logoHtml += `<div class="org-name">${org.name || 'ISPinnacle Hotspot'}</div>`;
+                // Add organization description
                 if (org.description) {
+                    console.log('Adding organization description:', org.description);
                     logoHtml += `<div class="org-description">${org.description}</div>`;
                 }
                 
                 // Add contact information if available
                 if (org.contact) {
+                    console.log('Adding organization contact info:', org.contact);
                     logoHtml += '<div class="org-contact">';
                     if (org.contact.phone) {
                         logoHtml += `<div class="org-contact-item"><span class="icon">📞</span>${org.contact.phone}</div>`;
@@ -91,6 +129,7 @@
                     logoHtml += '</div>';
                 }
                 
+                console.log('Logo area HTML:', logoHtml);
                 logoArea.innerHTML = logoHtml;
             }
         }
@@ -361,7 +400,10 @@
 
         function updateThemeIcon() {
             const isDark = document.documentElement.classList.contains('dark');
-            document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+            const themeIcon = document.getElementById('theme-icon');
+            if (themeIcon) {
+                themeIcon.textContent = isDark ? '☀️' : '🌙';
+            }
         }
 
         // Fallback to local data if API fails
@@ -533,9 +575,15 @@
         <input type="hidden" name="chap-challenge" value="$(chap-challenge)" />
     </form>
     
-    <button class="theme-toggle" onclick="toggleTheme()">
-        <span id="theme-icon">🌙</span>
-    </button>
+    <!-- Header with organization logo and theme toggle -->
+    <header class="header">
+        <div class="header-logo">
+            <div class="org-name">ISPinnacle Hotspot</div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span>
+        </button>
+    </header>
     
     <div class="ie-fixMinHeight">
         <div class="main">

@@ -60,23 +60,36 @@
                 document.title = `${org.name} - Connection Status`;
             }
 
-            // Update logo area
+            // Update header
+            const header = document.querySelector('.header');
+            if (header) {
+                const headerLogo = header.querySelector('.header-logo');
+                if (headerLogo) {
+                    let logoHtml = '';
+                    
+                    // Add organization logo if available
+                    if (org.business && org.business.logo) {
+                        logoHtml += `<img src="${org.business.logo}" alt="${org.name}">`;
+                    }
+                    
+                    // Add organization name
+                    logoHtml += `<div class="org-name">${org.name || 'Ispinnacle Hotspot'}</div>`;
+                    
+                    headerLogo.innerHTML = logoHtml;
+                }
+            }
+
+            // Update logo area in main content
             const logoArea = document.querySelector('.logo-area');
             if (logoArea) {
                 let logoHtml = '';
-                
-                // Add organization logo if available
-                if (org.business && org.business.logo) {
-                    logoHtml += `<img src="${org.business.logo}" alt="${org.name}" class="org-logo">`;
-                }
                 
                 // Add organization banner if available
                 if (org.business && org.business.banner) {
                     logoHtml += `<img src="${org.business.banner}" alt="${org.name}" class="org-banner">`;
                 }
                 
-                // Add organization name and description
-                logoHtml += `<div class="org-name">${org.name || 'Ispinnacle Hotspot'}</div>`;
+                // Add organization description
                 if (org.description) {
                     logoHtml += `<div class="org-description">${org.description}</div>`;
                 }
@@ -127,7 +140,10 @@
 
         function updateThemeIcon() {
             const isDark = document.documentElement.classList.contains('dark');
-            document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+            const themeIcon = document.getElementById('theme-icon');
+            if (themeIcon) {
+                themeIcon.textContent = isDark ? '☀️' : '🌙';
+            }
         }
         
         window.onload = function() {
@@ -148,9 +164,15 @@
     </script>
 </head>
 <body $(if advert-pending == 'yes') onLoad="openAdvert()" $(endif) class="status-page">
-    <button class="theme-toggle" onclick="toggleTheme()">
-        <span id="theme-icon">🌙</span>
-    </button>
+    <!-- Header with organization logo and theme toggle -->
+    <header class="header">
+        <div class="header-logo">
+            <div class="org-name">Ispinnacle Hotspot</div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span>
+        </button>
+    </header>
     
     <div class="ie-fixMinHeight">
         <div class="main">
