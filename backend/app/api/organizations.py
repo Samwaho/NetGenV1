@@ -66,43 +66,61 @@ async def get_organization(organization_id: str):
         org_schema = await Organization.from_db(organization)
         logger.info(f"Organization schema created successfully")
         
-        # Return organization data
-        response_data = {
-            "success": True,
-            "message": "Organization retrieved successfully",
-            "organization": {
-                "id": org_schema.id,
-                "name": org_schema.name,
-                "description": org_schema.description,
-                "contact": {
-                    "email": org_schema.contact.email if org_schema.contact else None,
-                    "phone": org_schema.contact.phone if org_schema.contact else None,
-                    "website": org_schema.contact.website if org_schema.contact else None,
-                    "address": org_schema.contact.address if org_schema.contact else None,
-                    "city": org_schema.contact.city if org_schema.contact else None,
-                    "state": org_schema.contact.state if org_schema.contact else None,
-                    "country": org_schema.contact.country if org_schema.contact else None,
-                    "postalCode": org_schema.contact.postalCode if org_schema.contact else None,
-                    "timezone": org_schema.contact.timezone if org_schema.contact else None,
-                } if org_schema.contact else None,
-                "business": {
-                    "legalName": org_schema.business.legalName if org_schema.business else None,
-                    "taxId": org_schema.business.taxId if org_schema.business else None,
-                    "registrationNumber": org_schema.business.registrationNumber if org_schema.business else None,
-                    "industry": org_schema.business.industry if org_schema.business else None,
-                    "businessType": org_schema.business.businessType if org_schema.business else None,
-                    "foundedDate": org_schema.business.foundedDate.isoformat() if org_schema.business and org_schema.business.foundedDate else None,
-                    "employeeCount": org_schema.business.employeeCount if org_schema.business else None,
-                    "annualRevenue": org_schema.business.annualRevenue if org_schema.business else None,
-                    "logo": org_schema.business.logo if org_schema.business else None,
-                    "banner": org_schema.business.banner if org_schema.business else None,
-                    "socialMedia": org_schema.business.socialMedia if org_schema.business else None,
-                } if org_schema.business else None,
-                "status": org_schema.status.value if org_schema.status else None,
-                "createdAt": org_schema.createdAt.isoformat() if org_schema.createdAt else None,
-                "updatedAt": org_schema.updatedAt.isoformat() if org_schema.updatedAt else None,
+        # Return organization data with safe attribute access
+        try:
+            response_data = {
+                "success": True,
+                "message": "Organization retrieved successfully",
+                "organization": {
+                    "id": getattr(org_schema, 'id', None),
+                    "name": getattr(org_schema, 'name', 'Unknown'),
+                    "description": getattr(org_schema, 'description', None),
+                    "contact": {
+                        "email": org_schema.contact.email if org_schema.contact else None,
+                        "phone": org_schema.contact.phone if org_schema.contact else None,
+                        "website": org_schema.contact.website if org_schema.contact else None,
+                        "address": org_schema.contact.address if org_schema.contact else None,
+                        "city": org_schema.contact.city if org_schema.contact else None,
+                        "state": org_schema.contact.state if org_schema.contact else None,
+                        "country": org_schema.contact.country if org_schema.contact else None,
+                        "postalCode": org_schema.contact.postalCode if org_schema.contact else None,
+                        "timezone": org_schema.contact.timezone if org_schema.contact else None,
+                    } if org_schema.contact else None,
+                    "business": {
+                        "legalName": org_schema.business.legalName if org_schema.business else None,
+                        "taxId": org_schema.business.taxId if org_schema.business else None,
+                        "registrationNumber": org_schema.business.registrationNumber if org_schema.business else None,
+                        "industry": org_schema.business.industry if org_schema.business else None,
+                        "businessType": org_schema.business.businessType if org_schema.business else None,
+                        "foundedDate": org_schema.business.foundedDate.isoformat() if org_schema.business and org_schema.business.foundedDate else None,
+                        "employeeCount": org_schema.business.employeeCount if org_schema.business else None,
+                        "annualRevenue": org_schema.business.annualRevenue if org_schema.business else None,
+                        "logo": org_schema.business.logo if org_schema.business else None,
+                        "banner": org_schema.business.banner if org_schema.business else None,
+                        "socialMedia": org_schema.business.socialMedia if org_schema.business else None,
+                    } if org_schema.business else None,
+                    "status": getattr(org_schema, 'status', None),
+                    "createdAt": org_schema.createdAt.isoformat() if org_schema.createdAt else None,
+                    "updatedAt": org_schema.updatedAt.isoformat() if org_schema.updatedAt else None,
+                }
             }
-        }
+        except Exception as e:
+            logger.error(f"Error creating response data: {str(e)}")
+            # Fallback to basic organization data
+            response_data = {
+                "success": True,
+                "message": "Organization retrieved successfully (basic data)",
+                "organization": {
+                    "id": str(organization.get("_id")),
+                    "name": organization.get("name", "Unknown"),
+                    "description": organization.get("description"),
+                    "contact": organization.get("contact"),
+                    "business": organization.get("business"),
+                    "status": organization.get("status"),
+                    "createdAt": organization.get("createdAt"),
+                    "updatedAt": organization.get("updatedAt"),
+                }
+            }
         
         logger.info(f"Returning organization data for: {response_data['organization']['name']}")
         return response_data
