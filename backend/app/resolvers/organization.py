@@ -120,7 +120,7 @@ class OrganizationResolver:
                     OrganizationPermission.VIEW_ACTIVITY.value,
                     OrganizationPermission.CLEAR_ACTIVITY.value
                 ],
-                "isSystemRole": True
+                "isSystemRole": False
             },
             {
                 "name": "Member",
