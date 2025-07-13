@@ -10,6 +10,16 @@ const nextConfig: NextConfig = {
     // Don't fail build on ESLint errors during development
     ignoreDuringBuilds: process.env.NODE_ENV === 'development',
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ucarecdn.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

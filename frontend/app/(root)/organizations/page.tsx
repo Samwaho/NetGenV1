@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Users, Building2, ArrowRight, LockIcon } from "lucide-react";
+import Image from "next/image";
 import { useQuery } from "@apollo/client";
 import { GET_ORGANIZATIONS } from "@/graphql/organization";
 import { Button } from "@/components/ui/button";
@@ -47,12 +48,34 @@ const OrganizationCard = ({
   return (
     <Card className="flex flex-col glow">
       <CardHeader>
-        <CardTitle className="text-2xl text-gradient-custom2">
-          {org.name}
-        </CardTitle>
-        <CardDescription>
-          {org.description || "No description provided"}
-        </CardDescription>
+        <div className="flex items-start gap-4">
+          {org.business?.logo ? (
+            <div className="flex-shrink-0">
+              <Image
+                src={org.business.logo}
+                alt={`${org.name} logo`}
+                width={48}
+                height={48}
+                className="w-12 h-12 rounded-lg object-cover border border-border"
+                onError={() => {
+                  // Next.js Image handles errors automatically
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center border border-border">
+              <Building2 className="h-6 w-6 text-primary" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-2xl text-gradient-custom2 truncate">
+              {org.name}
+            </CardTitle>
+            <CardDescription className="line-clamp-2">
+              {org.description || "No description provided"}
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="flex-1">
         <div className="space-y-4">

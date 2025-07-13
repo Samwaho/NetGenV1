@@ -51,6 +51,7 @@ const OrganizationPage = () => {
         ownerName={ownerName}
         createdAt={organization.createdAt}
         organizationId={organizationId}
+        logo={organization.business?.logo}
       />
       <OrganizationStats 
         membersCount={organization.members.length} 

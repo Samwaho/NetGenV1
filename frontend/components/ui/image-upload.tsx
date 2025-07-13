@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UPLOADCARE_CONFIG, validateFile, getCdnUrl } from "@/lib/uploadcare-config";
+import Image from "next/image";
 
 interface ImageUploadProps {
   value?: string;
@@ -52,17 +53,28 @@ export const ImageUpload = ({
     setIsUploading(true);
 
     try {
-      // For now, we'll use a simple approach with FileReader
-      // In a real implementation, you'd upload to Uploadcare here
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onChange(result);
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
+      // Upload to Uploadcare
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('UPLOADCARE_PUB_KEY', UPLOADCARE_CONFIG.PUBLIC_KEY);
+      formData.append('UPLOADCARE_STORE', '1');
+
+      const response = await fetch('https://upload.uploadcare.com/base/', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      const cdnUrl = `https://ucarecdn.com/${result.file}/`;
+      
+      onChange(cdnUrl);
+      setIsUploading(false);
     } catch (err) {
-      setError("Failed to upload image");
+      setError("Failed to upload image to Uploadcare");
       setIsUploading(false);
     }
   };
@@ -144,9 +156,11 @@ export const ImageUpload = ({
         {showPreview && value && (
           <div className="relative">
             <div className="relative w-32 h-32 rounded-lg border border-border overflow-hidden">
-              <img
+              <Image
                 src={value}
                 alt="Preview"
+                width={128}
+                height={128}
                 className="w-full h-full object-cover"
               />
             </div>
