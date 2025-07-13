@@ -2,8 +2,24 @@ import { ApolloClient, InMemoryCache, createHttpLink } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
 import { getAuthToken } from "./auth-utils";
 
+// Determine GraphQL URL based on environment
+const getGraphQLUrl = () => {
+  // If environment variable is set, use it
+  if (process.env.NEXT_PUBLIC_GRAPHQL_URL) {
+    return process.env.NEXT_PUBLIC_GRAPHQL_URL;
+  }
+  
+  // In production, use the same domain
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return `${window.location.protocol}//${window.location.host}/graphql`;
+  }
+  
+  // Default to localhost for development
+  return 'http://localhost:8000/graphql';
+};
+
 const httpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL,
+  uri: getGraphQLUrl(),
   credentials: "include",
 });
 

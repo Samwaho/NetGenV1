@@ -75,9 +75,14 @@ app = FastAPI(title="Your API", version="1.0.0")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins since we don't know the MikroTik IP/domain
-    allow_credentials=False,  # Set to False since we're using wildcard origin
-    allow_methods=["*"],
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000",
+        "https://ispinnacle.co.ke",
+        "http://ispinnacle.co.ke"
+    ],  # Allow specific frontend origins
+    allow_credentials=True,  # Allow credentials for authentication
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=1728000,
