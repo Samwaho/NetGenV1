@@ -23,11 +23,17 @@
             return 'https://ispinnacle.co.ke';
         }
 
+        // Get current page URL for debugging
+        function getCurrentUrl() {
+            return window.location.href;
+        }
+
         // Fetch organization details
         async function fetchOrganizationDetails() {
             const orgId = getOrgId();
             const apiUrl = `${getApiUrl()}/api/organizations/${orgId}`;
             
+            console.log('Current page URL:', getCurrentUrl());
             console.log('Fetching organization details from:', apiUrl);
             
             try {
@@ -64,6 +70,8 @@
         // Update organization branding
         function updateOrganizationBranding(org) {
             console.log('Updating organization branding with:', org);
+            console.log('Organization business data:', org.business);
+            console.log('Organization contact data:', org.contact);
             
             // Update page title
             if (org.name) {
@@ -83,7 +91,39 @@
                     // Add organization logo if available
                     if (org.business && org.business.logo) {
                         console.log('Adding organization logo:', org.business.logo);
-                        logoHtml += `<img src="${org.business.logo}" alt="${org.name}">`;
+                        console.log('Logo URL protocol:', new URL(org.business.logo).protocol);
+                        console.log('Current page protocol:', window.location.protocol);
+                        console.log('Current page hostname:', window.location.hostname);
+                        
+                        // Check if we're on MikroTik hotspot (different hostname)
+                        const isMikroTik = window.location.hostname !== 'ispinnacle.co.ke' && window.location.hostname !== 'www.ispinnacle.co.ke';
+                        console.log('Is MikroTik hotspot:', isMikroTik);
+                        
+                        if (isMikroTik) {
+                            // For MikroTik hotspot, use fallback logo
+                            console.log('Using fallback logo for MikroTik hotspot');
+                            logoHtml += `<div style="width: 40px; height: 40px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">${org.name ? org.name.charAt(0).toUpperCase() : 'H'}</div>`;
+                        } else {
+                            // Try to preload the image
+                            const img = new Image();
+                            img.onload = function() {
+                                console.log('Logo preloaded successfully:', this.src);
+                            };
+                            img.onerror = function() {
+                                console.error('Logo preload failed:', this.src);
+                            };
+                            img.src = org.business.logo;
+                            
+                            logoHtml += `<img src="${org.business.logo}" alt="${org.name}" style="border: 1px solid red;" crossorigin="anonymous" onload="console.log('Logo loaded successfully:', this.src); this.style.border='1px solid green';" onerror="console.error('Logo failed to load:', this.src); this.style.display='none'; this.nextElementSibling.style.display='block'; console.log('Error details:', this.naturalWidth, this.naturalHeight);">`;
+                            logoHtml += `<span style="display:none; color:red; font-size:10px;">Logo failed to load</span>`;
+                            
+                            // Add a fallback image element without crossorigin
+                            logoHtml += `<img src="${org.business.logo}" alt="${org.name}" style="border: 1px solid blue; display: none;" onload="console.log('Fallback logo loaded successfully:', this.src); this.style.border='1px solid green'; this.style.display='block'; this.previousElementSibling.style.display='none';" onerror="console.error('Fallback logo also failed:', this.src);">`;
+                        }
+                    } else {
+                        console.log('No logo available - business:', !!org.business, 'logo:', org.business?.logo);
+                        // Add a default logo placeholder
+                        logoHtml += `<div style="width: 40px; height: 40px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">${org.name ? org.name.charAt(0).toUpperCase() : 'H'}</div>`;
                     }
                     
                     // Add organization name
@@ -104,7 +144,21 @@
                 // Add organization banner if available
                 if (org.business && org.business.banner) {
                     console.log('Adding organization banner:', org.business.banner);
-                    logoHtml += `<img src="${org.business.banner}" alt="${org.name}" class="org-banner">`;
+                    
+                    // Check if we're on MikroTik hotspot
+                    const isMikroTik = window.location.hostname !== 'ispinnacle.co.ke' && window.location.hostname !== 'www.ispinnacle.co.ke';
+                    
+                    if (isMikroTik) {
+                        // For MikroTik hotspot, skip banner or use text alternative
+                        console.log('Skipping banner for MikroTik hotspot');
+                        if (org.name) {
+                            logoHtml += `<div style="font-size: 1.5rem; font-weight: bold; color: var(--primary); margin: 20px 0;">${org.name}</div>`;
+                        }
+                    } else {
+                        logoHtml += `<img src="${org.business.banner}" alt="${org.name}" class="org-banner" onerror="console.error('Banner failed to load:', this.src); this.style.display='none';">`;
+                    }
+                } else {
+                    console.log('No banner available - business:', !!org.business, 'banner:', org.business?.banner);
                 }
                 
                 // Add organization description
