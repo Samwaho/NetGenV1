@@ -23,6 +23,78 @@
             return 'https://ispinnacle.co.ke';
         }
 
+        // Fetch organization details
+        async function fetchOrganizationDetails() {
+            const orgId = getOrgId();
+            const apiUrl = `${getApiUrl()}/api/organizations/${orgId}`;
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.organization) {
+                        updateOrganizationBranding(data.organization);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch organization details:', error);
+            }
+        }
+
+        // Update organization branding
+        function updateOrganizationBranding(org) {
+            // Update page title
+            if (org.name) {
+                document.title = `${org.name} - Internet Hotspot`;
+            }
+
+            // Update logo area
+            const logoArea = document.querySelector('.logo-area');
+            if (logoArea) {
+                let logoHtml = '';
+                
+                // Add organization logo if available
+                if (org.business && org.business.logo) {
+                    logoHtml += `<img src="${org.business.logo}" alt="${org.name}" class="org-logo">`;
+                }
+                
+                // Add organization banner if available
+                if (org.business && org.business.banner) {
+                    logoHtml += `<img src="${org.business.banner}" alt="${org.name}" class="org-banner">`;
+                }
+                
+                // Add organization name and description
+                logoHtml += `<div class="org-name">${org.name || 'ISPinnacle Hotspot'}</div>`;
+                if (org.description) {
+                    logoHtml += `<div class="org-description">${org.description}</div>`;
+                }
+                
+                // Add contact information if available
+                if (org.contact) {
+                    logoHtml += '<div class="org-contact">';
+                    if (org.contact.phone) {
+                        logoHtml += `<div class="org-contact-item"><span class="icon">📞</span>${org.contact.phone}</div>`;
+                    }
+                    if (org.contact.email) {
+                        logoHtml += `<div class="org-contact-item"><span class="icon">✉️</span>${org.contact.email}</div>`;
+                    }
+                    if (org.contact.website) {
+                        logoHtml += `<div class="org-contact-item"><span class="icon">🌐</span>${org.contact.website}</div>`;
+                    }
+                    logoHtml += '</div>';
+                }
+                
+                logoArea.innerHTML = logoHtml;
+            }
+        }
+
         // Fetch packages from API with better error handling
         async function fetchPackages() {
             const orgId = getOrgId();
@@ -441,7 +513,8 @@
                 updateThemeIcon();
             }
             
-            // Start loading packages
+            // Fetch organization details and packages
+            fetchOrganizationDetails();
             fetchPackages();
             
             // Add form submit handler

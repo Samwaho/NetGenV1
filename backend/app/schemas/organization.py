@@ -331,7 +331,7 @@ class Organization:
             )
 
         return cls(
-            id=org_id,
+            id=str(org_id) if org_id else None,
             name=name,
             description=description,
             owner=owner,

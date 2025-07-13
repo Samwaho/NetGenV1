@@ -20,7 +20,7 @@ from app.resolvers.isp_customer_payments import ISPCustomerPaymentResolver
 from app.resolvers.isp_transactions import ISPTransactionResolver
 from app.resolvers.sms import SMSResolver
 from app.resolvers.sms_template import SmsTemplateResolver
-from app.api import mpesa, sms, hotspot
+from app.api import mpesa, sms, hotspot, organizations
 from app.resolvers.dashboard import DashboardResolver
 
 @strawberry.type
@@ -90,6 +90,9 @@ app.add_middleware(
 
 # GraphQL endpoint
 app.include_router(graphql_app, prefix="/graphql")
+
+# Organization API routes
+app.include_router(organizations.router, prefix="/api/organizations", tags=["organizations"])
 
 # Payment API routes
 app.include_router(mpesa.router, prefix="/api/payments", tags=["payments"])
