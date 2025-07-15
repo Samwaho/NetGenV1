@@ -33,6 +33,12 @@ interface CustomersQueryResponse {
     message: string;
     customers: ISPCustomer[];
     totalCount: number;
+    stats: {
+      total: number;
+      active: number;
+      online: number;
+      inactive: number;
+    };
   }
 }
 
@@ -172,25 +178,18 @@ export default function CustomersPage() {
 
   // Calculate statistics using useMemo to avoid recalculation on rerenders
   const stats = useMemo(() => {
-    const totalCustomers = totalCount;
-    const activeCustomers = customers.filter(customer => customer.status === "ACTIVE").length;
-    const onlineCustomers = customers.filter(customer => customer.online).length;
-    const inactiveCustomers = customers.filter(customer => customer.status !== "ACTIVE").length;
-    
-    // These percentages are based on the current page, not the total count
-    // We could make another query to get the total stats, but this is simpler
+    const orgStats = data?.customers.stats;
     const customersOnPage = customers.length;
-    
     return {
-      totalCustomers,
-      activeCustomers,
-      onlineCustomers,
-      inactiveCustomers,
-      activePercentage: customersOnPage > 0 ? `${((activeCustomers / customersOnPage) * 100).toFixed(1)}% of visible` : 'No customers',
-      onlinePercentage: customersOnPage > 0 ? `${((onlineCustomers / customersOnPage) * 100).toFixed(1)}% of visible` : 'No customers',
-      inactivePercentage: customersOnPage > 0 ? `${((inactiveCustomers / customersOnPage) * 100).toFixed(1)}% of visible` : 'No customers',
+      totalCustomers: orgStats?.total ?? 0,
+      activeCustomers: orgStats?.active ?? 0,
+      onlineCustomers: orgStats?.online ?? 0,
+      inactiveCustomers: orgStats?.inactive ?? 0,
+      activePercentage: orgStats && orgStats.total > 0 ? `${((orgStats.active / orgStats.total) * 100).toFixed(1)}% of all` : 'No customers',
+      onlinePercentage: orgStats && orgStats.total > 0 ? `${((orgStats.online / orgStats.total) * 100).toFixed(1)}% of all` : 'No customers',
+      inactivePercentage: orgStats && orgStats.total > 0 ? `${((orgStats.inactive / orgStats.total) * 100).toFixed(1)}% of all` : 'No customers',
     };
-  }, [customers, totalCount]);
+  }, [data?.customers.stats]);
 
   // Show loading state while checking permissions
   if (userLoading || orgLoading) {

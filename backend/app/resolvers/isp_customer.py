@@ -188,11 +188,26 @@ class ISPCustomerResolver:
         for customer in all_customers:
             customer_list.append(await ISPCustomer.from_db(customer))
 
+        # --- Organization-wide stats ---
+        org_stats_filter = {"organizationId": org_object_id}
+        total_org_customers = await isp_customers.count_documents(org_stats_filter)
+        active_org_customers = await isp_customers.count_documents({**org_stats_filter, "status": "ACTIVE"})
+        online_org_customers = await isp_customers.count_documents({**org_stats_filter, "online": True})
+        inactive_org_customers = await isp_customers.count_documents({**org_stats_filter, "status": {"$ne": "ACTIVE"}})
+        from app.schemas.isp_customer import ISPCustomerStats
+        stats = ISPCustomerStats(
+            total=total_org_customers,
+            active=active_org_customers,
+            online=online_org_customers,
+            inactive=inactive_org_customers
+        )
+
         return ISPCustomersResponse(
             success=True,
             message="Customers retrieved successfully",
             customers=customer_list,
-            total_count=total_count
+            total_count=total_count,
+            stats=stats
         )
 
     @strawberry.mutation

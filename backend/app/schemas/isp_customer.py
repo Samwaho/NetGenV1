@@ -202,9 +202,19 @@ class ISPCustomerResponse:
 
 
 @strawberry.type
+class ISPCustomerStats:
+    """Organization-wide customer statistics."""
+    total: int
+    active: int
+    online: int
+    inactive: int
+
+
+@strawberry.type
 class ISPCustomersResponse:
     """Response type for querying multiple ISP customers."""
     success: bool
     message: str
     customers: List[ISPCustomer] = field(default_factory=list)
     total_count: int = 0  # Total count for pagination
+    stats: ISPCustomerStats = None  # Organization-wide stats

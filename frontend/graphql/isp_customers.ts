@@ -74,6 +74,12 @@ export const GET_ISP_CUSTOMERS = gql`
       success
       message
       totalCount
+      stats {
+        total
+        active
+        online
+        inactive
+      }
       customers {
         ...CompleteCustomerFields
       }
