@@ -46,7 +46,7 @@ const ProfileAction = () => {
   }
 
   const userInitials =
-    `${currentUser.firstName[0]}${currentUser.lastName[0]}`.toUpperCase();
+    `${currentUser.firstName?.[0] || ""}${currentUser.lastName?.[0] || ""}`.toUpperCase() || "U";
 
   return (
     <Popover>

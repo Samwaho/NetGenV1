@@ -320,7 +320,7 @@ export const MembersTab = ({ members, organization, currentUserId }: MembersTabP
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs">
                 {member.user ? 
-                  `${member.user.firstName[0]}${member.user.lastName[0]}` : 
+                  `${member.user.firstName?.[0] || ""}${member.user.lastName?.[0] || ""}` : 
                   member.email?.[0]?.toUpperCase() || '?'
                 }
               </AvatarFallback>

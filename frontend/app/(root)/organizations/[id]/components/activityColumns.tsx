@@ -43,7 +43,7 @@ export const columns: ColumnDef<Activity>[] = [
           <Avatar className="h-8 w-8">
             <AvatarImage src={`https://avatar.vercel.sh/${activity.userDetails.email}`} />
             <AvatarFallback>
-              {`${activity.userDetails.firstName[0]}${activity.userDetails.lastName[0]}`}
+              {`${activity.userDetails.firstName?.[0] || ""}${activity.userDetails.lastName?.[0] || ""}`}
             </AvatarFallback>
           </Avatar>
           <div>
