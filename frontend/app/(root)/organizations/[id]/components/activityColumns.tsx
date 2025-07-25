@@ -48,7 +48,7 @@ export const columns: ColumnDef<Activity>[] = [
           </Avatar>
           <div>
             <p className="font-medium text-sm">
-              {activity.userDetails.firstName} {activity.userDetails.lastName}
+              {(activity.userDetails.firstName || "") + " " + (activity.userDetails.lastName || "")}
             </p>
             <p className="text-xs text-muted-foreground">
               {activity.userDetails.email}

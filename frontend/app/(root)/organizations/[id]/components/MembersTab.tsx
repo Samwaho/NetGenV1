@@ -328,7 +328,7 @@ export const MembersTab = ({ members, organization, currentUserId }: MembersTabP
             <div>
               <p className="font-medium text-sm">
                 {member.user ? 
-                  `${member.user.firstName} ${member.user.lastName}` : 
+                  `${member.user.firstName || ""} ${member.user.lastName || ""}` : 
                   member.email
                 }
               </p>

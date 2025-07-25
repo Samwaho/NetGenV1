@@ -60,7 +60,7 @@ const ProfileAction = () => {
       </PopoverTrigger>
       <PopoverContent className="w-fit">
         <div className="mb-3">
-          <p className="font-semibold text-foreground">{`${currentUser.firstName} ${currentUser.lastName}`}</p>
+          <p className="font-semibold text-foreground">{`${currentUser.firstName || ""} ${currentUser.lastName || ""}`}</p>
           <p className="text-sm text-muted-foreground truncate">
             {currentUser.email}
           </p>
