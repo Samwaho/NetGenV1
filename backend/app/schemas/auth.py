@@ -9,8 +9,8 @@ class LoginInput:
 
 @strawberry.input
 class RegisterInput:
-    firstName: str
-    lastName: str
+    firstName: Optional[str]
+    lastName: Optional[str]
     email: str
     phone: str
     password: str

@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 @strawberry.type
 class User:
     id: str
-    firstName: str
-    lastName: str
+    firstName: Optional[str]
+    lastName: Optional[str]
     email: str
     phone: str
     role: UserRole
