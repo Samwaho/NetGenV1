@@ -159,7 +159,7 @@ function ActionsCell({
     await removeMember({
       variables: {
         organizationId,
-        userId: member.user?.id,
+        userId: member.user?.id || member.email, // fallback to email for pending
       },
     });
   };
