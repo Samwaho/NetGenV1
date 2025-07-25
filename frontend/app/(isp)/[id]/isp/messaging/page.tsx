@@ -30,6 +30,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { sanitizePhoneNumber } from "@/lib/utils";
 
 // Define interfaces for the data structures
 interface Customer {
@@ -206,12 +207,18 @@ export default function MessagingPage() {
       return;
     }
     
+    // Sanitize the phone number before sending
+    const sanitizedNumber = sanitizePhoneNumber(manualNumber);
+    if (!sanitizedNumber) {
+      toast.error("Invalid phone number after formatting");
+      return;
+    }
     try {
       // Send to manually entered number
       const { data, errors } = await sendSms({
         variables: {
           organizationId,
-          to: manualNumber,
+          to: sanitizedNumber,
           message
         }
       });

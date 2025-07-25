@@ -147,4 +147,18 @@ export function formatExpirationDate(date: string | Date | null | undefined): st
   }
 }
 
+/**
+ * Sanitizes a phone number by removing spaces and non-digit characters except for the leading '+'.
+ * Ensures the number is in a format suitable for SMS sending.
+ * @param phone The input phone number string
+ * @returns The sanitized phone number string
+ */
+export function sanitizePhoneNumber(phone: string): string {
+  if (!phone) return "";
+  // Remove all spaces and non-digit characters except leading +
+  return phone
+    .replace(/\s+/g, "") // Remove all spaces
+    .replace(/(?!^)[^\d]/g, ""); // Remove non-digits except leading +
+}
+
 
