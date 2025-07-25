@@ -814,40 +814,60 @@ class OrganizationResolver:
         if not user_role or OrganizationPermission.MANAGE_MEMBERS.value not in user_role["permissions"]:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-        # Check if member exists
+        # Check if member exists (active or pending)
         member_to_remove = next((member for member in organization["members"] 
-                               if str(member["userId"]) == user_id 
-                               and member["status"] == OrganizationMemberStatus.ACTIVE.value), None)
+                               if (str(member["userId"]) == user_id or member["userId"] == user_id)
+                               and member["status"] in [OrganizationMemberStatus.ACTIVE.value, OrganizationMemberStatus.PENDING.value]), None)
         if not member_to_remove:
             raise HTTPException(status_code=404, detail="Member not found")
 
-        # Prevent removing the owner
-        if organization["ownerId"] == ObjectId(user_id):
+        # Prevent removing the owner (only applies to active members with ObjectId)
+        if member_to_remove["status"] == OrganizationMemberStatus.ACTIVE.value and organization["ownerId"] == ObjectId(user_id):
             raise HTTPException(status_code=403, detail="Cannot remove organization owner")
 
         # Remove member from organization
-        await organizations.update_one(
-            {"_id": ObjectId(organization_id)},
-            {
-                "$pull": {
-                    "members": {
-                        "userId": ObjectId(user_id),
-                        "status": OrganizationMemberStatus.ACTIVE.value
-                    }
-                },
-                "$set": {"updatedAt": datetime.now(timezone.utc)}
-            }
-        )
+        if member_to_remove["status"] == OrganizationMemberStatus.PENDING.value and isinstance(member_to_remove["userId"], str):
+            # Remove pending invite by email
+            await organizations.update_one(
+                {"_id": ObjectId(organization_id)},
+                {
+                    "$pull": {
+                        "members": {
+                            "userId": user_id,
+                            "status": OrganizationMemberStatus.PENDING.value
+                        }
+                    },
+                    "$set": {"updatedAt": datetime.now(timezone.utc)}
+                }
+            )
+        else:
+            # Remove active member by ObjectId
+            await organizations.update_one(
+                {"_id": ObjectId(organization_id)},
+                {
+                    "$pull": {
+                        "members": {
+                            "userId": ObjectId(user_id),
+                            "status": OrganizationMemberStatus.ACTIVE.value
+                        }
+                    },
+                    "$set": {"updatedAt": datetime.now(timezone.utc)}
+                }
+            )
 
-        # Remove organization from user's organizations list
-        await users.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$pull": {"organizations": str(organization_id)}}
-        )
+        # Remove organization from user's organizations list (only for active members with ObjectId)
+        if member_to_remove["status"] == OrganizationMemberStatus.ACTIVE.value and not isinstance(member_to_remove["userId"], str):
+            await users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$pull": {"organizations": str(organization_id)}}
+            )
 
-        # Get member's name for activity log
-        member_user = await users.find_one({"_id": ObjectId(user_id)})
-        member_name = f"{member_user['firstName']} {member_user['lastName']}" if member_user else user_id
+        # Get member's name for activity log (try to fetch if ObjectId, else use email)
+        member_name = user_id
+        if member_to_remove["status"] == OrganizationMemberStatus.ACTIVE.value and not isinstance(member_to_remove["userId"], str):
+            member_user = await users.find_one({"_id": ObjectId(user_id)})
+            if member_user:
+                member_name = f"{member_user.get('firstName', '')} {member_user.get('lastName', '')}".strip() or user_id
 
         # Record activity
         await record_activity(
