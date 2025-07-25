@@ -72,12 +72,4 @@ def send_payment_reminder_sms():
 #         'task': 'app.tasks.scheduler.send_payment_reminder_sms',
 #         'schedule': 3600,  # every hour
 #     },
-# }
-
-# Note: Session management (online/offline status) is now handled by the RADIUS server
-# in radius/app/routes.py, which provides real-time session tracking and automatic
-# termination of expired users.
-
-# Run celery worker and beat instead.
-# celery -A app.tasks.scheduler worker --loglevel=info
-# celery -A app.tasks.scheduler beat --loglevel=info 
+# } 
