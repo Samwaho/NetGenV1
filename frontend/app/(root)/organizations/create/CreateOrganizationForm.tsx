@@ -22,8 +22,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { ImageUpload } from "@/components/ui/image-upload";
-import { UploadcareWidget } from "@/components/ui/uploadcare-widget";
 import { SimpleImageUpload } from "@/components/ui/simple-image-upload";
 
 const formSchema = z.object({

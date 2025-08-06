@@ -34,9 +34,9 @@ import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ImageUpload } from "@/components/ui/image-upload";
-import { UploadcareWidget } from "@/components/ui/uploadcare-widget";
 import { SimpleImageUpload } from "@/components/ui/simple-image-upload";
+import { hasOrganizationPermissions } from "@/lib/permission-utils";
+import { OrganizationPermissions } from "@/lib/permissions";
 
 const formSchema = z.object({
   name: z.string()
@@ -184,6 +184,11 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
   };
 
   const isOwner = organization.owner.id === currentUserId;
+  const canManageOrganization = hasOrganizationPermissions(
+    organization,
+    currentUserId,
+    OrganizationPermissions.MANAGE_ORGANIZATION
+  );
 
   return (
     <div className="space-y-6">
@@ -204,7 +209,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                     <FormControl>
                       <Input
                         placeholder="Enter organization name"
-                        disabled={loading || !isOwner}
+                        disabled={loading || !canManageOrganization}
                         {...field}
                       />
                     </FormControl>
@@ -223,7 +228,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <Textarea
                         placeholder="Enter organization description"
                         className="min-h-[100px] resize-none"
-                        disabled={loading || !isOwner}
+                        disabled={loading || !canManageOrganization}
                         {...field}
                       />
                     </FormControl>
@@ -250,7 +255,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="contact@organization.com"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -268,7 +273,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="+1234567890"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -286,7 +291,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="https://www.organization.com"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -301,7 +306,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Timezone</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={loading || !isOwner}>
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={loading || !canManageOrganization}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select timezone" />
@@ -334,7 +339,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                     <FormControl>
                       <Input
                         placeholder="123 Main Street"
-                        disabled={loading || !isOwner}
+                        disabled={loading || !canManageOrganization}
                         {...field}
                       />
                     </FormControl>
@@ -353,7 +358,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="City"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -371,7 +376,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="State"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -389,7 +394,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="Country"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -407,7 +412,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="12345"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -435,7 +440,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="Legal business name"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -453,7 +458,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="Tax identification number"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -471,7 +476,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="Business registration number"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -489,7 +494,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="e.g., Technology, Healthcare"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -504,7 +509,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Business Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={loading || !isOwner}>
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={loading || !canManageOrganization}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select business type" />
@@ -533,7 +538,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           type="date"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           value={field.value || ""}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
@@ -555,7 +560,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                         <Input
                           type="number"
                           placeholder="Number of employees"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           value={field.value || ""}
                           onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                           onBlur={field.onBlur}
@@ -576,7 +581,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                       <FormControl>
                         <Input
                           placeholder="e.g., $1M - $10M"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           {...field}
                         />
                       </FormControl>
@@ -598,7 +603,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                           onChange={field.onChange}
                           label="Logo"
                           placeholder="Upload logo"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           showPreview={true}
                           maxSize={5} // 5MB for logo
                         />
@@ -619,7 +624,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                           onChange={field.onChange}
                           label="Banner"
                           placeholder="Upload banner"
-                          disabled={loading || !isOwner}
+                          disabled={loading || !canManageOrganization}
                           showPreview={true}
                           maxSize={10} // 10MB for banner
                         />
@@ -638,7 +643,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
               <CardTitle className="text-xl font-semibold">Tags</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {isOwner && (
+              {canManageOrganization && (
                 <div className="flex gap-2">
                   <Input
                     placeholder="Add a tag"
@@ -658,7 +663,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
                 {form.watch("tags")?.map((tag, index) => (
                   <Badge key={index} variant="secondary" className="flex items-center gap-1">
                     {tag}
-                    {isOwner && (
+                    {canManageOrganization && (
                       <button
                         type="button"
                         onClick={() => removeTag(tag)}
@@ -674,7 +679,7 @@ export const DetailsTab = ({ organization, currentUserId }: DetailsTabProps) => 
             </CardContent>
           </Card>
 
-          {isOwner && (
+          {canManageOrganization && (
             <div className="flex justify-end pt-4">
               <Button
                 type="submit"
