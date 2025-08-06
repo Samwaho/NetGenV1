@@ -2,6 +2,7 @@
 
 import { Loader2, Users, TrendingUp, Signal, Wifi, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter, useParams } from "next/navigation";
 
 // Types for the component
 interface ISPCustomer {
@@ -41,6 +42,10 @@ const EmptyState = () => (
 );
 
 export function CustomerStats({ customers }: CustomerStatsProps) {
+  const router = useRouter();
+  const params = useParams();
+  const organizationId = params.id as string;
+
   if (customers.length === 0) return <EmptyState />;
 
   const totalCustomers = customers.length;
@@ -82,7 +87,7 @@ export function CustomerStats({ customers }: CustomerStatsProps) {
             {totalCustomers}
           </div>
           {expiringNextWeek > 0 && (
-            <div className="flex items-center gap-1 text-chart-4">
+            <div className="flex items-center gap-1 text-chart-4 cursor-pointer hover:underline" onClick={() => router.push(`/${organizationId}/isp/customers?stat=expiring`)}>
               <Signal className="h-4 w-4" />
               <span className="text-xs font-medium">
                 {expiringNextWeek} expiring soon
@@ -91,12 +96,12 @@ export function CustomerStats({ customers }: CustomerStatsProps) {
           )}
         </div>
         <div className="flex items-center justify-between mt-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 cursor-pointer hover:underline text-xs text-muted-foreground" onClick={() => router.push(`/${organizationId}/isp/customers?stat=active`)}>
             <div className={cn(
               "h-2 w-2 rounded-full",
               activeCustomers > 0 ? "bg-chart-3" : "bg-muted"
             )} />
-            <span className="text-xs text-muted-foreground">
+            <span>
               {activeCustomers} active now
             </span>
           </div>
@@ -107,7 +112,10 @@ export function CustomerStats({ customers }: CustomerStatsProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div className="flex items-center gap-2 p-2 border rounded-lg bg-card">
+        <div
+          className="flex items-center gap-2 p-2 border rounded-lg bg-card cursor-pointer hover:bg-muted transition-colors"
+          onClick={() => router.push(`/${organizationId}/isp/customers?stat=online`)}
+        >
           <div className="p-1.5 bg-chart-3/20 rounded-full">
             <Wifi className="h-3.5 w-3.5 text-chart-3" />
           </div>
@@ -116,7 +124,10 @@ export function CustomerStats({ customers }: CustomerStatsProps) {
             <p className="text-xs text-muted-foreground truncate">{onlineCustomers} users</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 p-2 border rounded-lg bg-card">
+        <div
+          className="flex items-center gap-2 p-2 border rounded-lg bg-card cursor-pointer hover:bg-muted transition-colors"
+          onClick={() => router.push(`/${organizationId}/isp/customers?stat=offline`)}
+        >
           <div className="p-1.5 bg-secondary/20 rounded-full">
             <WifiOff className="h-3.5 w-3.5 text-secondary-foreground" />
           </div>
@@ -125,7 +136,10 @@ export function CustomerStats({ customers }: CustomerStatsProps) {
             <p className="text-xs text-muted-foreground truncate">{totalCustomers - onlineCustomers} users</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 p-2 border rounded-lg bg-card">
+        <div
+          className="flex items-center gap-2 p-2 border rounded-lg bg-card cursor-pointer hover:bg-muted transition-colors"
+          onClick={() => router.push(`/${organizationId}/isp/customers?stat=expired`)}
+        >
           <div className="p-1.5 bg-destructive/20 rounded-full">
             <Signal className="h-3.5 w-3.5 text-destructive" />
           </div>

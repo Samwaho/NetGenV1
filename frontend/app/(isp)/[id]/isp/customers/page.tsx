@@ -128,6 +128,14 @@ export default function CustomersPage() {
   const [selectedStat, setSelectedStat] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
+  // On mount, set selectedStat from ?stat= query param if present
+  useEffect(() => {
+    const statParam = searchParams.get("stat");
+    if (statParam && ["online", "active", "expired", "total", "offline", "expiring"].includes(statParam)) {
+      setSelectedStat(statParam);
+    }
+  }, [searchParams]);
+
   // Update URL when filter options change - use replace instead of push to avoid history stack
   useEffect(() => {
     const params = new URLSearchParams();
@@ -209,8 +217,21 @@ export default function CustomersPage() {
     if (selectedStat === "online") {
       return customers.filter(c => c.online);
     }
+    if (selectedStat === "offline") {
+      return customers.filter(c => !c.online);
+    }
     if (selectedStat === "expired") {
       return customers.filter(c => c.expirationDate && new Date(c.expirationDate) < new Date());
+    }
+    if (selectedStat === "expiring") {
+      const today = new Date();
+      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      return customers.filter(
+        c => c.expirationDate && 
+             new Date(c.expirationDate) <= nextWeek && 
+             new Date(c.expirationDate) > today &&
+             c.status === "ACTIVE"
+      );
     }
     return customers;
   }, [customers, selectedStat]);
@@ -372,7 +393,9 @@ export default function CustomersPage() {
                 {selectedStat === "total" && "Showing all customers"}
                 {selectedStat === "active" && "Filtering: Active Customers"}
                 {selectedStat === "online" && "Filtering: Online Customers"}
+                {selectedStat === "offline" && "Filtering: Offline Customers"}
                 {selectedStat === "expired" && "Filtering: Expired Customers"}
+                {selectedStat === "expiring" && "Filtering: Expiring Soon"}
               </Badge>
               <button
                 className="ml-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
