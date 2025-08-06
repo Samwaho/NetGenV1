@@ -54,7 +54,7 @@ def create_celery_app() -> Celery:
             },
             'mark-expired-customers': {
                 'task': 'app.tasks.scheduler.mark_expired_customers',
-                'schedule': 86400,  # every day
+                'schedule': 3600,  # every hour
             },
         },
     )
