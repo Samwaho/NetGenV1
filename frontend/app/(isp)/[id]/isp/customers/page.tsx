@@ -37,7 +37,7 @@ interface CustomersQueryResponse {
       total: number;
       active: number;
       online: number;
-      inactive: number;
+      expired: number;
     };
   }
 }
@@ -179,17 +179,18 @@ export default function CustomersPage() {
   // Calculate statistics using useMemo to avoid recalculation on rerenders
   const stats = useMemo(() => {
     const orgStats = data?.customers.stats;
-    const customersOnPage = customers.length;
+    // Calculate expired customers from the customers array if not provided by backend
+    const expiredCustomers = customers.filter(c => c.expirationDate && new Date(c.expirationDate) < new Date()).length;
     return {
       totalCustomers: orgStats?.total ?? 0,
       activeCustomers: orgStats?.active ?? 0,
       onlineCustomers: orgStats?.online ?? 0,
-      inactiveCustomers: orgStats?.inactive ?? 0,
+      expiredCustomers: orgStats?.expired ?? expiredCustomers,
       activePercentage: orgStats && orgStats.total > 0 ? `${((orgStats.active / orgStats.total) * 100).toFixed(1)}% of all` : 'No customers',
       onlinePercentage: orgStats && orgStats.total > 0 ? `${((orgStats.online / orgStats.total) * 100).toFixed(1)}% of all` : 'No customers',
-      inactivePercentage: orgStats && orgStats.total > 0 ? `${((orgStats.inactive / orgStats.total) * 100).toFixed(1)}% of all` : 'No customers',
+      expiredPercentage: (orgStats && orgStats.total > 0 ? `${(((orgStats.expired ?? expiredCustomers) / orgStats.total) * 100).toFixed(1)}% of all` : 'No customers'),
     };
-  }, [data?.customers.stats]);
+  }, [data?.customers.stats, customers]);
 
   // Show loading state while checking permissions
   if (userLoading || orgLoading) {
@@ -306,9 +307,9 @@ export default function CustomersPage() {
             />
 
             <StatsCard
-              title="Inactive Customers"
-              value={stats.inactiveCustomers}
-              percentage={stats.inactivePercentage}
+              title="Expired Customers"
+              value={stats.expiredCustomers}
+              percentage={stats.expiredPercentage}
               icon={<UserX className="h-4 w-4 text-red-500" />}
               color="text-red-500"
             />
