@@ -44,13 +44,17 @@ def create_celery_app() -> Celery:
         task_acks_late=True,
 
         # Result backend settings
-        result_expires=3600,  # 1 hour
+        result_expires=86400,  # 1 day
 
         # Beat schedule
         beat_schedule={
             'send-payment-reminder-sms': {
                 'task': 'app.tasks.scheduler.send_payment_reminder_sms',
                 'schedule': 86400,  # once a day (in seconds)
+            },
+            'mark-expired-customers': {
+                'task': 'app.tasks.scheduler.mark_expired_customers',
+                'schedule': 86400,  # every day
             },
         },
     )

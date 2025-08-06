@@ -64,6 +64,36 @@ def send_payment_reminder_sms():
         loop.run_until_complete(main())
 
 
+@celery_app.task
+def mark_expired_customers():
+    """Mark customers as EXPIRED if their expirationDate is due and status is not already EXPIRED."""
+    async def main():
+        now = datetime.now(timezone.utc)
+        # Find customers whose expirationDate is in the past and status is not EXPIRED
+        customers = await isp_customers.find({
+            "expirationDate": {"$lt": now},
+            "status": {"$ne": IspManagerCustomerStatus.EXPIRED.value}
+        }).to_list(None)
+        logger.info(f"[Expiry Scheduler] Customers to expire: {len(customers)}")
+        for customer in customers:
+            try:
+                await isp_customers.update_one(
+                    {"_id": customer["_id"]},
+                    {"$set": {"status": IspManagerCustomerStatus.EXPIRED.value}}
+                )
+                logger.info(f"[Expiry Scheduler] Marked customer {customer.get('username', customer.get('phone', 'N/A'))} as EXPIRED.")
+            except Exception as e:
+                logger.error(f"[Expiry Scheduler] Failed to expire customer {customer.get('username', customer.get('phone', 'N/A'))}: {e}")
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    if loop.is_running():
+        asyncio.ensure_future(main())
+    else:
+        loop.run_until_complete(main())
+
 
 # To schedule these tasks periodically, use Celery Beat.
 # Example celery beat schedule (add to your celery config):

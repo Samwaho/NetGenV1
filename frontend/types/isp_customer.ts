@@ -18,7 +18,7 @@ export interface ISPCustomer {
     name: string;
   };
   expirationDate: string;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "INACTIVE" | "EXPIRED";
   online: boolean;
   createdAt: string;
   updatedAt: string;
@@ -84,5 +84,5 @@ export interface UpdateISPCustomerInput {
   packageId?: string;
   stationId?: string;
   expirationDate?: string;
-  status?: "ACTIVE" | "INACTIVE";
+  status?: "ACTIVE" | "INACTIVE" | "EXPIRED";
 } 
