@@ -131,6 +131,7 @@ export default function EditCustomerPage() {
     {
       variables: { organizationId },
       fetchPolicy: "cache-first",
+      nextFetchPolicy: "cache-and-network", // Always try to update from network after first load
     }
   );
   

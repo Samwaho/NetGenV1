@@ -129,7 +129,7 @@ export default function CreateCustomerPage() {
     {
       variables: { organizationId },
       fetchPolicy: "cache-first", // Use cache if available
-      nextFetchPolicy: "cache-only", // Don't refetch after initial load
+      nextFetchPolicy: "cache-and-network", // Always try to update from network after first load
     }
   );
   
