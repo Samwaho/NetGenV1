@@ -15,7 +15,8 @@ import { useUser } from "@/hooks/useUser";
 import { useOrganization } from "@/hooks/useOrganization";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 import { OrganizationPermissions } from "@/lib/permissions";
-import { useMemo, memo, ReactElement, useState, useCallback, useEffect } from "react";
+import { useMemo, memo, ReactElement, useState, useCallback, useEffect, useRef } from "react";
+import { Badge } from "@/components/ui/badge";
 
 // Define the props type for StatsCard
 interface StatsCardProps {
@@ -43,8 +44,11 @@ interface CustomersQueryResponse {
 }
 
 // Memoized stats card component to prevent unnecessary re-renders
-const StatsCard = memo(({ title, value, percentage, icon, color }: StatsCardProps) => (
-  <Card className="shadow-sm">
+const StatsCard = memo(({ title, value, percentage, icon, color, selected }: StatsCardProps & { selected?: boolean }) => (
+  <Card className="shadow-sm relative">
+    {selected && (
+      <Badge className="absolute top-2 right-2 z-10 text-xs" variant="default">Selected</Badge>
+    )}
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-xs sm:text-sm font-medium">
         {title}
@@ -120,6 +124,10 @@ export default function CustomersPage() {
     search
   }));
 
+  // State for selected stat filter
+  const [selectedStat, setSelectedStat] = useState<string | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+
   // Update URL when filter options change - use replace instead of push to avoid history stack
   useEffect(() => {
     const params = new URLSearchParams();
@@ -191,6 +199,21 @@ export default function CustomersPage() {
       expiredPercentage: (orgStats && orgStats.total > 0 ? `${(((orgStats.expired ?? expiredCustomers) / orgStats.total) * 100).toFixed(1)}% of all` : 'No customers'),
     };
   }, [data?.customers.stats, customers]);
+
+  // Filter customers based on selected stat
+  const filteredCustomers = useMemo(() => {
+    if (!selectedStat || selectedStat === "total") return customers;
+    if (selectedStat === "active") {
+      return customers.filter(c => c.status === "ACTIVE" && (!c.expirationDate || new Date(c.expirationDate) >= new Date()));
+    }
+    if (selectedStat === "online") {
+      return customers.filter(c => c.online);
+    }
+    if (selectedStat === "expired") {
+      return customers.filter(c => c.expirationDate && new Date(c.expirationDate) < new Date());
+    }
+    return customers;
+  }, [customers, selectedStat]);
 
   // Show loading state while checking permissions
   if (userLoading || orgLoading) {
@@ -282,42 +305,88 @@ export default function CustomersPage() {
       ) : (
         <>
           <div className="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
-            <StatsCard
-              title="Total Customers"
-              value={stats.totalCustomers}
-              percentage="Registered customers"
-              icon={<Users className="h-4 w-4 text-muted-foreground" />}
-              color=""
-            />
-
-            <StatsCard
-              title="Active Customers"
-              value={stats.activeCustomers}
-              percentage={stats.activePercentage}
-              icon={<UserCheck className="h-4 w-4 text-green-500" />}
-              color="text-green-500"
-            />
-
-            <StatsCard
-              title="Online Now"
-              value={stats.onlineCustomers}
-              percentage={stats.onlinePercentage}
-              icon={<Wifi className="h-4 w-4 text-blue-500" />}
-              color="text-blue-500"
-            />
-
-            <StatsCard
-              title="Expired Customers"
-              value={stats.expiredCustomers}
-              percentage={stats.expiredPercentage}
-              icon={<UserX className="h-4 w-4 text-red-500" />}
-              color="text-red-500"
-            />
+            <div onClick={() => {
+              setSelectedStat(selectedStat === "total" ? null : "total");
+              setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+            }}
+              className={"cursor-pointer transition-colors rounded-xl hover:bg-muted"}
+            >
+              <StatsCard
+                title="Total Customers"
+                value={stats.totalCustomers}
+                percentage="Registered customers"
+                icon={<Users className="h-4 w-4 text-muted-foreground" />}
+                color=""
+                selected={selectedStat === "total"}
+              />
+            </div>
+            <div onClick={() => {
+              setSelectedStat(selectedStat === "active" ? null : "active");
+              setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+            }}
+              className={"cursor-pointer transition-colors rounded-xl hover:bg-muted"}
+            >
+              <StatsCard
+                title="Active Customers"
+                value={stats.activeCustomers}
+                percentage={stats.activePercentage}
+                icon={<UserCheck className="h-4 w-4 text-green-500" />}
+                color="text-green-500"
+                selected={selectedStat === "active"}
+              />
+            </div>
+            <div onClick={() => {
+              setSelectedStat(selectedStat === "online" ? null : "online");
+              setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+            }}
+              className={"cursor-pointer transition-colors rounded-xl hover:bg-muted"}
+            >
+              <StatsCard
+                title="Online Now"
+                value={stats.onlineCustomers}
+                percentage={stats.onlinePercentage}
+                icon={<Wifi className="h-4 w-4 text-blue-500" />}
+                color="text-blue-500"
+                selected={selectedStat === "online"}
+              />
+            </div>
+            <div onClick={() => {
+              setSelectedStat(selectedStat === "expired" ? null : "expired");
+              setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+            }}
+              className={"cursor-pointer transition-colors rounded-xl hover:bg-muted"}
+            >
+              <StatsCard
+                title="Expired Customers"
+                value={stats.expiredCustomers}
+                percentage={stats.expiredPercentage}
+                icon={<UserX className="h-4 w-4 text-red-500" />}
+                color="text-red-500"
+                selected={selectedStat === "expired"}
+              />
+            </div>
           </div>
-          <div className="overflow-x-auto p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
+          {selectedStat && (
+            <div className="flex items-center gap-2 mt-2 mb-2">
+              <Badge variant="outline" className="text-xs px-3 py-1">
+                {selectedStat === "total" && "Showing all customers"}
+                {selectedStat === "active" && "Filtering: Active Customers"}
+                {selectedStat === "online" && "Filtering: Online Customers"}
+                {selectedStat === "expired" && "Filtering: Expired Customers"}
+              </Badge>
+              <button
+                className="ml-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                onClick={() => setSelectedStat(null)}
+                aria-label="Clear filter"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+          <div ref={tableRef} className="overflow-x-auto p-2 sm:p-4 bg-card rounded-2xl shadow-md dark:border">
             <DataTable 
               columns={columns(canManageCustomers)} 
-              data={customers}
+              data={filteredCustomers}
               totalCount={totalCount}
               filterOptions={filterOptions}
               onFilterChange={handleFilterChange}
