@@ -2,7 +2,10 @@ export enum TransactionType {
   CUSTOMER_PAYMENT = "customer_payment",
   HOTSPOT_VOUCHER = "hotspot_voucher",
   STK_PUSH = "stk_push",
-  C2B = "c2b"
+  C2B = "c2b",
+  KOPOKOPO_BUYGOODS = "kopokopo_buygoods",
+  KOPOKOPO_B2B = "kopokopo_b2b",
+  KOPOKOPO_SETTLEMENT = "kopokopo_settlement"
 }
 
 export interface ISPTransaction {

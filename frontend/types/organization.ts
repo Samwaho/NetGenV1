@@ -26,6 +26,24 @@ export interface MpesaConfig {
   updatedAt?: string;
 }
 
+export interface KopoKopoConfig {
+  isActive: boolean;
+  clientId?: string;
+  clientSecret?: string;
+  environment?: 'sandbox' | 'production';
+  businessName?: string;
+  tillNumber?: string;
+  webhookSecret?: string;
+  buygoodsCallbackUrl?: string;
+  b2bCallbackUrl?: string;
+  settlementCallbackUrl?: string;
+  customerCreatedCallbackUrl?: string;
+  defaultCurrency?: string;
+  defaultNetwork?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface SmsConfig {
   provider?: string;
   isActive: boolean;
@@ -70,6 +88,8 @@ export interface OrganizationBusiness {
   socialMedia?: Record<string, any>;
 }
 
+export type PaymentMethod = 'MPESA' | 'KOPOKOPO';
+
 export interface Organization {
   id: string;
   name: string;
@@ -101,7 +121,9 @@ export interface Organization {
   }>;
   status: string;
   mpesaConfig?: MpesaConfig;
+  kopokopoConfig?: KopoKopoConfig;
   smsConfig?: SmsConfig;
+  paymentMethod?: PaymentMethod;
   
   // New robust fields
   contact?: OrganizationContact;

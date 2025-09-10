@@ -25,6 +25,12 @@ const CUSTOMER_RELATED_FIELDS = gql`
     package {
       id
       name
+      price
+      description
+      duration
+      durationUnit
+      dataLimit
+      dataLimitUnit
     }
     station {
       id

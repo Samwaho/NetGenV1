@@ -16,7 +16,8 @@ import { Separator } from "@/components/ui/separator";
 import { hasOrganizationPermissions } from "@/lib/permission-utils";
 import { OrganizationPermissions } from "@/lib/permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, AlertCircle } from "lucide-react";
+import { isPaymentMethodActive, PaymentMethod } from "@/lib/payment-utils";
 
 interface MpesaTabProps {
   organization: Organization;
@@ -127,7 +128,7 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
     }
   };
 
-  const isActive = watch("isActive");
+  const isMpesaActive = isPaymentMethodActive(organization, 'MPESA' as PaymentMethod);
 
   return (
     <div className="space-y-6">
@@ -140,6 +141,20 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
         </div>
       </div>
 
+      {isMpesaActive && (
+        <div className="bg-green-50 border border-green-200 p-4 rounded-md">
+          <div className="flex gap-2">
+            <InfoIcon className="h-5 w-5 text-green-500" />
+            <div>
+              <h3 className="font-medium text-green-800">Mpesa is Active</h3>
+              <p className="text-green-700 text-sm">
+                Mpesa is currently the active payment method for this organization.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-blue-50 border border-blue-200 p-4 rounded-md">
         <div className="flex gap-2">
           <InfoIcon className="h-5 w-5 text-blue-500" />
@@ -147,6 +162,19 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
             <h3 className="font-medium text-blue-800">Information</h3>
             <p className="text-blue-700 text-sm">
               Callback URLs will be automatically generated for you when you save the configuration.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
+        <div className="flex gap-2">
+          <AlertCircle className="h-5 w-5 text-amber-500" />
+          <div>
+            <h3 className="font-medium text-amber-800">Payment Method Management</h3>
+            <p className="text-amber-700 text-sm">
+              To activate Mpesa as your payment method, use the Payment Method selector in the main organization settings. 
+              This configuration only sets up the Mpesa integration details.
             </p>
           </div>
         </div>
@@ -168,23 +196,6 @@ export const MpesaTab = ({ organization, organizationId, currentUserId }: MpesaT
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between space-x-2">
-                  <Label htmlFor="isActive" className="flex flex-col space-y-1">
-                    <span>Enable Mpesa Integration</span>
-                    <span className="font-normal text-xs text-muted-foreground">
-                      When enabled, your organization can receive payments via Mpesa
-                    </span>
-                  </Label>
-                  <Switch
-                    id="isActive"
-                    checked={isActive}
-                    onCheckedChange={(checked) => setValue("isActive", checked)}
-                    disabled={!canManageMpesa}
-                  />
-                </div>
-
-                <Separator />
-
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="shortCode">Paybill/Till Number <span className="text-red-500">*</span></Label>

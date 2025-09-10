@@ -290,8 +290,8 @@
             document.getElementById('mpesa-payment').style.display = 'block';
         }
 
-        // Handle Mpesa voucher purchase
-        async function purchaseVoucherMpesa() {
+        // Handle voucher purchase with unified payment endpoint
+        async function purchaseVoucher() {
             const packageId = localStorage.getItem('selectedPackageId');
             const orgId = getOrgId();
             const phoneInput = document.getElementById('mpesa-phone');
@@ -302,7 +302,7 @@
             loadingDiv.style.display = 'block';
 
             if (!phoneNumber) {
-                errorDiv.textContent = 'Please enter your Mpesa phone number.';
+                errorDiv.textContent = 'Please enter your phone number.';
                 loadingDiv.style.display = 'none';
                 return;
             }
@@ -335,7 +335,12 @@
                 document.getElementById('mpesa-payment').style.display = 'none';
                 document.getElementById('voucher-result').style.display = 'block';
                 document.getElementById('voucher-code').textContent = 'Waiting for payment confirmation...';
-                document.getElementById('voucher-expiry').textContent = 'Please check your phone to complete the Mpesa payment.';
+                
+                // Show payment method specific message
+                const paymentMethod = data.paymentMethod || 'payment';
+                const paymentMethodName = paymentMethod === 'mpesa' ? 'M-Pesa' : 
+                                        paymentMethod === 'kopokopo' ? 'KopoKopo' : 'payment';
+                document.getElementById('voucher-expiry').textContent = `Please check your phone to complete the ${paymentMethodName} payment.`;
                 
                 // Start polling for payment status
                 pollPaymentStatus(data.voucherId, data.voucherCode);
@@ -356,7 +361,7 @@
                     const response = await fetch(`${getApiUrl()}/api/hotspot/voucher-status/${voucherId}`);
                     const data = await response.json();
                     
-                    if (data.status === 'active') {
+                    if (data.voucher && data.voucher.status === 'active') {
                         // Payment successful, attempt automatic connection
                         document.getElementById('voucher-code').textContent = voucherCode;
                         document.getElementById('voucher-expiry').textContent = 'Payment successful! Attempting to connect...';
@@ -666,16 +671,16 @@
                 
                 <!-- Payment Options Section -->
                 <div id="mpesa-payment" style="display: none;">
-                    <h2>Pay with Mpesa</h2>
+                    <h2>Complete Payment</h2>
                     <div class="mpesa-form">
                         <div class="form-group">
-                            <label for="mpesa-phone">Mpesa Phone Number:</label>
+                            <label for="mpesa-phone">Phone Number:</label>
                             <div class="input-wrapper">
                                 <span class="input-icon">📱</span>
                                 <input type="tel" id="mpesa-phone" placeholder="e.g. 07XXXXXXXX or 2547XXXXXXXX" maxlength="13" />
                             </div>
                         </div>
-                        <button onclick="purchaseVoucherMpesa()" class="primary-btn">
+                        <button onclick="purchaseVoucher()" class="primary-btn">
                             <span class="icon">💳</span>
                             Pay & Get Voucher
                         </button>

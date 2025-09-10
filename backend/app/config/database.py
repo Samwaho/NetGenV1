@@ -25,6 +25,8 @@ isp_customer_payments = db.isp_customer_payments
 isp_inventories = db.isp_inventories
 isp_tickets = db.isp_tickets
 isp_mpesa_transactions = db.isp_mpesa_transactions
+isp_kopokopo_transactions = db.isp_kopokopo_transactions
+payment_references = db.payment_references
 sms_templates = db.sms_templates
 hotspot_vouchers = db.hotspot_vouchers
 

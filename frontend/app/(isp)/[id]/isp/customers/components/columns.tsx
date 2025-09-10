@@ -2,7 +2,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ISPCustomer } from "@/types/isp_customer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Loader2, CreditCard } from "lucide-react";
+import { MoreHorizontal, Loader2, CreditCard, ExternalLink } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,8 @@ import { DELETE_ISP_CUSTOMER } from "@/graphql/isp_customers";
 import { toast } from "sonner";
 import { useState, memo } from "react";
 import { ManualPaymentModal } from "./ManualPaymentModal";
+import { PaymentLinkGenerator } from "@/components/PaymentLinkGenerator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Separate component for actions cell
 const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCustomer; canManageCustomers: boolean }) => {
@@ -25,6 +27,7 @@ const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCusto
   const organizationId = params.id as string;
   const [isDeleting, setIsDeleting] = useState(false);
   const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
+  const [paymentLinkOpen, setPaymentLinkOpen] = useState(false);
   
   const [deleteCustomer] = useMutation(DELETE_ISP_CUSTOMER, {
     update: (cache) => {
@@ -102,6 +105,13 @@ const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCusto
                 Manual Payment
               </DropdownMenuItem>
               <DropdownMenuItem
+                onClick={() => setPaymentLinkOpen(true)}
+                className="gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Send Payment Link
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={() => router.push(`/${organizationId}/isp/customers/${customer.id}/edit`)}
                 onMouseEnter={prefetchEdit}
               >
@@ -125,6 +135,23 @@ const ActionsCell = memo(({ customer, canManageCustomers }: { customer: ISPCusto
         open={manualPaymentOpen}
         onOpenChange={setManualPaymentOpen}
       />
+      
+      <Dialog open={paymentLinkOpen} onOpenChange={setPaymentLinkOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Generate Payment Link for {customer.firstName} {customer.lastName}</DialogTitle>
+          </DialogHeader>
+          <PaymentLinkGenerator
+            organizationId={organizationId}
+            customerId={customer.id}
+            customerName={`${customer.firstName} ${customer.lastName}`}
+            onLinkGenerated={(link) => {
+              setPaymentLinkOpen(false);
+            }}
+            disableDialog={true}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 });

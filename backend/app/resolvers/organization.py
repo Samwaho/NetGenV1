@@ -12,7 +12,10 @@ from app.schemas.organization import (
     OrganizationMember,
     MpesaConfigurationInput,
     SmsConfigurationInput,
-    parse_organization_datetimes
+    KopoKopoConfigurationInput,
+    parse_organization_datetimes,
+    PaymentMethodInput,
+    PaymentMethodType
 )
 from app.schemas.enums import OrganizationStatus, OrganizationMemberStatus, OrganizationPermission
 from app.schemas.user import User
@@ -29,6 +32,7 @@ import json
 from app.services.sms.template import SmsTemplateService
 from app.services.sms.default_templates import DEFAULT_SMS_TEMPLATES
 from app.schemas.sms_template import TemplateCategory
+from app.api.kopokopo import KopoKopoService
 
 logger = logging.getLogger(__name__)
 
@@ -39,21 +43,9 @@ def organizations_cache_key(user_id: str) -> str:
     return f"organizations:{user_id}"
 
 @strawberry.type
-class OrganizationResolver:
-
+class OrganizationQuery:
     @strawberry.field
-    async def organization(self, id: str, info: strawberry.Info) -> Organization:
-        context : Context = info.context
-        current_user = await context.authenticate()
-
-        """Get organization by ID"""
-        organization = await organizations.find_one({"_id": ObjectId(id)})
-        if not organization:
-            raise HTTPException(status_code=404, detail="Organization not found")
-        return await Organization.from_db(organization)
-
-    @strawberry.field
-    async def organizations(self, info: strawberry.Info) -> OrganizationsResponse:
+    async def organizations(self, info) -> OrganizationsResponse:
         """Get all organizations for current user"""
         context = info.context
         current_user = await context.authenticate()
@@ -71,6 +63,19 @@ class OrganizationResolver:
             organizations=orgs
         )
 
+    @strawberry.field
+    async def organization(self, id: str, info: strawberry.Info) -> Organization:
+        context : Context = info.context
+        current_user = await context.authenticate()
+
+        """Get organization by ID"""
+        organization = await organizations.find_one({"_id": ObjectId(id)})
+        if not organization:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        return await Organization.from_db(organization)
+
+@strawberry.type
+class OrganizationMutation:
     @strawberry.mutation
     async def create_organization(self, input: CreateOrganizationInput, info: strawberry.Info) -> OrganizationResponse:
         """Create a new organization"""
@@ -113,6 +118,9 @@ class OrganizationResolver:
                     OrganizationPermission.VIEW_MPESA_CONFIG.value,
                     OrganizationPermission.MANAGE_MPESA_CONFIG.value,
                     OrganizationPermission.VIEW_MPESA_TRANSACTIONS.value,
+                    OrganizationPermission.VIEW_KOPOKOPO_CONFIG.value,
+                    OrganizationPermission.MANAGE_KOPOKOPO_CONFIG.value,
+                    OrganizationPermission.VIEW_KOPOKOPO_TRANSACTIONS.value,
                     OrganizationPermission.VIEW_SMS_CONFIG.value,
                     OrganizationPermission.MANAGE_SMS_CONFIG.value,
                     OrganizationPermission.VIEW_CUSTOMER_PAYMENTS.value,
@@ -173,6 +181,24 @@ class OrganizationResolver:
                 "senderId": None,
                 "callbackUrl": None,
                 "environment": "sandbox",
+                "createdAt": datetime.now(timezone.utc),
+                "updatedAt": datetime.now(timezone.utc)
+            },
+            "kopokopoConfig": {
+                "clientId": None,
+                "clientSecret": None,
+                "isActive": False,
+                "environment": "sandbox",
+                "businessName": None,
+                "tillNumber": None,
+                "webhookSecret": None,
+                "webhookUrl": None,
+                "callbackUrl": None,
+                "buygoodsCallbackUrl": None,
+                "b2bCallbackUrl": None,
+                "settlementCallbackUrl": None,
+                "defaultCurrency": "KES",
+                "defaultNetwork": "SAFARICOM",
                 "createdAt": datetime.now(timezone.utc),
                 "updatedAt": datetime.now(timezone.utc)
             },
@@ -1066,6 +1092,205 @@ class OrganizationResolver:
         return OrganizationResponse(
             success=True,
             message=f"SMS configuration updated successfully for provider {input.provider}",
+            organization=await Organization.from_db(updated_org)
+        )
+
+    @strawberry.mutation
+    async def update_kopokopo_configuration(self, organization_id: str, input: KopoKopoConfigurationInput, info: strawberry.Info) -> OrganizationResponse:
+        """Update KopoKopo configuration for an organization"""
+        context = info.context
+        current_user = await context.authenticate()
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        organization = await organizations.find_one({"_id": ObjectId(organization_id)})
+        if not organization:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        # Check if user has permission to update organization
+        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
+        if not user_member:
+            raise HTTPException(status_code=403, detail="Not a member of this organization")
+
+        user_role = next((role for role in organization["roles"] if role["name"] == user_member["roleName"]), None)
+        if not user_role or OrganizationPermission.MANAGE_KOPOKOPO_CONFIG.value not in user_role["permissions"]:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        
+        # Create KopoKopo configuration
+        kopokopo_config = {
+            "clientId": input.clientId,
+            "clientSecret": input.clientSecret,
+            "isActive": input.isActive,
+            "environment": input.environment,
+            "businessName": input.businessName,
+            "tillNumber": input.tillNumber,
+            "webhookSecret": input.webhookSecret,
+            "defaultCurrency": input.defaultCurrency,
+            "defaultNetwork": input.defaultNetwork,
+            "updatedAt": datetime.now(timezone.utc)
+        }
+        
+        # Generate callback URLs
+        base_url = settings.API_URL
+        kopokopo_config["callbackUrl"] = f"{base_url}/api/payments/kopokopo/callback/{organization_id}"
+        kopokopo_config["buygoodsCallbackUrl"] = f"{base_url}/api/payments/kopokopo/callback/{organization_id}/buygoods"
+        kopokopo_config["b2bCallbackUrl"] = f"{base_url}/api/payments/kopokopo/callback/{organization_id}/b2b"
+        kopokopo_config["settlementCallbackUrl"] = f"{base_url}/api/payments/kopokopo/callback/{organization_id}/settlement"
+        kopokopo_config["webhookUrl"] = f"{base_url}/api/payments/kopokopo/webhook/{organization_id}"
+        
+        # Preserve creation date if it exists
+        if organization.get("kopokopoConfig") and organization["kopokopoConfig"].get("createdAt"):
+            kopokopo_config["createdAt"] = organization["kopokopoConfig"]["createdAt"]
+        else:
+            kopokopo_config["createdAt"] = datetime.now(timezone.utc)
+
+        # Update organization with KopoKopo configuration
+        await organizations.update_one(
+            {"_id": ObjectId(organization_id)},
+            {
+                "$set": {
+                    "kopokopoConfig": kopokopo_config,
+                    "updatedAt": datetime.now(timezone.utc)
+                }
+            }
+        )
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"updated KopoKopo configuration for the organization"
+        )
+
+        # Try to automatically register webhooks with KopoKopo API
+        webhook_registration_result = False
+        registration_message = ""
+        if input.clientId and input.clientSecret:
+            try:
+                from app.api.kopokopo import KopoKopoService
+                
+                logger.info(f"Starting KopoKopo webhook registration for org {organization_id}")
+                logger.info(f"Client ID: {input.clientId[:8]}...")
+                logger.info(f"Environment: {input.environment or 'sandbox'}")
+                
+                # Get access token
+                access_token = await KopoKopoService.get_access_token(
+                    input.clientId,
+                    input.clientSecret,
+                    input.environment or "sandbox"
+                )
+                
+                logger.info(f"Access token: {access_token}")
+                if access_token:
+                    # Register webhooks
+                    webhook_registration_result = await KopoKopoService.create_webhook_subscription(
+                        organization_id,
+                        input.clientId,
+                        access_token,
+                        input.environment or "sandbox",
+                        input.tillNumber
+                    )
+                    logger.info(f"Webhook registration result: {webhook_registration_result}")
+                    
+                    if webhook_registration_result:
+                        registration_message = " and webhooks registered with KopoKopo"
+                        # Add activity for successful registration
+                        await record_activity(
+                            current_user.id,
+                            ObjectId(organization_id),
+                            "registered KopoKopo webhooks"
+                        )
+                    else:
+                        registration_message = " but webhook registration failed"
+                else:
+                    registration_message = " but couldn't obtain KopoKopo token"
+            except Exception as e:
+                logger.error(f"Error registering KopoKopo webhooks: {str(e)}")
+                registration_message = f" but webhook registration failed: {str(e)}"
+        elif not input.clientId or not input.clientSecret:
+            registration_message = " (webhook registration requires credentials)"
+
+        updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
+        return OrganizationResponse(
+            success=True,
+            message="KopoKopo configuration updated successfully" + registration_message,
+            organization=await Organization.from_db(updated_org)
+        )
+
+    @strawberry.mutation
+    async def set_payment_method(self, organization_id: str, input: PaymentMethodInput, info: strawberry.Info) -> OrganizationResponse:
+        """Set the active payment method for an organization."""
+        context = info.context
+        current_user = await context.authenticate()
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        organization = await organizations.find_one({"_id": ObjectId(organization_id)})
+        if not organization:
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        # Check if user has permission to manage payment methods
+        user_member = next((member for member in organization["members"] if member["userId"] == current_user.id), None)
+        if not user_member:
+            raise HTTPException(status_code=403, detail="Not a member of this organization")
+
+        user_role = next((role for role in organization["roles"] if role["name"] == user_member["roleName"]), None)
+        if not user_role:
+            raise HTTPException(status_code=403, detail="User role not found")
+
+        # Determine required permission based on the payment method
+        required_permission = None
+        if input.paymentMethod == PaymentMethodType.MPESA:
+            required_permission = OrganizationPermission.MANAGE_MPESA_CONFIG
+        elif input.paymentMethod == PaymentMethodType.KOPOKOPO:
+            required_permission = OrganizationPermission.MANAGE_KOPOKOPO_CONFIG
+        elif input.paymentMethod == PaymentMethodType.SMS:
+            required_permission = OrganizationPermission.MANAGE_SMS_CONFIG
+
+        if not required_permission or required_permission not in user_role["permissions"]:
+            raise HTTPException(status_code=403, detail="Insufficient permissions to manage this payment method")
+
+        # Verify the payment method is configured (but not necessarily active yet)
+        if input.paymentMethod == PaymentMethodType.MPESA:
+            if not organization.get("mpesaConfig"):
+                raise HTTPException(status_code=400, detail="M-Pesa is not configured")
+        elif input.paymentMethod == PaymentMethodType.KOPOKOPO:
+            if not organization.get("kopokopoConfig"):
+                raise HTTPException(status_code=400, detail="KopoKopo is not configured")
+        elif input.paymentMethod == PaymentMethodType.SMS:
+            if not organization.get("smsConfig"):
+                raise HTTPException(status_code=400, detail="SMS is not configured")
+
+        # Update payment method and automatically activate it
+        update_data = {
+            "paymentMethod": input.paymentMethod.value,
+            "updatedAt": datetime.now(timezone.utc)
+        }
+
+        # Automatically activate the selected payment method
+        if input.paymentMethod == PaymentMethodType.MPESA:
+            update_data["mpesaConfig.isActive"] = True
+        elif input.paymentMethod == PaymentMethodType.KOPOKOPO:
+            update_data["kopokopoConfig.isActive"] = True
+        elif input.paymentMethod == PaymentMethodType.SMS:
+            update_data["smsConfig.isActive"] = True
+
+        await organizations.update_one(
+            {"_id": ObjectId(organization_id)},
+            {"$set": update_data}
+        )
+
+        # Record activity
+        await record_activity(
+            current_user.id,
+            ObjectId(organization_id),
+            f"set payment method to {input.paymentMethod.name}"
+        )
+
+        updated_org = await organizations.find_one({"_id": ObjectId(organization_id)})
+        return OrganizationResponse(
+            success=True,
+            message=f"Payment method updated successfully to {input.paymentMethod.name}",
             organization=await Organization.from_db(updated_org)
         )
 

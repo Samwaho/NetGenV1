@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import field
+from enum import Enum
 from app.config.database import users
 from app.schemas.enums import OrganizationPermission, OrganizationStatus, OrganizationMemberStatus
 from app.schemas.user import User
@@ -156,6 +157,41 @@ class SmsConfiguration:
     updatedAt: Optional[datetime] = None
 
 @strawberry.type
+class KopoKopoConfiguration:
+    """KopoKopo payment gateway configuration"""
+    clientId: Optional[str] = None  # KopoKopo client ID
+    clientSecret: Optional[str] = None  # KopoKopo client secret
+    isActive: bool = False
+    environment: Optional[str] = "sandbox"  # sandbox or production
+    baseUrl: Optional[str] = None  # Base URL for API calls
+    
+    # Business information
+    businessName: Optional[str] = None
+    tillNumber: Optional[str] = None  # Till number for receiving payments
+    
+    # Webhook configuration
+    webhookSecret: Optional[str] = None  # Secret for webhook signature validation
+    webhookUrl: Optional[str] = None  # Generated webhook URL
+    
+    # Callback URLs - generated automatically
+    callbackUrl: Optional[str] = None  # General callback
+    buygoodsCallbackUrl: Optional[str] = None
+    b2bCallbackUrl: Optional[str] = None
+    settlementCallbackUrl: Optional[str] = None
+    
+    # Transaction configuration
+    defaultCurrency: Optional[str] = "KES"
+    defaultNetwork: Optional[str] = "SAFARICOM"  # Default mobile money network
+    
+    createdAt: Optional[datetime] = None
+    updatedAt: Optional[datetime] = None
+
+@strawberry.enum
+class PaymentMethodType(Enum):
+    MPESA = "MPESA"
+    KOPOKOPO = "KOPOKOPO"
+
+@strawberry.type
 class Organization:
     id: str
     name: str
@@ -166,6 +202,8 @@ class Organization:
     status: OrganizationStatus
     mpesaConfig: Optional[MpesaConfiguration] = None
     smsConfig: Optional[SmsConfiguration] = None
+    kopokopoConfig: Optional[KopoKopoConfiguration] = None
+    paymentMethod: Optional[PaymentMethodType] = None  # Single active payment method
     
     # New robust fields
     contact: Optional[OrganizationContact] = None
@@ -196,6 +234,8 @@ class Organization:
             updated_at = organization.get("updatedAt")
             mpesa_config = organization.get("mpesaConfig")
             sms_config = organization.get("smsConfig")
+            kopokopo_config = organization.get("kopokopoConfig")
+            payment_method = organization.get("paymentMethod")
             contact = organization.get("contact")
             business = organization.get("business")
             tags = organization.get("tags", [])
@@ -213,6 +253,8 @@ class Organization:
             updated_at = organization.updatedAt
             mpesa_config = getattr(organization, "mpesaConfig", None)
             sms_config = getattr(organization, "smsConfig", None)
+            kopokopo_config = getattr(organization, "kopokopoConfig", None)
+            payment_method = getattr(organization, "paymentMethod", None)
             contact = getattr(organization, "contact", None)
             business = getattr(organization, "business", None)
             tags = getattr(organization, "tags", [])
@@ -294,6 +336,29 @@ class Organization:
                 updatedAt=sms_config.get("updatedAt")
             )
 
+        # Process KopoKopo configuration
+        kopokopo_configuration = None
+        if kopokopo_config:
+            kopokopo_configuration = KopoKopoConfiguration(
+                clientId=kopokopo_config.get("clientId"),
+                clientSecret=kopokopo_config.get("clientSecret"),
+                isActive=kopokopo_config.get("isActive", False),
+                environment=kopokopo_config.get("environment", "sandbox"),
+                baseUrl=kopokopo_config.get("baseUrl"),
+                businessName=kopokopo_config.get("businessName"),
+                tillNumber=kopokopo_config.get("tillNumber"),
+                webhookSecret=kopokopo_config.get("webhookSecret"),
+                webhookUrl=kopokopo_config.get("webhookUrl"),
+                callbackUrl=kopokopo_config.get("callbackUrl"),
+                buygoodsCallbackUrl=kopokopo_config.get("buygoodsCallbackUrl"),
+                b2bCallbackUrl=kopokopo_config.get("b2bCallbackUrl"),
+                settlementCallbackUrl=kopokopo_config.get("settlementCallbackUrl"),
+                defaultCurrency=kopokopo_config.get("defaultCurrency", "KES"),
+                defaultNetwork=kopokopo_config.get("defaultNetwork", "SAFARICOM"),
+                createdAt=kopokopo_config.get("createdAt"),
+                updatedAt=kopokopo_config.get("updatedAt")
+            )
+
         # Process contact information
         contact_info = None
         if contact:
@@ -340,6 +405,8 @@ class Organization:
             status=status,
             mpesaConfig=mpesa_configuration,
             smsConfig=sms_configuration,
+            kopokopoConfig=kopokopo_configuration,
+            paymentMethod=PaymentMethodType(payment_method) if payment_method else None,
             contact=contact_info,
             business=business_info,
             tags=tags,
@@ -429,6 +496,23 @@ class SmsConfigurationInput:
     password: Optional[str] = None  # For Zettatel
     msgType: Optional[str] = None  # For Zettatel (text or unicode)
     # Callback URL will be generated by the server
+
+@strawberry.input
+class KopoKopoConfigurationInput:
+    clientId: str
+    clientSecret: str
+    isActive: bool = True
+    environment: Optional[str] = "sandbox"
+    businessName: Optional[str] = None
+    tillNumber: Optional[str] = None
+    webhookSecret: Optional[str] = None
+    defaultCurrency: Optional[str] = "KES"
+    defaultNetwork: Optional[str] = "SAFARICOM"
+    # Callback URLs will be generated by the server
+
+@strawberry.input
+class PaymentMethodInput:
+    paymentMethod: PaymentMethodType
 
 def parse_organization_datetimes(obj):
     # Recursively convert createdAt/updatedAt fields from str to datetime in any dict

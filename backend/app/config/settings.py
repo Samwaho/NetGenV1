@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     MPESA_INITIATOR_NAME: str = os.getenv("MPESA_INITIATOR_NAME")
     MPESA_INITIATOR_PASSWORD: str = os.getenv("MPESA_INITIATOR_PASSWORD")
 
+    # KopoKopo Settings (Global defaults - organizations can override)
+    KOPOKOPO_SANDBOX_URL: str = os.getenv("KOPOKOPO_SANDBOX_URL", "https://sandbox.kopokopo.com")
+    KOPOKOPO_PRODUCTION_URL: str = os.getenv("KOPOKOPO_PRODUCTION_URL", "https://kopokopo.com")
+
+    # Payment Link Settings
+    PAYMENT_LINK_EXPIRY_HOURS: int = int(os.getenv("PAYMENT_LINK_EXPIRY_HOURS", "24"))
+    PAYMENT_LINK_DOMAIN: str = os.getenv("PAYMENT_LINK_DOMAIN", "")  # Optional override for payment links
+
     # Google OAuth Settings
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET")

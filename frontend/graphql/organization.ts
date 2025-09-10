@@ -96,6 +96,17 @@ export const ORGANIZATION_FRAGMENT = gql`
       createdAt
       updatedAt
     }
+    kopokopoConfig {
+      clientId
+      clientSecret
+      environment
+      isActive
+      webhookSecret
+      baseUrl
+      createdAt
+      updatedAt
+    }
+    paymentMethod
     tags
     customFields
     metadata
@@ -604,6 +615,59 @@ export const UPDATE_SMS_CONFIGURATION = gql`
   }
 `;
 
+export const UPDATE_KOPOKOPO_CONFIGURATION = gql`
+  mutation UpdateKopoKopoConfiguration(
+    $organizationId: String!,
+    $input: KopoKopoConfigurationInput!
+  ) {
+    updateKopokopoConfiguration(
+      organizationId: $organizationId,
+      input: $input
+    ) {
+      success
+      message
+      organization {
+        id
+        kopokopoConfig {
+          clientId
+          clientSecret
+          environment
+          isActive
+          webhookSecret
+          baseUrl
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
+export const SET_PAYMENT_METHOD = gql`
+  mutation SetPaymentMethod(
+    $organizationId: String!,
+    $input: PaymentMethodInput!
+  ) {
+    setPaymentMethod(
+      organizationId: $organizationId,
+      input: $input
+    ) {
+      success
+      message
+      organization {
+        id
+        paymentMethod
+        mpesaConfig {
+          isActive
+        }
+        kopokopoConfig {
+          isActive
+        }
+      }
+    }
+  }
+`;
+
 export interface UpdateMemberResponse {
   updateMember: {
     success: boolean;
@@ -665,6 +729,42 @@ export interface UpdateSmsConfigurationVariables {
 
 export interface UpdateSmsConfigurationResponse {
   updateSmsConfiguration: {
+    success: boolean;
+    message: string;
+    organization: Organization;
+  };
+}
+
+export interface UpdateKopoKopoConfigurationVariables {
+  organizationId: string;
+  input: {
+    clientId: string;
+    clientSecret: string;
+    environment: string;
+    businessName?: string;
+    tillNumber?: string;
+    isActive: boolean;
+    webhookSecret?: string;
+  };
+}
+
+export interface UpdateKopoKopoConfigurationResponse {
+  updateKopokopoConfiguration: {
+    success: boolean;
+    message: string;
+    organization: Organization;
+  };
+}
+
+export interface SetPaymentMethodVariables {
+  organizationId: string;
+  input: {
+    paymentMethod: 'MPESA' | 'KOPOKOPO';
+  };
+}
+
+export interface SetPaymentMethodResponse {
+  setPaymentMethod: {
     success: boolean;
     message: string;
     organization: Organization;

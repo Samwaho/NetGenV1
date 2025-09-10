@@ -6,7 +6,7 @@ from app.config.database import connect_to_database, close_database_connection
 from app.config.settings import settings
 from app.config.deps import get_context
 from app.resolvers.auth import AuthResolver
-from app.resolvers.organization import OrganizationResolver
+from app.resolvers.organization import OrganizationQuery, OrganizationMutation
 from app.resolvers.plan import PlanResolver
 from app.resolvers.subscription import SubscriptionResolver
 from app.resolvers.activity import ActivityResolver
@@ -20,13 +20,14 @@ from app.resolvers.isp_customer_payments import ISPCustomerPaymentResolver
 from app.resolvers.isp_transactions import ISPTransactionResolver
 from app.resolvers.sms import SMSResolver
 from app.resolvers.sms_template import SmsTemplateResolver
-from app.api import mpesa, sms, hotspot, organizations
+from app.resolvers.payment_links import PaymentLinkQuery, PaymentLinkMutation
+from app.api import mpesa, kopokopo, sms, hotspot, organizations, payment_links
 from app.resolvers.dashboard import DashboardResolver
 
 @strawberry.type
 class Query(
     AuthResolver, 
-    OrganizationResolver, 
+    OrganizationQuery, 
     PlanResolver, 
     SubscriptionResolver,
     ActivityResolver,
@@ -39,6 +40,7 @@ class Query(
     ISPCustomerPaymentResolver,
     ISPTransactionResolver,
     SmsTemplateResolver,
+    PaymentLinkQuery,
     DashboardResolver
 ):
     pass
@@ -46,7 +48,7 @@ class Query(
 @strawberry.type
 class Mutation(
     AuthResolver, 
-    OrganizationResolver, 
+    OrganizationMutation, 
     PlanResolver, 
     SubscriptionResolver,
     ActivityResolver,
@@ -59,7 +61,8 @@ class Mutation(
     ISPCustomerPaymentResolver,
     ISPTransactionResolver,
     SMSResolver,
-    SmsTemplateResolver
+    SmsTemplateResolver,
+    PaymentLinkMutation
 ):
     pass
 
@@ -96,6 +99,8 @@ app.include_router(organizations.router, prefix="/api/organizations", tags=["org
 
 # Payment API routes
 app.include_router(mpesa.router, prefix="/api/payments", tags=["payments"])
+app.include_router(kopokopo.router, prefix="/api/payments/kopokopo", tags=["kopokopo"])
+# Payment links are now handled via GraphQL
 
 # SMS API routes
 app.include_router(sms.router, prefix="/api/sms", tags=["sms"])

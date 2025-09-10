@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
-from app.config.database import organizations, isp_packages, hotspot_vouchers
+from app.config.database import organizations, isp_packages, hotspot_vouchers, isp_mpesa_transactions, isp_kopokopo_transactions
 from bson.objectid import ObjectId
 import logging
 from datetime import datetime, timezone, timedelta
@@ -16,7 +16,6 @@ from app.api.mpesa import MpesaService
 from app.services.sms.template import SmsTemplateService
 from app.services.sms.utils import send_sms_for_organization
 from app.schemas.sms_template import TemplateCategory
-from app.config.database import isp_mpesa_transactions
 from app.schemas.isp_transactions import TransactionType, TransactionStatus
 
 logger = logging.getLogger(__name__)
@@ -100,91 +99,69 @@ def calculate_expiry_date(start_date: datetime, package: Dict[str, Any]) -> date
 async def get_hotspot_packages(organization_id: str = Query(..., description="Organization ID")):
     """
     Get available hotspot packages for an organization
-    
-    This endpoint returns all active packages that can be displayed
-    in a hotspot captive portal for a specific organization.
     """
     try:
-        # Verify organization exists
+        # Validate organization exists
         organization = await organizations.find_one({"_id": ObjectId(organization_id)})
         if not organization:
             raise HTTPException(status_code=404, detail="Organization not found")
         
-        # Get packages for this organization
-        cursor = isp_packages.find({
+        # Get packages that are available for hotspot
+        packages = await isp_packages.find({
             "organizationId": ObjectId(organization_id),
-            "showInHotspot": True
-        })
+            "showInHotspot": True,
+            "isActive": True
+        }).to_list(length=None)
         
-        # Convert to list and format for frontend
-        packages = []
-        async for package in cursor:
-            packages.append({
-                "id": str(package["_id"]),
-                "name": package.get("name", ""),
-                "description": package.get("description", ""),
-                "price": package.get("price", 0),
-                "duration": package.get("duration", 0),
-                "durationUnit": package.get("durationUnit", "days"),
-                "dataLimit": package.get("dataLimit", 0),
-                "dataLimitUnit": package.get("dataLimitUnit", "MB"),
-                "downloadSpeed": package.get("downloadSpeed", 0),
-                "uploadSpeed": package.get("uploadSpeed", 0),
-                "serviceType": package.get("serviceType", "HOTSPOT")
-            })
+        # Convert ObjectId to string for JSON serialization
+        for package in packages:
+            package["_id"] = str(package["_id"])
+            package["organizationId"] = str(package["organizationId"])
         
-        return JSONResponse(
-            content={"packages": packages},
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, OPTIONS",
-                "Access-Control-Allow-Headers": "Accept, Content-Type, Cache-Control",
-                "Access-Control-Expose-Headers": "Content-Length, Content-Range",
-                "Access-Control-Max-Age": "1728000"
-            }
-        )
-    
+        return {
+            "success": True,
+            "packages": packages
+        }
+        
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        logger.error(f"Error fetching hotspot packages: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch packages: {str(e)}")
+        logger.error(f"Error getting hotspot packages: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.options("/packages")
 async def options_packages():
-    """Handle OPTIONS request for packages endpoint"""
+    """Handle CORS preflight for packages endpoint"""
     return Response(
-        status_code=204,
+        status_code=200,
         headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Accept, Content-Type, Cache-Control",
-            "Access-Control-Max-Age": "1728000",
-            "Content-Type": "text/plain charset=UTF-8",
-            "Content-Length": "0"
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "86400"
         }
     )
 
 @router.options("/purchase-voucher")
 async def options_purchase_voucher():
-    """Handle OPTIONS request for purchase-voucher endpoint"""
+    """Handle CORS preflight for voucher purchase endpoint"""
     return Response(
         status_code=200,
         headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Max-Age": "1728000",
-            "Content-Type": "text/plain charset=UTF-8",
-            "Content-Length": "0"
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Max-Age": "86400"
         }
     )
 
 @router.post("/purchase-voucher")
-async def purchase_voucher_with_mpesa(request: Request):
+async def purchase_voucher(request: Request):
     """
-    Purchase a hotspot voucher using Mpesa STK Push
+    Purchase a hotspot voucher using the organization's active payment method
     
-    This endpoint initiates an STK push request and creates a pending voucher
-    that will be activated once payment is confirmed.
+    This endpoint automatically determines which payment method to use based on
+    the organization's paymentMethod field and routes to the appropriate processor.
     """
     try:
         data = await request.json()
@@ -212,257 +189,310 @@ async def purchase_voucher_with_mpesa(request: Request):
                 headers={"Access-Control-Allow-Origin": "*"}
             )
         
-        # Check if Mpesa is enabled for the organization
-        mpesa_config = organization.get("mpesaConfig", {})
-        if not mpesa_config.get("isActive"):
+        # Get active payment method
+        payment_method = organization.get("paymentMethod")
+        if not payment_method:
             return JSONResponse(
                 status_code=400,
-                content={"detail": "Mpesa integration not enabled for this organization"},
+                content={"detail": "No active payment method configured for this organization"},
                 headers={"Access-Control-Allow-Origin": "*"}
             )
         
-        package = await isp_packages.find_one({
-            "_id": ObjectId(package_id),
-            "organizationId": ObjectId(organization_id),
-            "showInHotspot": True
-        })
-        if not package:
-            raise HTTPException(status_code=404, detail="Package not found or not available for hotspot")
-        
-        # Generate voucher
-        voucher_code = generate_voucher_code()
-        now = datetime.now(timezone.utc)
-        expiry_date = calculate_expiry_date(now, package)
-        
-        voucher_data = {
-            "code": voucher_code,
-            "packageId": ObjectId(package_id),
-            "organizationId": ObjectId(organization_id),
-            "paymentMethod": "mpesa",
-            "paymentReference": None,
-            "status": "pending",
-            "createdAt": now,
-            "expiresAt": expiry_date,
-            "dataLimit": package.get("dataLimit"),
-            "dataLimitUnit": package.get("dataLimitUnit", "MB"),
-            "duration": package.get("duration"),
-            "durationUnit": package.get("durationUnit", "days"),
-            "phoneNumber": phone_number
-        }
-        
-        voucher_result = await hotspot_vouchers.insert_one(voucher_data)
-        voucher_id = str(voucher_result.inserted_id)
-        
-        # Get Mpesa configuration
-        environment = mpesa_config.get("environment", "sandbox")
-        shortcode = mpesa_config.get("stkPushShortCode") or mpesa_config.get("shortCode")
-        passkey = mpesa_config.get("stkPushPassKey") or mpesa_config.get("passKey")
-        consumer_key = mpesa_config.get("consumerKey")
-        consumer_secret = mpesa_config.get("consumerSecret")
-        
-        # Validate sandbox credentials
-        if environment == "sandbox":
-            if shortcode != SANDBOX_CREDENTIALS["shortcode"]:
-                logger.warning(f"Invalid sandbox shortcode: {shortcode}, using default: {SANDBOX_CREDENTIALS['shortcode']}")
-                shortcode = SANDBOX_CREDENTIALS["shortcode"]
-            if passkey != SANDBOX_CREDENTIALS["passkey"]:
-                logger.warning("Invalid sandbox passkey, using default")
-                passkey = SANDBOX_CREDENTIALS["passkey"]
-        
-        if not all([shortcode, passkey, consumer_key, consumer_secret]):
-            # Clean up the voucher if we can't proceed
-            await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
-            raise HTTPException(status_code=400, detail="Missing required Mpesa configuration")
-        
-        # Get access token
-        access_token = await get_mpesa_access_token(consumer_key, consumer_secret, environment)
-        
-        # Generate timestamp and password
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        password = base64.b64encode((shortcode + passkey + timestamp).encode()).decode()
-        
-        # Generate callback URL using the utility function
-        callback_url = mpesa_config.get("stkPushCallbackUrl") or MpesaService.generate_callback_url(organization_id, "stk_push")
-        
-        # Prepare STK Push payload according to Safaricom docs
-        stk_payload = {
-            "BusinessShortCode": shortcode,
-            "Password": password,
-            "Timestamp": timestamp,
-            "TransactionType": "CustomerPayBillOnline",  # Fixed value as per docs
-            "Amount": int(float(package["price"])),
-            "PartyA": phone_number,
-            "PartyB": shortcode,
-            "PhoneNumber": phone_number,
-            "CallBackURL": callback_url,
-            "AccountReference": voucher_code,
-            "TransactionDesc": f"Hotspot Voucher: {package['name']}"
-        }
-        
-        # Make STK Push request with proper headers
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-        
-        # Log the request for debugging
-        logger.info(f"=== STK PUSH INITIATION ===")
-        logger.info(f"Organization ID: {organization_id}")
-        logger.info(f"Package ID: {package_id}")
-        logger.info(f"Phone Number: {phone_number}")
-        logger.info(f"Amount: {package['price']}")
-        logger.info(f"Voucher Code: {voucher_code}")
-        logger.info(f"Callback URL: {callback_url}")
-        logger.info(f"Environment: {environment}")
-        logger.info(f"Request URL: {MPESA_URLS[environment]['stk_push']}")
-        logger.info(f"Request Headers: {json.dumps(headers, indent=2)}")
-        logger.info(f"Request Payload: {json.dumps(stk_payload, indent=2)}")
-        
-        stk_response = requests.post(
-            MPESA_URLS[environment]["stk_push"],
-            json=stk_payload,
-            headers=headers
-        )
-        
-        # Log the response for debugging
-        logger.info(f"=== STK PUSH RESPONSE ===")
-        logger.info(f"Status Code: {stk_response.status_code}")
-        try:
-            response_json = stk_response.json()
-            logger.info(f"Response Body: {json.dumps(response_json, indent=2)}")
-        except:
-            logger.error(f"Failed to parse response as JSON: {stk_response.text}")
-        
-        if stk_response.status_code != 200:
-            # Clean up the voucher if STK push fails
-            await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
-            error_msg = stk_response.text
-            try:
-                error_data = stk_response.json()
-                error_msg = error_data.get("errorMessage", error_msg)
-            except:
-                pass
-            raise HTTPException(status_code=500, detail=f"Failed to initiate STK push: {error_msg}")
-        
-        stk_result = stk_response.json()
-        
-        # Store transaction information with proper deduplication
-        merchant_request_id = stk_result.get("MerchantRequestID")
-        checkout_request_id = stk_result.get("CheckoutRequestID")
-
-        if not merchant_request_id or not checkout_request_id:
-            # Clean up the voucher if we can't track the transaction
-            await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
-            raise HTTPException(status_code=500, detail="Invalid STK Push response - missing identifiers")
-
-        # Check if transaction already exists (idempotency check)
-        # Only check for PENDING transactions to avoid blocking legitimate new purchases
-        existing_transaction = await isp_mpesa_transactions.find_one({
-            "organizationId": ObjectId(organization_id),
-            "merchantRequestId": merchant_request_id,
-            "checkoutRequestId": checkout_request_id,
-            "status": TransactionStatus.PENDING.value  # Only check pending transactions
-        })
-
-        if existing_transaction:
-            # Clean up the duplicate voucher since we have a pending transaction
-            await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
-            logger.info(f"Found pending STK Push transaction: {merchant_request_id}")
-
-            # Find the existing voucher for this transaction
-            existing_voucher = await hotspot_vouchers.find_one({
-                "organizationId": ObjectId(organization_id),
-                "code": existing_transaction.get("accountReference"),
-                "status": "pending"
-            })
-
-            if existing_voucher:
-                return {
-                    "success": True,
-                    "message": "Payment already initiated. Please check your phone to complete the transaction.",
-                    "voucherId": str(existing_voucher["_id"]),
-                    "voucherCode": existing_voucher["code"],
-                    "merchantRequestId": merchant_request_id,
-                    "checkoutRequestId": checkout_request_id,
-                    "existingTransaction": True
-                }
-            else:
-                # If no existing voucher found, clean up and allow new transaction
-                logger.warning(f"Pending transaction found but no voucher exists, cleaning up transaction: {merchant_request_id}")
-                await isp_mpesa_transactions.delete_one({"_id": existing_transaction["_id"]})
-
-        # Additional check for recent duplicate requests (same phone, amount, organization)
-        # This prevents rapid-fire duplicate requests but allows legitimate new purchases
-        recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=2)  # Reduced from 5 to 2 minutes
-        recent_transaction = await isp_mpesa_transactions.find_one({
-            "organizationId": ObjectId(organization_id),
-            "phoneNumber": phone_number,
-            "amount": float(package["price"]),
-            "status": TransactionStatus.PENDING.value,
-            "createdAt": {"$gte": recent_cutoff}
-        })
-
-        if recent_transaction:
-            # Clean up the duplicate voucher
-            await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
-            logger.info(f"Found recent pending transaction for same parameters")
-
-            # Find the existing voucher for this transaction
-            existing_voucher = await hotspot_vouchers.find_one({
-                "organizationId": ObjectId(organization_id),
-                "code": recent_transaction.get("accountReference"),
-                "status": "pending"
-            })
-
-            if existing_voucher:
-                return {
-                    "success": True,
-                    "message": "Recent transaction already pending. Please check your phone to complete the transaction.",
-                    "voucherId": str(existing_voucher["_id"]),
-                    "voucherCode": existing_voucher["code"],
-                    "merchantRequestId": recent_transaction.get("merchantRequestId"),
-                    "checkoutRequestId": recent_transaction.get("checkoutRequestId"),
-                    "existingTransaction": True
-                }
-
-        transaction_data = {
-            "organizationId": ObjectId(organization_id),
-            "transactionType": TransactionType.STK_PUSH.value,
-            "callbackType": "stk_push",
-            "status": TransactionStatus.PENDING.value,
-            "phoneNumber": phone_number,
-            "amount": float(package["price"]),
-            "accountReference": voucher_code,
-            "merchantRequestId": merchant_request_id,
-            "checkoutRequestId": checkout_request_id,
-            "createdAt": datetime.now(timezone.utc),
-            "updatedAt": datetime.now(timezone.utc),
-            "callbackUrl": callback_url,
-            "paymentMethod": "mpesa",
-            "initiatedAt": datetime.now(timezone.utc)
-        }
-
-        await isp_mpesa_transactions.insert_one(transaction_data)
-        
-        logger.info(f"=== STK PUSH TRANSACTION STORED ===")
-        logger.info(f"Transaction Data: {json.dumps(transaction_data, default=str, indent=2)}")
-        
-        return {
-            "success": True,
-            "message": "Payment initiated. Please check your phone to complete the transaction.",
-            "voucherId": voucher_id,
-            "voucherCode": voucher_code,
-            "merchantRequestId": stk_result.get("MerchantRequestID"),
-            "checkoutRequestId": stk_result.get("CheckoutRequestID")
-        }
+        # Route to appropriate payment processor based on active method
+        if payment_method == "MPESA":
+            return await process_mpesa_payment(organization, package_id, phone_number, organization_id)
+        elif payment_method == "KOPOKOPO":
+            return await process_kopokopo_payment(organization, package_id, phone_number, organization_id)
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": f"Unsupported payment method: {payment_method}"},
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
+            
     except HTTPException as he:
-        # Re-raise HTTP exceptions to maintain proper status codes
         raise he
     except Exception as e:
-        logger.error(f"Error purchasing voucher: {str(e)}")
+        logger.error(f"Error in voucher purchase: {str(e)}")
         logger.exception("Full traceback:")
-        # Always return a proper JSON response with 500 status
         raise HTTPException(status_code=500, detail=f"Error processing voucher purchase: {str(e)}")
+
+async def process_mpesa_payment(organization: dict, package_id: str, phone_number: str, organization_id: str):
+    """Process M-Pesa payment for hotspot voucher"""
+    # Check if Mpesa is enabled for the organization
+    mpesa_config = organization.get("mpesaConfig", {})
+    if not mpesa_config.get("isActive"):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Mpesa integration not enabled for this organization"},
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    
+    # Validate package
+    package = await isp_packages.find_one({
+        "_id": ObjectId(package_id),
+        "organizationId": ObjectId(organization_id),
+        "showInHotspot": True
+    })
+    if not package:
+        raise HTTPException(status_code=404, detail="Package not found or not available for hotspot")
+    
+    # Generate voucher
+    voucher_code = generate_voucher_code()
+    now = datetime.now(timezone.utc)
+    expiry_date = calculate_expiry_date(now, package)
+    
+    voucher_data = {
+        "code": voucher_code,
+        "packageId": ObjectId(package_id),
+        "organizationId": ObjectId(organization_id),
+        "paymentMethod": "mpesa",
+        "paymentReference": None,
+        "status": "pending",
+        "createdAt": now,
+        "expiresAt": expiry_date,
+        "dataLimit": package.get("dataLimit"),
+        "dataLimitUnit": package.get("dataLimitUnit", "MB"),
+        "duration": package.get("duration"),
+        "durationUnit": package.get("durationUnit", "days"),
+        "phoneNumber": phone_number
+    }
+    
+    voucher_result = await hotspot_vouchers.insert_one(voucher_data)
+    voucher_id = str(voucher_result.inserted_id)
+    
+    # Get Mpesa configuration
+    environment = mpesa_config.get("environment", "sandbox")
+    shortcode = mpesa_config.get("stkPushShortCode") or mpesa_config.get("shortCode")
+    passkey = mpesa_config.get("stkPushPassKey") or mpesa_config.get("passKey")
+    consumer_key = mpesa_config.get("consumerKey")
+    consumer_secret = mpesa_config.get("consumerSecret")
+    
+    # Validate sandbox credentials
+    if environment == "sandbox":
+        if shortcode != SANDBOX_CREDENTIALS["shortcode"]:
+            logger.warning(f"Invalid sandbox shortcode: {shortcode}, using default: {SANDBOX_CREDENTIALS['shortcode']}")
+            shortcode = SANDBOX_CREDENTIALS["shortcode"]
+        if passkey != SANDBOX_CREDENTIALS["passkey"]:
+            logger.warning("Invalid sandbox passkey, using default")
+            passkey = SANDBOX_CREDENTIALS["passkey"]
+    
+    if not all([shortcode, passkey, consumer_key, consumer_secret]):
+        # Clean up the voucher if we can't proceed
+        await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
+        raise HTTPException(status_code=400, detail="Missing required Mpesa configuration")
+    
+    # Get access token
+    access_token = await get_mpesa_access_token(consumer_key, consumer_secret, environment)
+    
+    # Generate timestamp and password
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    password = base64.b64encode((shortcode + passkey + timestamp).encode()).decode()
+    
+    # Generate callback URL using the utility function
+    callback_url = mpesa_config.get("stkPushCallbackUrl") or MpesaService.generate_callback_url(organization_id, "stk_push")
+    
+    # Prepare STK Push request
+    amount = package.get("price", 0)
+    stk_request = {
+        "BusinessShortCode": shortcode,
+        "Password": password,
+        "Timestamp": timestamp,
+        "TransactionType": "CustomerPayBillOnline",
+        "Amount": int(amount),
+        "PartyA": phone_number,
+        "PartyB": shortcode,
+        "PhoneNumber": phone_number,
+        "CallBackURL": callback_url,
+        "AccountReference": voucher_code,
+        "TransactionDesc": f"Hotspot voucher: {package.get('name', 'Internet Package')}"
+    }
+    
+    # Make STK Push request
+    stk_url = MPESA_URLS[environment]["stk_push"]
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    logger.info(f"STK Push Request - URL: {stk_url}")
+    logger.info(f"STK Push Request - Data: {stk_request}")
+    
+    response = requests.post(stk_url, json=stk_request, headers=headers)
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        logger.info(f"STK Push Response: {response_data}")
+        
+        if response_data.get("ResponseCode") == "0":
+            # Store M-Pesa transaction
+            transaction_data = {
+                "organizationId": ObjectId(organization_id),
+                "transactionType": TransactionType.STK_PUSH.value,
+                "amount": amount,
+                "phoneNumber": phone_number,
+                "shortCode": shortcode,
+                "checkoutRequestId": response_data.get("CheckoutRequestID"),
+                "merchantRequestId": response_data.get("MerchantRequestID"),
+                "accountReference": voucher_code,
+                "status": TransactionStatus.PENDING.value,
+                "voucherCode": voucher_code,
+                "packageId": str(package_id),
+                "packageName": package.get("name", ""),
+                "duration": package.get("duration", 0),
+                "dataLimit": package.get("dataLimit", 0),
+                "expiresAt": expiry_date,
+                "createdAt": now,
+                "updatedAt": now
+            }
+            
+            await isp_mpesa_transactions.insert_one(transaction_data)
+            
+            return {
+                "success": True,
+                "message": "Payment initiated. Please check your phone to complete the transaction.",
+                "voucherId": voucher_id,
+                "voucherCode": voucher_code,
+                "checkoutRequestId": response_data.get("CheckoutRequestID"),
+                "paymentMethod": "mpesa"
+            }
+        else:
+            # Clean up the voucher if STK Push failed
+            await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
+            error_msg = response_data.get("ResponseDescription", "STK Push failed")
+            return JSONResponse(
+                status_code=400,
+                content={"detail": error_msg},
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
+    else:
+        # Clean up the voucher if request failed
+        await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
+        error_msg = f"STK Push request failed: {response.text}"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": error_msg},
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+
+async def process_kopokopo_payment(organization: dict, package_id: str, phone_number: str, organization_id: str):
+    """Process KopoKopo payment for hotspot voucher"""
+    # Check if KopoKopo is enabled for the organization
+    kopokopo_config = organization.get("kopokopoConfig", {})
+    if not kopokopo_config.get("isActive"):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "KopoKopo integration not enabled for this organization"},
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    
+    # Validate package
+    package = await isp_packages.find_one({
+        "_id": ObjectId(package_id),
+        "organizationId": ObjectId(organization_id),
+        "showInHotspot": True
+    })
+    if not package:
+        raise HTTPException(status_code=404, detail="Package not found or not available for hotspot")
+    
+    # Generate voucher
+    voucher_code = generate_voucher_code()
+    now = datetime.now(timezone.utc)
+    expiry_date = calculate_expiry_date(now, package)
+    
+    voucher_data = {
+        "code": voucher_code,
+        "packageId": ObjectId(package_id),
+        "organizationId": ObjectId(organization_id),
+        "paymentMethod": "kopokopo",
+        "paymentReference": None,
+        "status": "pending",
+        "createdAt": now,
+        "expiresAt": expiry_date,
+        "dataLimit": package.get("dataLimit"),
+        "dataLimitUnit": package.get("dataLimitUnit", "MB"),
+        "duration": package.get("duration"),
+        "durationUnit": package.get("durationUnit", "days"),
+        "phoneNumber": phone_number
+    }
+    
+    voucher_result = await hotspot_vouchers.insert_one(voucher_data)
+    voucher_id = str(voucher_result.inserted_id)
+    
+    # Get KopoKopo configuration
+    environment = kopokopo_config.get("environment", "sandbox")
+    client_id = kopokopo_config.get("clientId")
+    client_secret = kopokopo_config.get("clientSecret")
+    till_number = kopokopo_config.get("tillNumber")
+    
+    if not all([client_id, client_secret, till_number]):
+        # Clean up the voucher if we can't proceed
+        await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
+        raise HTTPException(status_code=400, detail="Missing required KopoKopo configuration")
+    
+    # Get access token
+    from app.api.kopokopo import KopoKopoService
+    access_token = await KopoKopoService.get_access_token(client_id, client_secret, environment)
+    
+    if not access_token:
+        # Clean up the voucher if we can't get access token
+        await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
+        raise HTTPException(status_code=500, detail="Failed to get KopoKopo access token")
+    
+    # Create pay recipient
+    recipient_id = await KopoKopoService.create_pay_recipient(
+        organization_id, phone_number, access_token, environment
+    )
+    
+    if not recipient_id:
+        # Clean up the voucher if we can't create recipient
+        await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
+        raise HTTPException(status_code=500, detail="Failed to create KopoKopo pay recipient")
+    
+    # Initiate payment
+    amount = package.get("price", 0)
+    transfer_id = await KopoKopoService.initiate_payment(
+        organization_id, recipient_id, amount, access_token, environment
+    )
+    
+    if not transfer_id:
+        # Clean up the voucher if we can't initiate payment
+        await hotspot_vouchers.delete_one({"_id": ObjectId(voucher_id)})
+        raise HTTPException(status_code=500, detail="Failed to initiate KopoKopo payment")
+    
+    # Store KopoKopo transaction
+    transaction_data = {
+        "organizationId": ObjectId(organization_id),
+        "transactionType": TransactionType.KOPOKOPO_BUYGOODS.value,
+        "amount": amount,
+        "phoneNumber": phone_number,
+        "tillNumber": till_number,
+        "reference": f"VOUCHER_{voucher_code}",
+        "status": TransactionStatus.PENDING.value,
+        "transferId": transfer_id,
+        "recipientId": recipient_id,
+        "voucherCode": voucher_code,
+        "packageId": str(package_id),
+        "packageName": package.get("name", ""),
+        "duration": package.get("duration", 0),
+        "dataLimit": package.get("dataLimit", 0),
+        "expiresAt": expiry_date,
+        "createdAt": now,
+        "updatedAt": now
+    }
+    
+    await isp_kopokopo_transactions.insert_one(transaction_data)
+    
+    return {
+        "success": True,
+        "message": "Payment initiated. Please check your phone to complete the transaction.",
+        "voucherId": voucher_id,
+        "voucherCode": voucher_code,
+        "transferId": transfer_id,
+        "recipientId": recipient_id,
+        "paymentMethod": "kopokopo"
+    }
 
 async def process_hotspot_voucher_payment(organization_id: str, voucher_code: str, amount: float, transaction_id: str = None) -> bool:
     """Process a payment for a hotspot voucher"""
@@ -527,104 +557,62 @@ async def process_hotspot_voucher_payment(organization_id: str, voucher_code: st
                 voucher_update_data = {
                     "updatedAt": now,
                     "voucherCode": voucher_code,
-                    "packageId": str(voucher["packageId"]),
+                    "packageId": str(package["_id"]),
                     "packageName": package.get("name", ""),
                     "duration": package.get("duration", 0),
                     "dataLimit": package.get("dataLimit", 0),
-                    "expiresAt": voucher.get("expiresAt"),
-                    "voucherActivatedAt": now,
-                    "callbackType": "hotspot_voucher"  # Update callback type to reflect final state
+                    "expiresAt": voucher["expiresAt"]
                 }
-
+                
                 await isp_mpesa_transactions.update_one(
                     {"_id": stk_transaction["_id"]},
                     {"$set": voucher_update_data}
                 )
-                logger.info(f"Updated STK Push transaction with voucher details for {voucher_code}")
+                logger.info(f"Updated existing STK Push transaction with voucher details")
             else:
-                logger.warning(f"No matching STK Push transaction found for voucher {voucher_code}")
-                # Only create a new transaction if we can't find the original STK Push transaction
-                transaction_data = {
+                # Create a fallback transaction if the original STK Push transaction is not found
+                fallback_transaction = {
                     "organizationId": ObjectId(organization_id),
-                    "transactionType": TransactionType.HOTSPOT_VOUCHER.value,
-                    "callbackType": "hotspot_voucher",
-                    "status": TransactionStatus.COMPLETED.value,
+                    "transactionType": TransactionType.STK_PUSH.value,
                     "amount": amount,
                     "phoneNumber": voucher.get("phoneNumber"),
-                    "paymentMethod": "mpesa",
-                    "transactionId": transaction_id,
-                    "createdAt": now,
-                    "updatedAt": now,
+                    "shortCode": "HOTSPOT",
+                    "checkoutRequestId": transaction_id or f"FALLBACK_{voucher_code}",
+                    "merchantRequestId": f"FALLBACK_{voucher_code}",
+                    "accountReference": voucher_code,
+                    "status": TransactionStatus.COMPLETED.value,
                     "voucherCode": voucher_code,
-                    "packageId": str(voucher["packageId"]),
+                    "packageId": str(package["_id"]),
                     "packageName": package.get("name", ""),
                     "duration": package.get("duration", 0),
                     "dataLimit": package.get("dataLimit", 0),
-                    "expiresAt": voucher.get("expiresAt")
+                    "expiresAt": voucher["expiresAt"],
+                    "createdAt": now,
+                    "updatedAt": now
                 }
+                
+                await isp_mpesa_transactions.insert_one(fallback_transaction)
+                logger.info(f"Created fallback transaction for voucher {voucher_code}")
 
-                await isp_mpesa_transactions.insert_one(transaction_data)
-                logger.info(f"Created fallback transaction record for voucher {voucher_code}")
-            
             # Send SMS notification
             try:
-                template_result = await SmsTemplateService.list_templates(
+                sms_message = f"Your hotspot voucher {voucher_code} has been activated! Package: {package.get('name', 'Internet Package')}, Duration: {package.get('duration', 0)} {package.get('durationUnit', 'days')}, Data: {package.get('dataLimit', 0)} {package.get('dataLimitUnit', 'MB')}. Expires: {voucher['expiresAt'].strftime('%Y-%m-%d %H:%M')}"
+                
+                await send_sms_for_organization(
                     organization_id=organization_id,
-                    category=TemplateCategory.HOTSPOT_VOUCHER,
-                    is_active=True
+                    phone_number=voucher.get("phoneNumber"),
+                    message=sms_message,
+                    template_category=TemplateCategory.HOTSPOT_VOUCHER_ACTIVATED
                 )
-                
-                template_doc = None
-                if template_result.get("success") and template_result.get("templates"):
-                    template_doc = template_result["templates"][0]
-                    logger.info(f"Found hotspot voucher template: {json.dumps(template_doc, default=str)}")
-                else:
-                    logger.error("No active hotspot voucher template found")
-                    
-                if template_doc:
-                    # Format expiry date
-                    expiry_date = voucher.get("expiresAt")
-                    if expiry_date:
-                        if not expiry_date.tzinfo:
-                            expiry_date = expiry_date.replace(tzinfo=timezone.utc)
-                        expiry_str = expiry_date.strftime("%Y-%m-%d %H:%M")
-                    else:
-                        expiry_str = "N/A"
-                        
-                    # Prepare SMS variables
-                    sms_vars = SmsTemplateService.build_sms_vars([
-                        voucher,
-                        org or {},
-                        package or {},
-                        {"firstName": "Customer", "voucherCode": voucher_code, "expirationDate": expiry_str, "amountPaid": amount, "dataLimit": package.get("dataLimit", "Unlimited") if package else "Unlimited", "duration": f"{package.get('duration', 0)} days" if package else ""}
-                    ])
-                    logger.info(f"SMS Variables: {json.dumps(sms_vars, default=str)}")
-                    
-                    # Render and send SMS
-                    message = SmsTemplateService.render_template(template_doc["content"], sms_vars)
-                    logger.info(f"Rendered Message: {message}")
-                    
-                    phone_number = voucher.get("phoneNumber")
-                    if not phone_number:
-                        logger.error("Voucher phone number is missing")
-                    else:
-                        sms_result = await send_sms_for_organization(
-                            organization_id=organization_id,
-                            to=phone_number,
-                            message=message
-                        )
-                        logger.info(f"SMS Send Result: {json.dumps(sms_result, default=str)}")
-                else:
-                    logger.error("Template document is missing")
-            except Exception as sms_exc:
-                logger.error(f"Failed to send hotspot voucher SMS: {str(sms_exc)}")
-                logger.exception("Full traceback:")
-                
+                logger.info(f"Sent SMS notification for activated voucher {voucher_code}")
+            except Exception as sms_error:
+                logger.error(f"Failed to send SMS for voucher {voucher_code}: {str(sms_error)}")
+
             return True
         else:
-            logger.error(f"Failed to update voucher {voucher_code}")
+            logger.error(f"Failed to update voucher {voucher_code} status")
             return False
-            
+
     except Exception as e:
         logger.error(f"Error processing hotspot voucher payment: {str(e)}")
         logger.exception("Full traceback:")
@@ -632,31 +620,38 @@ async def process_hotspot_voucher_payment(organization_id: str, voucher_code: st
 
 @router.get("/voucher-status/{voucher_id}")
 async def get_voucher_status(voucher_id: str):
-    """Get the current status of a voucher"""
+    """Get the status of a hotspot voucher"""
     try:
         voucher = await hotspot_vouchers.find_one({"_id": ObjectId(voucher_id)})
         if not voucher:
             raise HTTPException(status_code=404, detail="Voucher not found")
-            
+        
+        # Convert ObjectId to string for JSON serialization
+        voucher["_id"] = str(voucher["_id"])
+        voucher["packageId"] = str(voucher["packageId"])
+        voucher["organizationId"] = str(voucher["organizationId"])
+        
         return {
-            "status": voucher.get("status", "pending"),
-            "code": voucher.get("code"),
-            "expiresAt": voucher.get("expiresAt")
+            "success": True,
+            "voucher": voucher
         }
+        
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error getting voucher status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/connect")
 async def connect_with_voucher(request: Request):
-    """Attempt to automatically connect a user with their voucher"""
+    """Connect to hotspot using a voucher code"""
     try:
         data = await request.json()
         voucher_code = data.get("voucherCode")
         
         if not voucher_code:
             raise HTTPException(status_code=400, detail="Voucher code is required")
-            
+        
         # Find the voucher
         voucher = await hotspot_vouchers.find_one({
             "code": voucher_code,
@@ -665,59 +660,29 @@ async def connect_with_voucher(request: Request):
         
         if not voucher:
             raise HTTPException(status_code=404, detail="Invalid or inactive voucher")
-            
-        # Check if voucher is expired
-        now = datetime.now(timezone.utc)
-        expires_at = voucher.get("expiresAt")
-        if expires_at:
-            # Ensure expires_at is timezone-aware
-            if not expires_at.tzinfo:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
-            if expires_at < now:
-                raise HTTPException(status_code=400, detail="Voucher has expired")
-            
-        # Get organization details
-        org = await organizations.find_one({"_id": voucher["organizationId"]})
-        if not org:
-            raise HTTPException(status_code=404, detail="Organization not found")
-            
-        # Get package details
-        package = await isp_packages.find_one({"_id": voucher["packageId"]})
-        if not package:
-            raise HTTPException(status_code=404, detail="Package not found")
-            
-        # Here you would implement the actual connection logic
-        # This could involve calling your MikroTik API or other network management system
+        
+        # Check if voucher has expired
+        if voucher["expiresAt"] < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Voucher has expired")
+        
+        # Here you would implement the actual hotspot connection logic
         # For now, we'll just return success
-        
-        # Update voucher usage
-        await hotspot_vouchers.update_one(
-            {"_id": voucher["_id"]},
-            {
-                "$set": {
-                    "lastUsedAt": now,
-                    "updatedAt": now
-                },
-                "$inc": {"usageCount": 1}
-            }
-        )
-        
         return {
             "success": True,
-            "message": "Connection successful",
+            "message": "Connected successfully",
             "voucher": {
-                "code": voucher_code,
-                "expiresAt": expires_at,
-                "package": {
-                    "name": package.get("name"),
-                    "duration": package.get("duration"),
-                    "dataLimit": package.get("dataLimit")
-                }
+                "code": voucher["code"],
+                "packageName": "Internet Package",  # You'd get this from the package
+                "dataLimit": voucher.get("dataLimit"),
+                "dataLimitUnit": voucher.get("dataLimitUnit"),
+                "duration": voucher.get("duration"),
+                "durationUnit": voucher.get("durationUnit"),
+                "expiresAt": voucher["expiresAt"]
             }
         }
         
-    except HTTPException:
-        raise
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error connecting with voucher: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
